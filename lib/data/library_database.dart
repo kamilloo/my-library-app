@@ -34,7 +34,8 @@ class LibraryDatabase {
             updated_at TEXT NOT NULL
           )
         ''');
-        await db.execute('CREATE UNIQUE INDEX idx_books_barcode ON books(barcode) WHERE barcode IS NOT NULL');
+        await db.execute(
+            'CREATE UNIQUE INDEX idx_books_barcode ON books(barcode) WHERE barcode IS NOT NULL');
         await db.execute('''
           CREATE TABLE history (
             id TEXT PRIMARY KEY,

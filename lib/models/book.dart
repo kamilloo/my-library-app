@@ -10,8 +10,8 @@ class Book {
     this.description = '',
     this.coverUrl,
     this.barcode,
-    this.condition = 'Good',
-    this.directory = 'Unsorted',
+    this.condition = 'Dobry',
+    this.directory = 'Bez kategorii',
     this.status = BookStatus.available,
     this.borrowedBy,
     this.borrowedDate,
@@ -39,7 +39,8 @@ class Book {
     DateTime? borrowedDate,
     DateTime? returnDate,
     bool clearLoan = false,
-  }) => Book(
+  }) =>
+      Book(
         id: id,
         title: title,
         author: author,
@@ -80,11 +81,12 @@ class Book {
         description: (map['description'] as String?) ?? '',
         coverUrl: map['cover_url'] as String?,
         barcode: map['barcode'] as String?,
-        condition: (map['condition'] as String?) ?? 'Good',
-        directory: (map['directory'] as String?) ?? 'Unsorted',
+        condition: (map['condition'] as String?) ?? 'Dobry',
+        directory: (map['directory'] as String?) ?? 'Bez kategorii',
         status: BookStatus.values.byName(map['status']! as String),
         borrowedBy: map['borrowed_by'] as String?,
-        borrowedDate: DateTime.tryParse((map['borrowed_date'] as String?) ?? ''),
+        borrowedDate:
+            DateTime.tryParse((map['borrowed_date'] as String?) ?? ''),
         returnDate: DateTime.tryParse((map['return_date'] as String?) ?? ''),
         createdAt: DateTime.parse(map['created_at']! as String),
         updatedAt: DateTime.parse(map['updated_at']! as String),

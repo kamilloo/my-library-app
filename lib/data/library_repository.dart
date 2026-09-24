@@ -30,9 +30,10 @@ class LibraryRepository {
     required String title,
     required String author,
     String description = '',
+    String? coverUrl,
     String? barcode,
-    String condition = 'Good',
-    String directory = 'Unsorted',
+    String condition = 'Dobry',
+    String directory = 'Bez kategorii',
   }) async {
     final now = DateTime.now();
     final book = Book(
@@ -40,6 +41,7 @@ class LibraryRepository {
       title: title.trim(),
       author: author.trim(),
       description: description.trim(),
+      coverUrl: coverUrl,
       barcode: barcode?.trim().isEmpty == true ? null : barcode?.trim(),
       condition: condition,
       directory: directory,
@@ -61,7 +63,8 @@ class LibraryRepository {
       borrowedDate: DateTime.now(),
       returnDate: dueDate,
     );
-    await _updateWithHistory(updated, 'borrowed', 'Lent to ${borrower.trim()}');
+    await _updateWithHistory(
+        updated, 'borrowed', 'Wypożyczono: ${borrower.trim()}');
   }
 
   Future<void> giveBook(Book book, String recipient) async {
@@ -70,23 +73,28 @@ class LibraryRepository {
       borrowedBy: recipient.trim(),
       borrowedDate: DateTime.now(),
     );
-    await _updateWithHistory(updated, 'given', 'Given to ${recipient.trim()}');
+    await _updateWithHistory(
+        updated, 'given', 'Oddano na stałe: ${recipient.trim()}');
   }
 
   Future<void> returnBook(Book book) async {
-    final updated = book.copyWith(status: BookStatus.available, clearLoan: true);
-    await _updateWithHistory(updated, 'returned', 'Marked as returned');
+    final updated =
+        book.copyWith(status: BookStatus.available, clearLoan: true);
+    await _updateWithHistory(updated, 'returned', 'Oznaczono jako zwróconą');
   }
 
-  Future<void> _updateWithHistory(Book book, String action, String detail) async {
+  Future<void> _updateWithHistory(
+      Book book, String action, String detail) async {
     final db = await _database.database;
     await db.transaction((txn) async {
-      await txn.update('books', book.toMap(), where: 'id = ?', whereArgs: [book.id]);
+      await txn
+          .update('books', book.toMap(), where: 'id = ?', whereArgs: [book.id]);
       await txn.insert('history', _event(book, action, detail).toMap());
     });
   }
 
-  HistoryEntry _event(Book book, String action, [String? detail]) => HistoryEntry(
+  HistoryEntry _event(Book book, String action, [String? detail]) =>
+      HistoryEntry(
         id: _uuid.v4(),
         bookId: book.id,
         bookTitle: book.title,
@@ -101,19 +109,19 @@ class LibraryRepository {
       author: 'Matt Haig',
       description: 'Between life and death there is a library.',
       barcode: '9780525559474',
-      directory: 'Fiction',
+      directory: 'Fikcja',
     );
     await addBook(
       title: 'Atomic Habits',
       author: 'James Clear',
       barcode: '9780735211292',
-      directory: 'Non-fiction',
+      directory: 'Literatura faktu',
     );
     await addBook(
       title: 'Project Hail Mary',
       author: 'Andy Weir',
       barcode: '9780593135204',
-      directory: 'Fiction',
+      directory: 'Fikcja',
     );
   }
 }

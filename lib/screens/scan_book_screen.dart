@@ -63,12 +63,18 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
       if (!mounted) return;
       setState(() {
         result = book;
-        error = book == null ? 'No matching book was found. Try again or enter it manually.' : null;
+        error = book == null
+            ? 'Nie znaleziono książki. Spróbuj ponownie lub wpisz dane ręcznie.'
+            : null;
       });
     } on TimeoutException {
-      if (mounted) setState(() => error = 'The lookup timed out. Check your connection and try again.');
+      if (mounted)
+        setState(() => error =
+            'Przekroczono czas wyszukiwania. Sprawdź połączenie i spróbuj ponownie.');
     } catch (_) {
-      if (mounted) setState(() => error = 'Book details could not be loaded. Try again.');
+      if (mounted)
+        setState(() =>
+            error = 'Nie udało się pobrać danych książki. Spróbuj ponownie.');
     } finally {
       if (mounted) setState(() => lookingUp = false);
     }
@@ -94,12 +100,13 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
         appBar: AppBar(
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
-          title: const Text('Scan ISBN'),
+          title: const Text('Skanuj ISBN'),
           actions: [
             IconButton(
               onPressed: toggleTorch,
-              tooltip: torchEnabled ? 'Turn flashlight off' : 'Turn flashlight on',
-              icon: Icon(torchEnabled ? Icons.flashlight_off : Icons.flashlight_on),
+              tooltip: torchEnabled ? 'Wyłącz latarkę' : 'Włącz latarkę',
+              icon: Icon(
+                  torchEnabled ? Icons.flashlight_off : Icons.flashlight_on),
             ),
           ],
         ),
@@ -111,7 +118,8 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
             if (lookingUp)
               const ColoredBox(
                 color: Color(0x99000000),
-                child: Center(child: CircularProgressIndicator(color: Colors.white)),
+                child: Center(
+                    child: CircularProgressIndicator(color: Colors.white)),
               ),
             if (result != null)
               _ResultSheet(
@@ -123,8 +131,7 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
                   ScannedBook(isbn: scannedIsbn!, book: result!),
                 ),
               ),
-            if (error != null)
-              _ErrorSheet(message: error!, onRetry: retry),
+            if (error != null) _ErrorSheet(message: error!, onRetry: retry),
           ],
         ),
       );
@@ -176,8 +183,9 @@ class _ScannerOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Place the ISBN barcode inside the frame',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              'Umieść kod ISBN w ramce',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
             ),
             const Spacer(),
           ],
@@ -212,17 +220,43 @@ class _ResultSheet extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Book found', style: Theme.of(context).textTheme.labelLarge),
+                  Text('Znaleziono książkę',
+                      style: Theme.of(context).textTheme.labelLarge),
                   const SizedBox(height: 8),
-                  Text(book.title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+                  if (book.coverUrl != null) ...[
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          book.coverUrl!,
+                          width: 92,
+                          height: 132,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  Text(book.title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 4),
                   Text('${book.author} · ISBN $isbn'),
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      Expanded(child: OutlinedButton(onPressed: onRetry, child: const Text('Scan again'))),
+                      Expanded(
+                          child: OutlinedButton(
+                              onPressed: onRetry,
+                              child: const Text('Skanuj ponownie'))),
                       const SizedBox(width: 10),
-                      Expanded(child: FilledButton(onPressed: onConfirm, child: const Text('Use details'))),
+                      Expanded(
+                          child: FilledButton(
+                              onPressed: onConfirm,
+                              child: const Text('Użyj danych'))),
                     ],
                   ),
                 ],
@@ -253,7 +287,11 @@ class _ErrorSheet extends StatelessWidget {
                 children: [
                   Text(message, textAlign: TextAlign.center),
                   const SizedBox(height: 14),
-                  SizedBox(width: double.infinity, child: FilledButton(onPressed: onRetry, child: const Text('Try again'))),
+                  SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                          onPressed: onRetry,
+                          child: const Text('Spróbuj ponownie'))),
                 ],
               ),
             ),
