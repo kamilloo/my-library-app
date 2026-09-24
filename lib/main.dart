@@ -31,7 +31,7 @@ class MyLibraryApp extends StatelessWidget {
               borderSide: BorderSide.none,
             ),
           ),
-          cardTheme: const CardTheme(
+          cardTheme: const CardThemeData(
             elevation: 0,
             margin: EdgeInsets.zero,
             shape: RoundedRectangleBorder(
@@ -286,7 +286,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
               const SizedBox(height: 14),
               TextFormField(controller: isbn, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'ISBN or barcode (optional)')),
               const SizedBox(height: 14),
-              DropdownButtonFormField<String>(value: condition, decoration: const InputDecoration(labelText: 'Condition'), items: const ['New', 'Good', 'Worn'].map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(), onChanged: (value) => setState(() => condition = value!)),
+              DropdownButtonFormField<String>(initialValue: condition, decoration: const InputDecoration(labelText: 'Condition'), items: const ['New', 'Good', 'Worn'].map((value) => DropdownMenuItem(value: value, child: Text(value))).toList(), onChanged: (value) => setState(() => condition = value!)),
               const SizedBox(height: 22),
               SizedBox(width: double.infinity, child: FilledButton(onPressed: saving ? null : save, child: Padding(padding: const EdgeInsets.all(15), child: Text(saving ? 'Saving…' : 'Save book')))),
             ]),
