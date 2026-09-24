@@ -8,7 +8,8 @@ Local-first Flutter MVP for cataloging books and tracking lending.
 - Library search, status filters, and sorting
 - Add-book form
 - Book details, lend, return, and history flows
-- Open Library lookup service and scanner dependency prepared for integration
+- Camera barcode/QR scanning with ISBN validation
+- Open Library metadata lookup and Add Book form prefilling
 - Seed books on first launch
 
 ## Run
@@ -24,8 +25,8 @@ flutter run
 
 The source targets Flutter 3.22+ and Dart 3.4+.
 
-## Next integration step
+## Camera permissions
 
-Connect `mobile_scanner` to the Add Book screen and pass detected ISBN values to
-`OpenLibraryService.lookupByIsbn`. Add Android camera permission and the iOS
-camera usage description when platform folders are generated.
+After generating the Android and iOS folders, apply the changes documented in
+[`docs/camera_permissions.md`](docs/camera_permissions.md). The scanner cannot
+open the camera until those platform declarations are present.
