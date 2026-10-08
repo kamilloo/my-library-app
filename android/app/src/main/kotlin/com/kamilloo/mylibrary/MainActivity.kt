@@ -1,4 +1,4 @@
-package com.kamil.mylibrary
+package com.kamilloo.mylibrary
 
 import io.flutter.embedding.android.FlutterActivity
 
