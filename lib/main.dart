@@ -202,13 +202,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         child: BookCard(
                           book: book,
                           onTap: () async {
-                            await Navigator.push<void>(
+                            final changed = await Navigator.push<bool>(
                                 context,
                                 MaterialPageRoute(
                                     builder: (_) => BookDetailsScreen(
                                         book: book,
                                         repository: widget.repository)));
-                            setState(() {});
+                            if (changed == true && mounted) setState(() {});
                           },
                         ),
                       )),
@@ -500,6 +500,35 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         book = book.copyWith(status: BookStatus.available, clearLoan: true));
   }
 
+  Future<void> deleteBook() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Usunąć książkę?'),
+        content: Text(
+          'Książka „${book.title}” oraz jej historia zostaną trwale usunięte.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Anuluj'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Usuń'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.repository.deleteBook(book.id);
+    if (mounted) Navigator.pop(context, true);
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Szczegóły książki')),
@@ -547,6 +576,18 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 child: const Padding(
                     padding: EdgeInsets.all(15),
                     child: Text('Oznacz jako zwróconą'))),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: deleteBook,
+            icon: const Icon(Icons.delete_outline),
+            label: const Padding(
+              padding: EdgeInsets.all(15),
+              child: Text('Usuń książkę'),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+          ),
         ]),
       );
 }

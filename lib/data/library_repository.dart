@@ -84,6 +84,11 @@ class LibraryRepository {
     await _updateWithHistory(updated, 'returned', 'Oznaczono jako zwróconą');
   }
 
+  Future<void> deleteBook(String bookId) async {
+    final db = await _database.database;
+    await db.delete('books', where: 'id = ?', whereArgs: [bookId]);
+  }
+
   Future<void> _updateWithHistory(
       Book book, String action, String detail) async {
     final db = await _database.database;
