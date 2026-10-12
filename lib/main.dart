@@ -747,7 +747,7 @@ class _EmptyState extends StatelessWidget {
       ]));
 }
 
-String _date(DateTime date) => '${date.month}/${date.day}/${date.year}';
+String _date(DateTime date) => '${date.day}.${date.month}.${date.year}';
 
 IconData _historyIcon(String action) => switch (action) {
       'added' => Icons.bookmark_add_outlined,

@@ -52,7 +52,8 @@ class LibraryRepository {
     final db = await _database.database;
     await db.transaction((txn) async {
       await txn.insert('books', book.toMap());
-      await txn.insert('history', _event(book, 'added').toMap());
+      await txn.insert(
+          'history', _event(book, 'added', 'Dodano na półkę').toMap());
     });
     return book;
   }
