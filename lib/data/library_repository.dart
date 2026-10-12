@@ -2,6 +2,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/book.dart';
 import 'library_database.dart';
+import 'package:flutter/foundation.dart';
 
 class LibraryRepository {
   LibraryRepository({LibraryDatabase? database})
@@ -13,7 +14,7 @@ class LibraryRepository {
   Future<List<Book>> books() async {
     final db = await _database.database;
     final rows = await db.query('books', orderBy: 'created_at DESC');
-    if (rows.isEmpty) await _seed();
+    if (rows.isEmpty && !kReleaseMode) await _seed();
     final current = rows.isEmpty
         ? await db.query('books', orderBy: 'created_at DESC')
         : rows;
@@ -105,23 +106,27 @@ class LibraryRepository {
 
   Future<void> _seed() async {
     await addBook(
-      title: 'The Midnight Library',
-      author: 'Matt Haig',
-      description: 'Between life and death there is a library.',
-      barcode: '9780525559474',
+      title: 'Siedem sióstr',
+      author: 'Lucinda Riley',
+      barcode: '9788379859436',
       directory: 'Fikcja',
+      coverUrl: 'https://covers.openlibrary.org/b/isbn/9788379859436-L.jpg',
     );
+
     await addBook(
-      title: 'Atomic Habits',
-      author: 'James Clear',
-      barcode: '9780735211292',
-      directory: 'Literatura faktu',
+      title: 'Sześć cztery',
+      author: 'Hideo Yokoyama',
+      barcode: '9788308065174',
+      directory: 'Kryminał',
+      coverUrl: 'https://covers.openlibrary.org/b/isbn/9788308065174-L.jpg',
     );
+
     await addBook(
-      title: 'Project Hail Mary',
-      author: 'Andy Weir',
-      barcode: '9780593135204',
-      directory: 'Fikcja',
+      title: 'Sprawa honoru',
+      author: 'Lynne Olson',
+      barcode: '9788392140160',
+      directory: 'Historia',
+      coverUrl: 'https://covers.openlibrary.org/b/isbn/9788392140160-L.jpg',
     );
   }
 }
