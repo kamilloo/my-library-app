@@ -21,7 +21,7 @@ The beginning of the file should resemble:
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.CAMERA" />
     <application
-        android:label="my_library"
+        android:label="Moja Biblioteka"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 ```
