@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_library/screens/scan_book_screen.dart';
+import 'package:my_library/models/isbn.dart';
 
 void main() {
   group('normalizeIsbn', () {
@@ -14,6 +14,7 @@ void main() {
     test('rejects an invalid ISBN', () {
       expect(normalizeIsbn('9780525559475'), isNull);
       expect(normalizeIsbn('hello'), isNull);
+      expect(normalizeIsbn('978052555947X'), isNull);
     });
   });
 }
