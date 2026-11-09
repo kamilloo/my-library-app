@@ -14,6 +14,7 @@ void main() {
     test('rejects an invalid ISBN', () {
       expect(normalizeIsbn('9780525559475'), isNull);
       expect(normalizeIsbn('hello'), isNull);
+      expect(normalizeIsbn('978052555947X'), isNull);
     });
   });
 }

@@ -69,13 +69,15 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
             : null;
       });
     } on TimeoutException {
-      if (mounted)
+      if (mounted) {
         setState(() => error =
             'Przekroczono czas wyszukiwania. Sprawdź połączenie i spróbuj ponownie.');
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() =>
             error = 'Nie udało się pobrać danych książki. Spróbuj ponownie.');
+      }
     } finally {
       if (mounted) setState(() => lookingUp = false);
     }

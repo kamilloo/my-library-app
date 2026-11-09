@@ -124,8 +124,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
   Widget build(BuildContext context) => FutureBuilder<List<Book>>(
         future: widget.repository.books(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData)
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
+          }
           var books = snapshot.data!.where((book) {
             final text = '${book.title} ${book.author}'.toLowerCase();
             return text.contains(query.toLowerCase()) &&

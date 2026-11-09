@@ -21,23 +21,50 @@ void main() {
 
   test('rejects repeated normalized ISBNs without adding history', () async {
     await add('978-0-525-55947-4');
-    await expectLater(add(' 9780525559474 '),
-        throwsA(isA<DuplicateIsbnException>()));
+    await expectLater(
+        add(' 9780525559474 '), throwsA(isA<DuplicateIsbnException>()));
     expect((await db.query('books')).single['barcode'], '9780525559474');
     expect(await db.query('history'), hasLength(1));
   });
 
-  test('recognizes legacy formatted ISBNs', () async {
-    await add('9780525559474');
-    await db.update('books', {'barcode': '978-0-525-55947-4'});
-    await expectLater(add('9780525559474'),
-        throwsA(isA<DuplicateIsbnException>()));
-  });
+  for (final values in [
+    ['978-0-525-55947-4', '9780525559474'],
+    ['0-8044-2957-x', '080442957X'],
+  ]) {
+    test('preserves existing data when rejecting legacy ISBN ${values.first}',
+        () async {
+      await add(values.last);
+      await db.update('books', {'barcode': values.first});
+      final booksBefore = await db.query('books');
+      final historyBefore = await db.query('history');
+      final schemaBefore = await db.rawQuery(
+          'SELECT type, name, sql FROM sqlite_master ORDER BY type, name');
+      final versionBefore = await db.getVersion();
 
-  test('normalizes lowercase ISBN-10 check digits', () async {
+      await expectLater(
+          add(values.last), throwsA(isA<DuplicateIsbnException>()));
+
+      expect(await db.query('books'), booksBefore);
+      expect(await db.query('history'), historyBefore);
+      expect(
+          await db.rawQuery(
+              'SELECT type, name, sql FROM sqlite_master ORDER BY type, name'),
+          schemaBefore);
+      expect(await db.getVersion(), versionBefore);
+      expect(versionBefore, 1);
+    });
+  }
+
+  test('normalizes lowercase ISBN-10 check digits without adding history',
+      () async {
     await add('0-8044-2957-x');
-    await expectLater(add('080442957X'),
-        throwsA(isA<DuplicateIsbnException>()));
+    final booksBefore = await db.query('books');
+    final historyBefore = await db.query('history');
+    await expectLater(
+        add('080442957X'), throwsA(isA<DuplicateIsbnException>()));
+    expect(booksBefore.single['barcode'], '080442957X');
+    expect(await db.query('books'), booksBefore);
+    expect(await db.query('history'), historyBefore);
   });
 
   test('saves distinct ISBNs', () async {
@@ -59,8 +86,8 @@ void main() {
 
   test('preserves other barcodes and rejects exact duplicates', () async {
     await add(' barcode-123 ');
-    await expectLater(add('barcode-123'),
-        throwsA(isA<DuplicateIsbnException>()));
+    await expectLater(
+        add('barcode-123'), throwsA(isA<DuplicateIsbnException>()));
     expect((await db.query('books')).single['barcode'], 'barcode-123');
   });
 
@@ -78,8 +105,8 @@ void main() {
                 NEW.directory, NEW.status, NEW.created_at, NEW.updated_at);
       END
     """);
-    await expectLater(add('9780525559474'),
-        throwsA(isA<DuplicateIsbnException>()));
+    await expectLater(
+        add('9780525559474'), throwsA(isA<DuplicateIsbnException>()));
     expect(await db.query('books'), isEmpty);
     expect(await db.query('history'), isEmpty);
   });
@@ -94,8 +121,7 @@ void main() {
 
   test('propagates history failures and rolls back the book insert', () async {
     await db.execute('DROP TABLE history');
-    await expectLater(add('9780525559474'),
-        throwsA(isA<DatabaseException>()));
+    await expectLater(add('9780525559474'), throwsA(isA<DatabaseException>()));
     expect(await db.query('books'), isEmpty);
   });
 }

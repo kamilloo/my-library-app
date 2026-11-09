@@ -54,7 +54,8 @@ class LibraryRepository {
       final rows = await db.query('books',
           columns: ['barcode'], where: 'barcode IS NOT NULL');
       if (rows.any((row) =>
-          normalizeBookBarcode(row['barcode'] as String?) == normalizedBarcode)) {
+          normalizeBookBarcode(row['barcode'] as String?) ==
+          normalizedBarcode)) {
         throw const DuplicateIsbnException();
       }
     }
