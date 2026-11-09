@@ -19,6 +19,54 @@ void main() {
     await repository.addBook(title: 'Książka', author: 'Autor', barcode: isbn);
   }
 
+  test('edit preserves identity, loan data, metadata and history', () async {
+    final book = await repository.addBook(
+        title: 'Old', author: 'Author', barcode: '9780525559474',
+        description: 'Description', directory: 'Shelf', coverUrl: 'cover');
+    await repository.lendBook(book, 'Borrower', DateTime(2030));
+    final before = (await db.query('books')).single;
+    final history = await db.query('history');
+    final edited = await repository.updateBook(
+        id: book.id, title: ' Corrected ', author: ' New author ',
+        barcode: '0-8044-2957-x', condition: 'Zużyta');
+    final after = (await db.query('books')).single;
+    expect(edited.id, book.id);
+    expect(edited.title, 'Corrected');
+    expect(edited.author, 'New author');
+    expect(edited.barcode, '080442957X');
+    expect(edited.condition, 'Zużyta');
+    for (final key in ['id', 'created_at', 'status', 'borrowed_by',
+      'borrowed_date', 'return_date', 'description', 'directory', 'cover_url']) {
+      expect(after[key], before[key], reason: key);
+    }
+    expect(edited.updatedAt.isAfter(DateTime.parse(before['updated_at'] as String)), isTrue);
+    expect(await db.query('books'), hasLength(1));
+    expect(await db.query('history'), history);
+    final unchanged = await repository.updateBook(
+        id: book.id, title: edited.title, author: edited.author,
+        barcode: edited.barcode, condition: edited.condition);
+    expect(unchanged.updatedAt, edited.updatedAt);
+  });
+
+  test('edit excludes itself and rejects normalized legacy duplicate atomically', () async {
+    final book = await repository.addBook(
+        title: 'One', author: 'Author', barcode: '9780525559474');
+    await repository.updateBook(id: book.id, title: 'One', author: 'Author',
+        barcode: '978-0-525-55947-4', condition: 'Dobry');
+    await add('080442957X');
+    await db.update('books', {'barcode': '0-8044-2957-x'},
+        where: 'id != ?', whereArgs: [book.id]);
+    final before = await db.query('books');
+    final history = await db.query('history');
+    await expectLater(repository.updateBook(id: book.id, title: 'Changed',
+        author: 'Author', barcode: '080442957X', condition: 'Nowa'),
+        throwsA(isA<DuplicateIsbnException>()));
+    expect(await db.query('books'), before);
+    expect(await db.query('history'), history);
+    await expectLater(repository.updateBook(id: book.id, title: ' ',
+        author: 'Author', condition: 'Dobry'), throwsArgumentError);
+  });
+
   test('rejects repeated normalized ISBNs without adding history', () async {
     await add('978-0-525-55947-4');
     await expectLater(
