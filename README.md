@@ -30,3 +30,34 @@ The source targets Flutter 3.22+ and Dart 3.4+.
 After generating the Android and iOS folders, apply the changes documented in
 [`docs/camera_permissions.md`](docs/camera_permissions.md). The scanner cannot
 open the camera until those platform declarations are present.
+
+## CI
+
+[Flutter CI](https://github.com/kamilloo/my-library-app/actions/workflows/flutter-ci.yml)
+runs for pull requests targeting `main`, pushes to `main`, and manual runs
+from the Actions tab using **Run workflow** (available after the workflow is on
+the default branch). New runs cancel older runs for the same branch or PR.
+
+CI pins stable Flutter **3.47.5** (Dart **3.13.4**) to support the committed
+`pubspec.lock`, which requires Flutter 3.44+ and Dart 3.12+. It caches the
+Flutter SDK, pub dependencies, and Android Gradle dependencies, and fails if
+dependency resolution changes the lockfile.
+
+Run the same quality checks locally, in order, with that Flutter version:
+
+```bash
+flutter pub get
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+```
+
+All unit and widget tests run, including the duplicate ISBN tests. A failed
+check stops the job. After quality checks pass, a separate job uses Java 17
+and the Android SDK to run `flutter build apk --debug`; this command can also
+be run locally with those prerequisites. No production signing secrets are
+needed.
+
+To download the APK, open a successful **Flutter CI** run in the repository's
+**Actions** tab and select **my-library-debug-apk** in **Artifacts**. Unzip the
+download to obtain `app-debug.apk`. Artifacts are retained for **7 days**.
