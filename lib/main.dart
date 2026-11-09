@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -412,10 +413,17 @@ class _AddBookScreenState extends State<AddBookScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(DuplicateIsbnException.message)),
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+            'Unexpected book ${editing ? 'edit' : 'save'} failure: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Nie udało się zapisać książki. Spróbuj ponownie.')),
+          const SnackBar(
+              content:
+                  Text('Nie udało się zapisać książki. Spróbuj ponownie.')),
         );
       }
     } finally {
@@ -425,25 +433,26 @@ class _AddBookScreenState extends State<AddBookScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(editing ? 'Edytuj książkę' : 'Dodaj książkę')),
+        appBar:
+            AppBar(title: Text(editing ? 'Edytuj książkę' : 'Dodaj książkę')),
         body: ListView(padding: const EdgeInsets.all(20), children: [
           if (!editing) ...[
-          FilledButton.icon(
-            onPressed: scanBook,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('Skanuj kod kreskowy lub QR')),
-          ),
-          const Padding(
-              padding: EdgeInsets.symmetric(vertical: 22),
-              child: Row(children: [
-                Expanded(child: Divider()),
-                Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('lub wpisz ręcznie')),
-                Expanded(child: Divider())
-              ])),
+            FilledButton.icon(
+              onPressed: scanBook,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text('Skanuj kod kreskowy lub QR')),
+            ),
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 22),
+                child: Row(children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('lub wpisz ręcznie')),
+                  Expanded(child: Divider())
+                ])),
           ],
           Form(
             key: formKey,
@@ -496,8 +505,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       onPressed: saving ? null : save,
                       child: Padding(
                           padding: const EdgeInsets.all(15),
-                          child: Text(
-                              saving ? 'Zapisywanie…' : editing ? 'Zapisz zmiany' : 'Zapisz książkę')))),
+                          child: Text(saving
+                              ? 'Zapisywanie…'
+                              : editing
+                                  ? 'Zapisz zmiany'
+                                  : 'Zapisz książkę')))),
             ]),
           ),
         ]),
@@ -521,7 +533,8 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     final updated = await Navigator.push<Book>(
       context,
       MaterialPageRoute(
-        builder: (_) => AddBookScreen(repository: widget.repository, book: book),
+        builder: (_) =>
+            AddBookScreen(repository: widget.repository, book: book),
       ),
     );
     if (updated != null && mounted) setState(() => book = updated);
@@ -589,7 +602,9 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         appBar: AppBar(
           title: const Text('Szczegóły książki'),
           actions: [
-            IconButton(onPressed: edit, icon: const Icon(Icons.edit_outlined),
+            IconButton(
+                onPressed: edit,
+                icon: const Icon(Icons.edit_outlined),
                 tooltip: 'Edytuj książkę'),
           ],
         ),

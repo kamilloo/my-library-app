@@ -5,9 +5,14 @@ import 'package:my_library/main.dart';
 import 'package:my_library/models/book.dart';
 
 class EditRepository extends LibraryRepository {
-  Book book = Book(id: 'existing', title: 'Original', author: 'Author',
-      barcode: '9780525559474', condition: 'Nowa',
-      createdAt: DateTime(2020), updatedAt: DateTime(2020));
+  Book book = Book(
+      id: 'existing',
+      title: 'Original',
+      author: 'Author',
+      barcode: '9780525559474',
+      condition: 'Nowa',
+      createdAt: DateTime(2020),
+      updatedAt: DateTime(2020));
   int updates = 0;
   bool reject = false;
 
@@ -15,22 +20,32 @@ class EditRepository extends LibraryRepository {
   Future<List<Book>> books() async => [book];
 
   @override
-  Future<Book> updateBook({required String id, required String title,
-      required String author, String? barcode, required String condition}) async {
+  Future<Book> updateBook(
+      {required String id,
+      required String title,
+      required String author,
+      String? barcode,
+      required String condition}) async {
     if (reject) throw const DuplicateIsbnException();
     expect(id, book.id);
     updates++;
-    book = Book.fromMap({...book.toMap(), 'title': title, 'author': author,
-      'barcode': barcode, 'condition': condition});
+    book = Book.fromMap({
+      ...book.toMap(),
+      'title': title,
+      'author': author,
+      'barcode': barcode,
+      'condition': condition
+    });
     return book;
   }
 }
 
 void main() {
-
   for (final cancel in [false, true]) {
-    testWidgets(cancel ? 'cancel leaves book and history unchanged' :
-        'edit refreshes details and library without adding a book or history',
+    testWidgets(
+        cancel
+            ? 'cancel leaves book and history unchanged'
+            : 'edit refreshes details and library without adding a book or history',
         (tester) async {
       final repository = EditRepository();
       final before = repository.book.toMap();
