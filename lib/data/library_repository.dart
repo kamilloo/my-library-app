@@ -90,6 +90,56 @@ class LibraryRepository {
     return book;
   }
 
+  /// Updates metadata only; loan state and linked history remain untouched.
+  /// Additional metadata fields can be added here without changing loan writes.
+  Future<Book> updateBook({
+    required String id,
+    required String title,
+    required String author,
+    String? barcode,
+    required String condition,
+  }) async {
+    if (title.trim().isEmpty || author.trim().isEmpty) {
+      throw ArgumentError('Title and author are required');
+    }
+    final normalizedBarcode = normalizeBookBarcode(barcode);
+    final db = await _database.database;
+    return db.transaction((txn) async {
+      final rows = await txn.query('books', where: 'id = ?', whereArgs: [id]);
+      if (rows.isEmpty) throw StateError('Book no longer exists');
+      final current = rows.single;
+      if (normalizedBarcode != null) {
+        final others = await txn.query('books',
+            columns: ['barcode'], where: 'id != ?', whereArgs: [id]);
+        if (others.any((row) =>
+            normalizeBookBarcode(row['barcode'] as String?) ==
+            normalizedBarcode)) {
+          throw const DuplicateIsbnException();
+        }
+      }
+      final changes = <String, Object?>{
+        'title': title.trim(),
+        'author': author.trim(),
+        'barcode': normalizedBarcode,
+        'condition': condition,
+      };
+      if (changes.entries.every((entry) => current[entry.key] == entry.value)) {
+        return Book.fromMap(current);
+      }
+      changes['updated_at'] = DateTime.now().toIso8601String();
+      try {
+        await txn.update('books', changes, where: 'id = ?', whereArgs: [id]);
+      } on DatabaseException catch (error) {
+        if (normalizedBarcode != null &&
+            error.isUniqueConstraintError('books.barcode')) {
+          throw const DuplicateIsbnException();
+        }
+        rethrow;
+      }
+      return Book.fromMap({...current, ...changes});
+    });
+  }
+
   Future<void> lendBook(Book book, String borrower, DateTime? dueDate) async {
     final updated = book.copyWith(
       status: BookStatus.borrowed,

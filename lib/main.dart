@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -203,13 +204,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         child: BookCard(
                           book: book,
                           onTap: () async {
-                            final changed = await Navigator.push<bool>(
+                            await Navigator.push<bool>(
                                 context,
                                 MaterialPageRoute(
                                     builder: (_) => BookDetailsScreen(
                                         book: book,
                                         repository: widget.repository)));
-                            if (changed == true && mounted) setState(() {});
+                            if (mounted) setState(() {});
                           },
                         ),
                       )),
@@ -328,8 +329,9 @@ class _StatusChip extends StatelessWidget {
 }
 
 class AddBookScreen extends StatefulWidget {
-  const AddBookScreen({required this.repository, super.key});
+  const AddBookScreen({required this.repository, this.book, super.key});
   final LibraryRepository repository;
+  final Book? book;
 
   @override
   State<AddBookScreen> createState() => _AddBookScreenState();
@@ -343,6 +345,21 @@ class _AddBookScreenState extends State<AddBookScreen> {
   String condition = 'Dobry';
   String? coverUrl;
   bool saving = false;
+
+  bool get editing => widget.book != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final book = widget.book;
+    if (book != null) {
+      title.text = book.title;
+      author.text = book.author;
+      isbn.text = book.barcode ?? '';
+      condition = book.condition;
+      coverUrl = book.coverUrl;
+    }
+  }
 
   Future<void> scanBook() async {
     final scanned = await Navigator.push<ScannedBook>(
@@ -372,6 +389,17 @@ class _AddBookScreenState extends State<AddBookScreen> {
     if (saving || !formKey.currentState!.validate()) return;
     setState(() => saving = true);
     try {
+      if (editing) {
+        final updated = await widget.repository.updateBook(
+          id: widget.book!.id,
+          title: title.text,
+          author: author.text,
+          barcode: isbn.text,
+          condition: condition,
+        );
+        if (mounted) Navigator.pop(context, updated);
+        return;
+      }
       await widget.repository.addBook(
         title: title.text,
         author: author.text,
@@ -385,6 +413,19 @@ class _AddBookScreenState extends State<AddBookScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text(DuplicateIsbnException.message)),
       );
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint(
+            'Unexpected book ${editing ? 'edit' : 'save'} failure: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content:
+                  Text('Nie udało się zapisać książki. Spróbuj ponownie.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -392,24 +433,27 @@ class _AddBookScreenState extends State<AddBookScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Dodaj książkę')),
+        appBar:
+            AppBar(title: Text(editing ? 'Edytuj książkę' : 'Dodaj książkę')),
         body: ListView(padding: const EdgeInsets.all(20), children: [
-          FilledButton.icon(
-            onPressed: scanBook,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('Skanuj kod kreskowy lub QR')),
-          ),
-          const Padding(
-              padding: EdgeInsets.symmetric(vertical: 22),
-              child: Row(children: [
-                Expanded(child: Divider()),
-                Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('lub wpisz ręcznie')),
-                Expanded(child: Divider())
-              ])),
+          if (!editing) ...[
+            FilledButton.icon(
+              onPressed: scanBook,
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Text('Skanuj kod kreskowy lub QR')),
+            ),
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 22),
+                child: Row(children: [
+                  Expanded(child: Divider()),
+                  Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('lub wpisz ręcznie')),
+                  Expanded(child: Divider())
+                ])),
+          ],
           Form(
             key: formKey,
             child: Column(children: [
@@ -461,8 +505,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       onPressed: saving ? null : save,
                       child: Padding(
                           padding: const EdgeInsets.all(15),
-                          child: Text(
-                              saving ? 'Zapisywanie…' : 'Zapisz książkę')))),
+                          child: Text(saving
+                              ? 'Zapisywanie…'
+                              : editing
+                                  ? 'Zapisz zmiany'
+                                  : 'Zapisz książkę')))),
             ]),
           ),
         ]),
@@ -481,6 +528,17 @@ class BookDetailsScreen extends StatefulWidget {
 
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
   late Book book = widget.book;
+
+  Future<void> edit() async {
+    final updated = await Navigator.push<Book>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            AddBookScreen(repository: widget.repository, book: book),
+      ),
+    );
+    if (updated != null && mounted) setState(() => book = updated);
+  }
 
   Future<void> lend() async {
     final request = await showModalBottomSheet<_LoanRequest>(
@@ -541,7 +599,15 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Szczegóły książki')),
+        appBar: AppBar(
+          title: const Text('Szczegóły książki'),
+          actions: [
+            IconButton(
+                onPressed: edit,
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edytuj książkę'),
+          ],
+        ),
         body: ListView(padding: const EdgeInsets.all(20), children: [
           Center(child: _BookCover(book: book, width: 118, height: 168)),
           const SizedBox(height: 18),
