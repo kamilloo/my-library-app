@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_library/screens/scan_book_screen.dart';
+import 'package:my_library/models/isbn.dart';
 
 void main() {
   group('normalizeIsbn', () {

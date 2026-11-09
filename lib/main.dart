@@ -368,16 +368,25 @@ class _AddBookScreenState extends State<AddBookScreen> {
   }
 
   Future<void> save() async {
-    if (!formKey.currentState!.validate()) return;
+    if (saving || !formKey.currentState!.validate()) return;
     setState(() => saving = true);
-    await widget.repository.addBook(
-      title: title.text,
-      author: author.text,
-      coverUrl: coverUrl,
-      barcode: isbn.text,
-      condition: condition,
-    );
-    if (mounted) Navigator.pop(context, true);
+    try {
+      await widget.repository.addBook(
+        title: title.text,
+        author: author.text,
+        coverUrl: coverUrl,
+        barcode: isbn.text,
+        condition: condition,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } on DuplicateIsbnException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(DuplicateIsbnException.message)),
+      );
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
   }
 
   @override

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../models/isbn.dart';
 import '../services/open_library_service.dart';
 
 class ScannedBook {
@@ -135,34 +136,6 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
           ],
         ),
       );
-}
-
-String? normalizeIsbn(String? rawValue) {
-  if (rawValue == null) return null;
-  final value = rawValue.replaceAll(RegExp('[^0-9Xx]'), '').toUpperCase();
-  if (value.length == 10 && _validIsbn10(value)) return value;
-  if (value.length == 13 && _validIsbn13(value)) return value;
-  return null;
-}
-
-bool _validIsbn10(String value) {
-  var sum = 0;
-  for (var index = 0; index < 10; index++) {
-    final character = value[index];
-    final digit = character == 'X' && index == 9 ? 10 : int.tryParse(character);
-    if (digit == null) return false;
-    sum += digit * (10 - index);
-  }
-  return sum % 11 == 0;
-}
-
-bool _validIsbn13(String value) {
-  var sum = 0;
-  for (var index = 0; index < 13; index++) {
-    final digit = int.parse(value[index]);
-    sum += digit * (index.isEven ? 1 : 3);
-  }
-  return sum % 10 == 0;
 }
 
 class _ScannerOverlay extends StatelessWidget {
