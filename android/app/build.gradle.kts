@@ -1,5 +1,4 @@
 import java.util.Properties
-import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -10,7 +9,40 @@ val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 
 if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
+}
+
+// Environment variables take precedence; never log their values.
+val releaseSigning = mapOf(
+    "storeFile" to "MY_LIBRARY_STORE_FILE",
+    "storePassword" to "MY_LIBRARY_STORE_PASSWORD",
+    "keyAlias" to "MY_LIBRARY_KEY_ALIAS",
+    "keyPassword" to "MY_LIBRARY_KEY_PASSWORD",
+).mapValues { (property, environment) ->
+    providers.environmentVariable(environment).orNull
+        ?: keystoreProperties.getProperty(property)
+}
+
+val validateReleaseCredentials = tasks.register("validateReleaseCredentials") {
+    doLast {
+        val missing = releaseSigning.filterValues { it.isNullOrBlank() }.keys
+        check(missing.isEmpty()) {
+            "Release signing credentials are missing: ${missing.joinToString()}. " +
+                "Provide android/key.properties or MY_LIBRARY_* signing variables. " +
+                "See docs/android_release.md. Debug signing is never used for release."
+        }
+        check(file(releaseSigning.getValue("storeFile")!!).isFile) {
+            "Release keystore is unavailable. Check storeFile; see docs/android_release.md."
+        }
+    }
+}
+
+// Fail before release work even when AGP omits validateSigningRelease for an
+// incomplete signing config. Debug builds never depend on release credentials.
+tasks.configureEach {
+    if (name == "preReleaseBuild") {
+        dependsOn(validateReleaseCredentials)
+    }
 }
 
 android {
@@ -38,10 +70,10 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties.getProperty("keyAlias")
-            keyPassword = keystoreProperties.getProperty("keyPassword")
-            storeFile = keystoreProperties.getProperty("storeFile")?.let { file(it) }
-            storePassword = keystoreProperties.getProperty("storePassword")
+            keyAlias = releaseSigning["keyAlias"]
+            keyPassword = releaseSigning["keyPassword"]
+            storeFile = releaseSigning["storeFile"]?.takeIf { it.isNotBlank() }?.let { file(it) }
+            storePassword = releaseSigning["storePassword"]
         }
     }
 
@@ -51,7 +83,6 @@ android {
 
             isMinifyEnabled = false
             isShrinkResources = false
-
         }
     }
 }
