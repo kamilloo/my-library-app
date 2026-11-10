@@ -89,6 +89,7 @@ String _actionLabel(String action) => switch (action) {
       'borrowed' => 'Wypożyczono',
       'returned' => 'Zwrócono',
       'given' => 'Oddano na stałe',
+      'return_date_changed' => 'Zmieniono termin zwrotu',
       _ => 'Zmieniono książkę',
     };
 

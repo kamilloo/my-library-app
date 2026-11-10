@@ -8,12 +8,10 @@ class ReturnReminderSettings extends StatefulWidget {
   const ReturnReminderSettings({
     required this.book,
     required this.repository,
-    required this.onBookChanged,
     super.key,
   });
   final Book book;
   final LibraryRepository repository;
-  final ValueChanged<Book> onBookChanged;
 
   @override
   State<ReturnReminderSettings> createState() => _ReturnReminderSettingsState();
@@ -114,40 +112,10 @@ class _ReturnReminderSettingsState extends State<ReturnReminderSettings> {
     });
   }
 
-  Future<void> chooseDate() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: widget.book.returnDate?.isAfter(now) == true
-          ? widget.book.returnDate
-          : now,
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: DateTime(now.year + 10),
-    );
-    if (date == null || !mounted) return;
-    setState(() => busy = true);
-    try {
-      final book =
-          await widget.repository.updateReturnDate(widget.book.id, date);
-      if (mounted) widget.onBookChanged(book);
-    } catch (_) {
-      if (mounted) {
-        setState(() => message = 'Nie udało się zmienić terminu zwrotu.');
-      }
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-              'Termin zwrotu: ${widget.book.returnDate == null ? 'Nie ustawiono' : _date(widget.book.returnDate!)}'),
-          TextButton(
-              onPressed: busy ? null : chooseDate,
-              child: const Text('Zmień termin zwrotu')),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('Przypomnij o zwrocie'),
@@ -177,5 +145,3 @@ class _ReturnReminderSettingsState extends State<ReturnReminderSettings> {
         ],
       );
 }
-
-String _date(DateTime value) => '${value.day}.${value.month}.${value.year}';
