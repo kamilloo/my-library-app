@@ -12,6 +12,7 @@ import 'screens/return_reminder_settings.dart';
 import 'screens/return_date_section.dart';
 import 'models/book.dart';
 import 'models/isbn.dart';
+import 'models/return_date.dart';
 import 'services/open_library_service.dart';
 import 'screens/scan_book_screen.dart';
 import 'screens/book_cover.dart';
@@ -330,6 +331,12 @@ class BookCard extends StatelessWidget {
                         style: Theme.of(context).textTheme.bodySmall),
                     const SizedBox(height: 8),
                     _StatusChip(book: book),
+                    if (book.status == BookStatus.borrowed)
+                      Text(
+                          book.returnDate == null
+                              ? 'Nie ustawiono terminu zwrotu'
+                              : 'Termin zwrotu: ${formatReturnDate(book.returnDate!)}',
+                          style: Theme.of(context).textTheme.bodySmall),
                   ])),
               const Icon(Icons.chevron_right),
             ]),
@@ -1042,5 +1049,6 @@ IconData _historyIcon(String action) => switch (action) {
       'returned' => Icons.keyboard_return,
       'given' => Icons.card_giftcard,
       'return_date_changed' => Icons.edit_calendar_outlined,
+      'loan_extended' => Icons.more_time,
       _ => Icons.history,
     };
