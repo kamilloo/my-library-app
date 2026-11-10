@@ -6,6 +6,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/library_repository.dart';
 import 'models/book.dart';
+import 'models/isbn.dart';
+import 'services/open_library_service.dart';
 import 'screens/scan_book_screen.dart';
 import 'screens/book_cover.dart';
 import 'services/cover_picker.dart';
@@ -343,7 +345,9 @@ class AddBookScreen extends StatefulWidget {
       this.book,
       this.coverPicker,
       this.initialCover,
+      this.isbnService,
       super.key});
+  final OpenLibraryService? isbnService;
   final CoverPicker? coverPicker;
   final String? initialCover;
   final LibraryRepository repository;
@@ -358,6 +362,9 @@ class _AddBookScreenState extends State<AddBookScreen> {
   final title = TextEditingController();
   final author = TextEditingController();
   final isbn = TextEditingController();
+  bool lookingUp = false;
+  String? lookupMessage;
+  late final isbnService = widget.isbnService ?? OpenLibraryService();
   String condition = 'Dobry';
   String? coverUrl;
   bool saving = false;
@@ -402,6 +409,49 @@ class _AddBookScreenState extends State<AddBookScreen> {
       } else {
         await coverPicker.releaseExcept();
       }
+    }
+  }
+
+  Future<void> lookupIsbn() async {
+    if (lookingUp || saving || selectingCover) return;
+    final normalized = normalizeIsbn(isbn.text);
+    if (normalized == null) {
+      setState(() => lookupMessage = 'Wpisz poprawny ISBN-10 lub ISBN-13.');
+      return;
+    }
+    final requestedIsbn = isbn.text;
+    setState(() {
+      lookingUp = true;
+      lookupMessage = null;
+    });
+    try {
+      final book = await isbnService.lookupByIsbn(normalized);
+      if (!mounted || saving || isbn.text != requestedIsbn) return;
+      if (book == null) {
+        setState(() => lookupMessage =
+            'Nie znaleziono książki. Możesz wpisać dane ręcznie lub spróbować ponownie.');
+        return;
+      }
+      // Check current values after the await, including edits made while loading.
+      if (title.text.trim().isEmpty) title.text = book.title;
+      if (author.text.trim().isEmpty) author.text = book.author;
+      setState(() {
+        coverUrl ??= book.coverUrl;
+        lookupMessage =
+            'Uzupełniono puste pola z Open Library. Wpisane dane zachowano.';
+      });
+    } on TimeoutException {
+      if (mounted && isbn.text == requestedIsbn) {
+        setState(() => lookupMessage =
+            'Przekroczono czas wyszukiwania. Spróbuj ponownie.');
+      }
+    } catch (_) {
+      if (mounted && isbn.text == requestedIsbn) {
+        setState(() => lookupMessage =
+            'Nie udało się pobrać danych. Sprawdź połączenie z internetem i spróbuj ponownie.');
+      }
+    } finally {
+      if (mounted) setState(() => lookingUp = false);
     }
   }
 
@@ -564,9 +614,30 @@ class _AddBookScreenState extends State<AddBookScreen> {
               const SizedBox(height: 14),
               TextFormField(
                   controller: isbn,
-                  keyboardType: TextInputType.number,
+                  keyboardType: TextInputType.text,
+                  onChanged: (_) => setState(() => lookupMessage = null),
                   decoration: const InputDecoration(
                       labelText: 'ISBN lub kod kreskowy (opcjonalnie)')),
+              if (!editing) ...[
+                TextButton.icon(
+                  onPressed:
+                      lookingUp || saving || selectingCover ? null : lookupIsbn,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Pobierz dane z ISBN'),
+                ),
+                if (lookingUp) ...[
+                  const LinearProgressIndicator(),
+                  const Text('Pobieranie danych…'),
+                ],
+                if (lookupMessage != null) ...[
+                  Text(lookupMessage!, semanticsLabel: lookupMessage),
+                  if (!lookingUp)
+                    TextButton(
+                      onPressed: saving || selectingCover ? null : lookupIsbn,
+                      child: const Text('Spróbuj ponownie'),
+                    ),
+                ],
+              ],
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                   initialValue: condition,
