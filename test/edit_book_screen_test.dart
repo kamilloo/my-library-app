@@ -79,7 +79,7 @@ void main() {
       } else {
         repository.reject = true;
         await tester.ensureVisible(save);
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
         await tester.tap(save);
         await tester.pumpAndSettle();
         expect(find.text(DuplicateIsbnException.message), findsOneWidget);
@@ -92,7 +92,7 @@ void main() {
         await tester.tap(find.text('Zużyta').last);
         await tester.pumpAndSettle();
         await tester.ensureVisible(save);
-      await tester.pumpAndSettle();
+        await tester.pumpAndSettle();
         await tester.tap(save);
       }
       await tester.pumpAndSettle();

@@ -116,7 +116,8 @@ class LibraryRepository {
     }
     final normalizedBarcode = normalizeBookBarcode(barcode);
     final db = await _database.database;
-    final storedCover = updateCover ? await coverStorage.persist(coverUrl) : null;
+    final storedCover =
+        updateCover ? await coverStorage.persist(coverUrl) : null;
     String? previousCover;
     try {
       final result = await db.transaction((txn) async {
@@ -140,7 +141,8 @@ class LibraryRepository {
           'condition': condition,
           if (updateCover) 'cover_url': storedCover,
         };
-        if (changes.entries.every((entry) => current[entry.key] == entry.value)) {
+        if (changes.entries
+            .every((entry) => current[entry.key] == entry.value)) {
           return Book.fromMap(current);
         }
         changes['updated_at'] = DateTime.now().toIso8601String();
@@ -194,9 +196,11 @@ class LibraryRepository {
 
   Future<void> deleteBook(String bookId) async {
     final db = await _database.database;
-    final rows = await db.query('books', columns: ['cover_url'], where: 'id = ?', whereArgs: [bookId]);
+    final rows = await db.query('books',
+        columns: ['cover_url'], where: 'id = ?', whereArgs: [bookId]);
     await db.delete('books', where: 'id = ?', whereArgs: [bookId]);
-    if (rows.isNotEmpty) await _deleteUnusedCover(rows.single['cover_url'] as String?);
+    if (rows.isNotEmpty)
+      await _deleteUnusedCover(rows.single['cover_url'] as String?);
   }
 
   Future<void> _deleteUnusedCover(String? reference) async {
@@ -205,8 +209,11 @@ class LibraryRepository {
     // Check and delete while holding SQLite's write lock, so another save
     // cannot start referencing this file between the check and deletion.
     await db.transaction((txn) async {
-      final users = await txn.query('books', columns: ['id'],
-          where: 'cover_url = ?', whereArgs: [reference], limit: 1);
+      final users = await txn.query('books',
+          columns: ['id'],
+          where: 'cover_url = ?',
+          whereArgs: [reference],
+          limit: 1);
       if (users.isEmpty) await coverStorage.delete(reference);
     });
   }

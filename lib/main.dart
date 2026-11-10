@@ -80,13 +80,17 @@ class _LibraryShellState extends State<LibraryShell> {
     try {
       final recovered = await CoverPicker().recover();
       if (recovered == null || !mounted) return;
-      final added = await Navigator.push<bool>(context, MaterialPageRoute(
-        builder: (_) => AddBookScreen(repository: repository, initialCover: recovered)));
+      final added = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+              builder: (_) => AddBookScreen(
+                  repository: repository, initialCover: recovered)));
       if (added == true && mounted) setState(() => refreshKey++);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Nie udało się odzyskać zdjęcia. Wybierz okładkę ponownie.')));
+            content: Text(
+                'Nie udało się odzyskać zdjęcia. Wybierz okładkę ponownie.')));
       }
     }
   }
@@ -285,14 +289,18 @@ class BookCard extends StatelessWidget {
 }
 
 class _BookCover extends StatelessWidget {
-  const _BookCover({required this.book, required this.width, required this.height});
+  const _BookCover(
+      {required this.book, required this.width, required this.height});
   final Book book;
   final double width;
   final double height;
 
   @override
-  Widget build(BuildContext context) => BookCover(reference: book.coverUrl,
-    title: book.title, width: width, height: height);
+  Widget build(BuildContext context) => BookCover(
+      reference: book.coverUrl,
+      title: book.title,
+      width: width,
+      height: height);
 }
 
 class _StatusChip extends StatelessWidget {
@@ -319,7 +327,12 @@ class _StatusChip extends StatelessWidget {
 }
 
 class AddBookScreen extends StatefulWidget {
-  const AddBookScreen({required this.repository, this.book, this.coverPicker, this.initialCover, super.key});
+  const AddBookScreen(
+      {required this.repository,
+      this.book,
+      this.coverPicker,
+      this.initialCover,
+      super.key});
   final CoverPicker? coverPicker;
   final String? initialCover;
   final LibraryRepository repository;
@@ -361,13 +374,15 @@ class _AddBookScreenState extends State<AddBookScreen> {
     setState(() => selectingCover = true);
     try {
       final result = source != null
-              ? await coverPicker.pick(source)
-              : await coverPicker.adjust((await widget.repository.coverStorage.resolve(coverUrl!)).path);
+          ? await coverPicker.pick(source)
+          : await coverPicker.adjust(
+              (await widget.repository.coverStorage.resolve(coverUrl!)).path);
       if (mounted && result != null) setState(() => coverUrl = result);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Nie udało się otworzyć zdjęcia. Sprawdź dostęp do aparatu w ustawieniach lub wybierz zdjęcie z urządzenia.')));
+            content: Text(
+                'Nie udało się otworzyć zdjęcia. Sprawdź dostęp do aparatu w ustawieniach lub wybierz zdjęcie z urządzenia.')));
       }
     } finally {
       if (mounted) setState(() => selectingCover = false);
@@ -472,26 +487,37 @@ class _AddBookScreenState extends State<AddBookScreen> {
           Form(
             key: formKey,
             child: Column(children: [
-              BookCover(reference: coverUrl, title: 'Okładka',
-                width: 100, height: 144, storage: widget.repository.coverStorage),
+              BookCover(
+                  reference: coverUrl,
+                  title: 'Okładka',
+                  width: 100,
+                  height: 144,
+                  storage: widget.repository.coverStorage),
               Text(coverUrl == null ? 'Dodaj okładkę' : 'Zmień okładkę'),
               Wrap(alignment: WrapAlignment.center, children: [
                 TextButton.icon(
-                  onPressed: saving || selectingCover ? null : () => selectCover(source: ImageSource.gallery),
-                  icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Wybierz zdjęcie z urządzenia')),
+                    onPressed: saving || selectingCover
+                        ? null
+                        : () => selectCover(source: ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Wybierz zdjęcie z urządzenia')),
                 TextButton.icon(
-                  onPressed: saving || selectingCover ? null : () => selectCover(source: ImageSource.camera),
-                  icon: const Icon(Icons.camera_alt_outlined),
-                  label: const Text('Zrób zdjęcie')),
+                    onPressed: saving || selectingCover
+                        ? null
+                        : () => selectCover(source: ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: const Text('Zrób zdjęcie')),
                 if (coverUrl != null && !CoverStorage.isNetwork(coverUrl!))
                   TextButton(
-                    onPressed: saving || selectingCover ? null : () => selectCover(),
-                    child: const Text('Przytnij i dopasuj')),
+                      onPressed:
+                          saving || selectingCover ? null : () => selectCover(),
+                      child: const Text('Przytnij i dopasuj')),
                 if (coverUrl != null)
                   TextButton(
-                    onPressed: saving || selectingCover ? null : () => setState(() => coverUrl = null),
-                    child: const Text('Usuń okładkę')),
+                      onPressed: saving || selectingCover
+                          ? null
+                          : () => setState(() => coverUrl = null),
+                      child: const Text('Usuń okładkę')),
               ]),
               if (selectingCover) const LinearProgressIndicator(),
               const SizedBox(height: 18),

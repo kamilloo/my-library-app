@@ -2,13 +2,18 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 class LibraryDatabase {
-  LibraryDatabase._() : _factory = null, _path = null;
+  LibraryDatabase._()
+      : _factory = null,
+        _path = null;
 
   // Uses the production schema with an isolated in-memory SQLite database.
-  LibraryDatabase.inMemory(DatabaseFactory factory) : _factory = factory, _path = null;
+  LibraryDatabase.inMemory(DatabaseFactory factory)
+      : _factory = factory,
+        _path = null;
 
   LibraryDatabase.file(DatabaseFactory factory, String path)
-      : _factory = factory, _path = path;
+      : _factory = factory,
+        _path = path;
 
   final String? _path;
 
@@ -21,9 +26,10 @@ class LibraryDatabase {
 
   Future<Database> _open() async {
     final factory = _factory ?? databaseFactory;
-    final path = _path ?? (_factory != null
-        ? inMemoryDatabasePath
-        : join(await getDatabasesPath(), 'my_library.db'));
+    final path = _path ??
+        (_factory != null
+            ? inMemoryDatabasePath
+            : join(await getDatabasesPath(), 'my_library.db'));
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(

@@ -37,8 +37,10 @@ class CoverPicker {
       compressQuality: 88,
       uiSettings: [
         AndroidUiSettings(toolbarTitle: 'Dopasuj okładkę'),
-        IOSUiSettings(title: 'Dopasuj okładkę',
-            doneButtonTitle: 'Gotowe', cancelButtonTitle: 'Anuluj'),
+        IOSUiSettings(
+            title: 'Dopasuj okładkę',
+            doneButtonTitle: 'Gotowe',
+            cancelButtonTitle: 'Anuluj'),
       ],
     );
     return result?.path;

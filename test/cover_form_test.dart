@@ -14,6 +14,7 @@ class Picker extends CoverPicker {
     this.source = source;
     return result;
   }
+
   @override
   Future<String?> adjust(String path) async => result;
 }
@@ -21,21 +22,36 @@ class Picker extends CoverPicker {
 class Repository extends LibraryRepository {
   String? savedCover;
   bool? coverUpdated;
-  Book result(String? cover) => Book(id: 'book', title: 'T', author: 'A',
-    coverUrl: cover, createdAt: DateTime(2020), updatedAt: DateTime(2020));
+  Book result(String? cover) => Book(
+      id: 'book',
+      title: 'T',
+      author: 'A',
+      coverUrl: cover,
+      createdAt: DateTime(2020),
+      updatedAt: DateTime(2020));
 
   @override
-  Future<Book> addBook({required String title, required String author,
-    String description = '', String? coverUrl, String? barcode,
-    String condition = 'Dobry', String directory = 'Bez kategorii'}) async {
+  Future<Book> addBook(
+      {required String title,
+      required String author,
+      String description = '',
+      String? coverUrl,
+      String? barcode,
+      String condition = 'Dobry',
+      String directory = 'Bez kategorii'}) async {
     savedCover = coverUrl;
     return result(coverUrl);
   }
 
   @override
-  Future<Book> updateBook({required String id, required String title,
-    required String author, String? barcode, required String condition,
-    String? coverUrl, bool updateCover = false}) async {
+  Future<Book> updateBook(
+      {required String id,
+      required String title,
+      required String author,
+      String? barcode,
+      required String condition,
+      String? coverUrl,
+      bool updateCover = false}) async {
     savedCover = coverUrl;
     coverUpdated = updateCover;
     return result(coverUrl);
@@ -44,14 +60,18 @@ class Repository extends LibraryRepository {
 
 void main() {
   for (final editing in [false, true]) {
-    testWidgets('shared form chooses camera/gallery, cancels, adjusts and saves (edit=$editing)', (tester) async {
+    testWidgets(
+        'shared form chooses camera/gallery, cancels, adjusts and saves (edit=$editing)',
+        (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 1400));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final repository = Repository();
       final picker = Picker();
-      await tester.pumpWidget(MaterialApp(home: AddBookScreen(
-        repository: repository, book: editing ? repository.result(null) : null,
-        coverPicker: picker)));
+      await tester.pumpWidget(MaterialApp(
+          home: AddBookScreen(
+              repository: repository,
+              book: editing ? repository.result(null) : null,
+              coverPicker: picker)));
       if (!editing) {
         await tester.enterText(find.byType(TextFormField).at(0), 'T');
         await tester.enterText(find.byType(TextFormField).at(1), 'A');
@@ -69,7 +89,8 @@ void main() {
       picker.result = '/temporary/cropped.jpg';
       await tester.tap(find.text('Przytnij i dopasuj'));
       await tester.pumpAndSettle();
-      final save = find.widgetWithText(FilledButton, editing ? 'Zapisz zmiany' : 'Zapisz książkę');
+      final save = find.widgetWithText(
+          FilledButton, editing ? 'Zapisz zmiany' : 'Zapisz książkę');
       await tester.ensureVisible(save);
       await tester.pumpAndSettle();
       await tester.tap(save);
@@ -79,12 +100,17 @@ void main() {
     });
   }
 
-  testWidgets('editing URL preserves cover on canceled pick and removes explicitly', (tester) async {
+  testWidgets(
+      'editing URL preserves cover on canceled pick and removes explicitly',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final repository = Repository();
-    await tester.pumpWidget(MaterialApp(home: AddBookScreen(repository: repository,
-      book: repository.result('https://example.com/cover.jpg'), coverPicker: Picker())));
+    await tester.pumpWidget(MaterialApp(
+        home: AddBookScreen(
+            repository: repository,
+            book: repository.result('https://example.com/cover.jpg'),
+            coverPicker: Picker())));
     await tester.tap(find.text('Wybierz zdjęcie z urządzenia'));
     await tester.pumpAndSettle();
     expect(find.text('Usuń okładkę'), findsOneWidget);
