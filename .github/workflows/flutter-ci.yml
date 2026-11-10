@@ -77,6 +77,25 @@ jobs:
         run: git diff --exit-code -- pubspec.lock
       - name: Build debug APK
         run: flutter build apk --debug
+      - name: Verify release builds require private credentials
+        working-directory: android
+        env:
+          MY_LIBRARY_STORE_FILE: ''
+          MY_LIBRARY_STORE_PASSWORD: ''
+          MY_LIBRARY_KEY_ALIAS: ''
+          MY_LIBRARY_KEY_PASSWORD: ''
+        run: |
+          for target in assembleRelease bundleRelease; do
+            if output=$(./gradlew ":app:$target" --console=plain 2>&1); then
+              printf 'ERROR: %s succeeded without release credentials\n' "$target"
+              exit 1
+            fi
+            if [[ "$output" != *"Release signing credentials are missing:"* ]]; then
+              printf '%s\n' "$output"
+              exit 1
+            fi
+            printf '%s correctly rejected missing release credentials\n' "$target"
+          done
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:

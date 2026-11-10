@@ -10,6 +10,7 @@ coverage/
 
 # Platform build artifacts
 android/.gradle/
+android/.kotlin/
 android/local.properties
 ios/Pods/
 ios/.symlinks/
@@ -27,3 +28,10 @@ macos/Pods/
 .env
 *.jks
 *.keystore
+*.p12
+*.pfx
+**/key.properties
+**/keystore.properties
+android/keystores/
+.env.*
+!.env.example

@@ -87,7 +87,7 @@ class _LibraryShellState extends State<LibraryShell>
     try {
       await repository.reminders!.reconcile();
     } catch (error) {
-      debugPrint('Reminder synchronization deferred: $error');
+      if (kDebugMode) debugPrint('Reminder synchronization deferred: $error');
     }
   }
 

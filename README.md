@@ -16,16 +16,20 @@ upgrade checks: [SQLite regression audit](docs/sqlite_regression_audit.md).
 
 ## Run
 
-Flutter was not available in the generation environment, so create platform
-scaffolding once before the first run:
+Use Flutter **3.47.5** / Dart **3.13.4** (the CI versions), JDK 17,
+and Android SDK platform 37.0. Android is supported from API 24 (Android 7.0);
+the current target is API 36. The Android project is already checked in.
 
 ```bash
-flutter create --platforms=android,ios .
 flutter pub get
 flutter run
 ```
 
-The source targets Flutter 3.22+ and Dart 3.4+.
+See [Android release preparation](docs/android_release.md) for signing, versioning,
+artifact verification, backup policy and release blockers, and the
+[Android QA checklist](docs/android_qa_checklist.md) for executed checks and pending
+physical-device tests. Release builds require privately supplied signing
+credentials; no production key is included or generated.
 
 ## Search Open Library by title or author
 
@@ -59,9 +63,10 @@ API: [Open Library Search documentation](https://openlibrary.org/dev/docs/api/se
 
 ## Camera permissions
 
-After generating the Android and iOS folders, apply the changes documented in
-[`docs/camera_permissions.md`](docs/camera_permissions.md). The scanner cannot
-open the camera until those platform declarations are present.
+Android camera permission is declared for scanning and cover photography and
+requested when using those features. Gallery selection uses the system picker,
+without broad storage permission. Notification authorization is requested only
+after reminder opt-in. See the [Android permission audit](docs/android_release.md#permissions-and-components).
 
 ## Change return date
 

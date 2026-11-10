@@ -1,0 +1,9 @@
+# Regenerate Android resources only, preserving the existing artwork.
+# dart run flutter_launcher_icons -f android_launcher_icons.yaml
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/my_library_icon_1024.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/icon/my_library_icon_1024.png
+  adaptive_icon_foreground_inset: 20

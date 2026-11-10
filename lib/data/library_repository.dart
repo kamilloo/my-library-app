@@ -198,7 +198,7 @@ class LibraryRepository {
       await reminders?.reconcile();
     } catch (error) {
       // Loan writes are committed; retry OS synchronization on next app resume.
-      debugPrint('Reminder synchronization failed: $error');
+      if (kDebugMode) debugPrint('Reminder synchronization failed: $error');
     }
   }
 
@@ -299,8 +299,10 @@ class LibraryRepository {
     } catch (error, stackTrace) {
       // Cleanup is best effort, including unexpected storage/DB failures.
       // Preserve the original transaction error or successful committed result.
-      debugPrint('Cover cleanup failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
+      if (kDebugMode) {
+        debugPrint('Cover cleanup failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
     }
   }
 

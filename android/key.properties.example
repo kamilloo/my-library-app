@@ -1,0 +1,6 @@
+# Place a private copy at android/key.properties (ignored by Git).
+# Use an absolute path; relative paths resolve from android/app.
+storeFile=/absolute/private/path/upload-keystore.jks
+storePassword=REPLACE_WITH_STORE_PASSWORD
+keyAlias=REPLACE_WITH_UPLOAD_ALIAS
+keyPassword=REPLACE_WITH_KEY_PASSWORD
