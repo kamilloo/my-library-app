@@ -362,7 +362,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
   final title = TextEditingController();
   final author = TextEditingController();
   final isbn = TextEditingController();
-  final description = TextEditingController();
   bool lookingUp = false;
   String? lookupMessage;
   late final isbnService = widget.isbnService ?? OpenLibraryService();
@@ -436,9 +435,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
       // Check current values after the await, including edits made while loading.
       if (title.text.trim().isEmpty) title.text = book.title;
       if (author.text.trim().isEmpty) author.text = book.author;
-      if (description.text.trim().isEmpty) {
-        description.text = book.description ?? '';
-      }
       setState(() {
         coverUrl ??= book.coverUrl;
         lookupMessage =
@@ -467,7 +463,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
     if (scanned == null || !mounted) return;
     title.text = scanned.book.title;
     author.text = scanned.book.author;
-    description.text = scanned.book.description ?? '';
     isbn.text = scanned.isbn;
     coverUrl = scanned.book.coverUrl;
     unawaited(coverPicker.releaseExcept(coverUrl));
@@ -482,7 +477,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
     title.dispose();
     author.dispose();
     isbn.dispose();
-    description.dispose();
     if (!saving && !selectingCover) {
       unawaited(coverPicker.releaseExcept());
     }
@@ -509,7 +503,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
       await widget.repository.addBook(
         title: title.text,
         author: author.text,
-        description: description.text,
         coverUrl: coverUrl,
         barcode: isbn.text,
         condition: condition,
@@ -627,8 +620,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       labelText: 'ISBN lub kod kreskowy (opcjonalnie)')),
               if (!editing) ...[
                 TextButton.icon(
-                  onPressed: lookingUp || saving || selectingCover
-                      ? null : lookupIsbn,
+                  onPressed:
+                      lookingUp || saving || selectingCover ? null : lookupIsbn,
                   icon: const Icon(Icons.search),
                   label: const Text('Pobierz dane z ISBN'),
                 ),
@@ -644,11 +637,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       child: const Text('Spróbuj ponownie'),
                     ),
                 ],
-                TextFormField(
-                  controller: description,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Opis (opcjonalnie)'),
-                ),
               ],
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(

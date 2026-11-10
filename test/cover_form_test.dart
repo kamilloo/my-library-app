@@ -29,6 +29,9 @@ class Picker extends CoverPicker {
 class Repository extends LibraryRepository {
   Completer<Book>? pendingSave;
   String? savedCover;
+  String? savedTitle;
+  String? savedAuthor;
+  String? savedBarcode;
   bool? coverUpdated;
   Book result(String? cover) => Book(
       id: 'book',
@@ -48,6 +51,9 @@ class Repository extends LibraryRepository {
       String condition = 'Dobry',
       String directory = 'Bez kategorii'}) async {
     savedCover = coverUrl;
+    savedTitle = title;
+    savedAuthor = author;
+    savedBarcode = barcode;
     return result(coverUrl);
   }
 
