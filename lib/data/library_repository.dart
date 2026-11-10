@@ -42,6 +42,20 @@ class LibraryRepository {
     return rows.map(HistoryEntry.fromMap).toList();
   }
 
+  static const bookHistoryLimit = 50;
+
+  Future<List<HistoryEntry>> historyForBook(String bookId) async {
+    final db = await _database.database;
+    final rows = await db.query(
+      'history',
+      where: 'book_id = ?',
+      whereArgs: [bookId],
+      orderBy: 'timestamp DESC, id DESC',
+      limit: bookHistoryLimit,
+    );
+    return rows.map(HistoryEntry.fromMap).toList();
+  }
+
   Future<Book> addBook({
     required String title,
     required String author,

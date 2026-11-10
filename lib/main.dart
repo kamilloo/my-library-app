@@ -10,6 +10,7 @@ import 'models/isbn.dart';
 import 'services/open_library_service.dart';
 import 'screens/scan_book_screen.dart';
 import 'screens/book_cover.dart';
+import 'screens/book_history_section.dart';
 import 'services/cover_picker.dart';
 import 'services/cover_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -713,6 +714,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Future<void> returnBook() async {
     await widget.repository.returnBook(book);
+    if (!mounted) return;
     setState(() =>
         book = book.copyWith(status: BookStatus.available, clearLoan: true));
   }
@@ -784,6 +786,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             Expanded(
                 child: _Detail(label: 'Dodano', value: _date(book.createdAt)))
           ]),
+          const SizedBox(height: 24),
+          BookHistorySection(
+            key: ValueKey('${book.id}:${book.updatedAt.toIso8601String()}'),
+            repository: widget.repository,
+            bookId: book.id,
+          ),
           if (book.description.isNotEmpty) ...[
             const SizedBox(height: 20),
             Text(book.description)

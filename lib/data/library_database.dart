@@ -24,6 +24,9 @@ class LibraryDatabase {
 
   Future<Database> get database async => _database ??= await _open();
 
+  static Future<void> _createHistoryIndex(Database db) => db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_history_book_timestamp ON history(book_id, timestamp DESC, id DESC)');
+
   Future<Database> _open() async {
     final factory = _factory ?? databaseFactory;
     final path = _path ??
@@ -33,7 +36,10 @@ class LibraryDatabase {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
+        onUpgrade: (db, oldVersion, newVersion) async {
+          if (oldVersion < 2) await _createHistoryIndex(db);
+        },
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) async {
           await db.execute('''
@@ -67,6 +73,7 @@ class LibraryDatabase {
               FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
             )
           ''');
+          await _createHistoryIndex(db);
         },
       ),
     );
