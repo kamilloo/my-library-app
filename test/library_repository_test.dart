@@ -26,7 +26,7 @@ void main() {
         barcode: '9780525559474',
         description: 'Description',
         directory: 'Shelf',
-        coverUrl: 'cover');
+        coverUrl: 'https://example.com/cover.jpg');
     await repository.lendBook(book, 'Borrower', DateTime(2030));
     final before = (await db.query('books')).single;
     final history = await db.query('history');

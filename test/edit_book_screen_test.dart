@@ -25,7 +25,9 @@ class EditRepository extends LibraryRepository {
       required String title,
       required String author,
       String? barcode,
-      required String condition}) async {
+      required String condition,
+      String? coverUrl,
+      bool updateCover = false}) async {
     if (reject) throw const DuplicateIsbnException();
     expect(id, book.id);
     updates++;
@@ -47,6 +49,8 @@ void main() {
             ? 'cancel leaves book and history unchanged'
             : 'edit refreshes details and library without adding a book or history',
         (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       final repository = EditRepository();
       final before = repository.book.toMap();
       await tester.pumpWidget(MaterialApp(
@@ -64,6 +68,7 @@ void main() {
       await tester.enterText(fields.at(0), '');
       final save = find.widgetWithText(FilledButton, 'Zapisz zmiany');
       await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
       await tester.tap(save);
       await tester.pumpAndSettle();
       expect(find.text('Wpisz tytuł'), findsOneWidget);
@@ -74,6 +79,7 @@ void main() {
       } else {
         repository.reject = true;
         await tester.ensureVisible(save);
+        await tester.pumpAndSettle();
         await tester.tap(save);
         await tester.pumpAndSettle();
         expect(find.text(DuplicateIsbnException.message), findsOneWidget);
@@ -86,6 +92,7 @@ void main() {
         await tester.tap(find.text('Zużyta').last);
         await tester.pumpAndSettle();
         await tester.ensureVisible(save);
+        await tester.pumpAndSettle();
         await tester.tap(save);
       }
       await tester.pumpAndSettle();

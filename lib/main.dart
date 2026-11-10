@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -5,6 +7,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'data/library_repository.dart';
 import 'models/book.dart';
 import 'screens/scan_book_screen.dart';
+import 'screens/book_cover.dart';
+import 'services/cover_picker.dart';
+import 'services/cover_storage.dart';
+import 'package:image_picker/image_picker.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -63,6 +69,42 @@ class _LibraryShellState extends State<LibraryShell> {
   final repository = LibraryRepository();
   int index = 0;
   int refreshKey = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => recoverCover());
+    }
+  }
+
+  Future<void> recoverCover() async {
+    final picker = CoverPicker();
+    var handedOff = false;
+    try {
+      final recovered = await picker.recover();
+      if (recovered == null || !mounted) return;
+      final result = Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+              builder: (_) => AddBookScreen(
+                  repository: repository,
+                  initialCover: recovered,
+                  coverPicker: picker)));
+      // The form now owns cleanup, including an in-flight save after back.
+      handedOff = true;
+      final added = await result;
+      if (added == true && mounted) setState(() => refreshKey++);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Nie udało się odzyskać zdjęcia. Wybierz okładkę ponownie.')));
+      }
+    } finally {
+      if (!handedOff) await picker.releaseExcept();
+    }
+  }
 
   Future<void> openAdd() async {
     final added = await Navigator.push<bool>(
@@ -258,51 +300,18 @@ class BookCard extends StatelessWidget {
 }
 
 class _BookCover extends StatelessWidget {
-  const _BookCover({
-    required this.book,
-    required this.width,
-    required this.height,
-  });
-
+  const _BookCover(
+      {required this.book, required this.width, required this.height});
   final Book book;
   final double width;
   final double height;
 
   @override
-  Widget build(BuildContext context) {
-    final placeholder = Container(
+  Widget build(BuildContext context) => BookCover(
+      reference: book.coverUrl,
+      title: book.title,
       width: width,
-      height: height,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(9),
-      ),
-      child: Text(
-        book.title,
-        textAlign: TextAlign.center,
-        maxLines: 4,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontFamily: 'serif',
-          fontSize: width > 80 ? 18 : 11,
-        ),
-      ),
-    );
-
-    if (book.coverUrl == null || book.coverUrl!.isEmpty) return placeholder;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(9),
-      child: Image.network(
-        book.coverUrl!,
-        width: width,
-        height: height,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => placeholder,
-      ),
-    );
-  }
+      height: height);
 }
 
 class _StatusChip extends StatelessWidget {
@@ -329,7 +338,14 @@ class _StatusChip extends StatelessWidget {
 }
 
 class AddBookScreen extends StatefulWidget {
-  const AddBookScreen({required this.repository, this.book, super.key});
+  const AddBookScreen(
+      {required this.repository,
+      this.book,
+      this.coverPicker,
+      this.initialCover,
+      super.key});
+  final CoverPicker? coverPicker;
+  final String? initialCover;
   final LibraryRepository repository;
   final Book? book;
 
@@ -345,6 +361,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
   String condition = 'Dobry';
   String? coverUrl;
   bool saving = false;
+  bool selectingCover = false;
+  late final CoverPicker coverPicker = widget.coverPicker ?? CoverPicker();
 
   bool get editing => widget.book != null;
 
@@ -359,6 +377,32 @@ class _AddBookScreenState extends State<AddBookScreen> {
       condition = book.condition;
       coverUrl = book.coverUrl;
     }
+    coverUrl = widget.initialCover ?? coverUrl;
+  }
+
+  Future<void> selectCover({ImageSource? source}) async {
+    if (saving || selectingCover) return;
+    setState(() => selectingCover = true);
+    try {
+      final result = source != null
+          ? await coverPicker.pick(source)
+          : await coverPicker.adjust(
+              (await widget.repository.coverStorage.resolve(coverUrl!)).path);
+      if (mounted && result != null) setState(() => coverUrl = result);
+      await coverPicker.releaseExcept(mounted ? coverUrl : null);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Nie udało się otworzyć zdjęcia. Sprawdź dostęp do aparatu w ustawieniach lub wybierz zdjęcie z urządzenia.')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => selectingCover = false);
+      } else {
+        await coverPicker.releaseExcept();
+      }
+    }
   }
 
   Future<void> scanBook() async {
@@ -371,6 +415,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
     author.text = scanned.book.author;
     isbn.text = scanned.isbn;
     coverUrl = scanned.book.coverUrl;
+    unawaited(coverPicker.releaseExcept(coverUrl));
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Dane książki uzupełniono z Open Library.')),
@@ -382,11 +427,14 @@ class _AddBookScreenState extends State<AddBookScreen> {
     title.dispose();
     author.dispose();
     isbn.dispose();
+    if (!saving && !selectingCover) {
+      unawaited(coverPicker.releaseExcept());
+    }
     super.dispose();
   }
 
   Future<void> save() async {
-    if (saving || !formKey.currentState!.validate()) return;
+    if (saving || selectingCover || !formKey.currentState!.validate()) return;
     setState(() => saving = true);
     try {
       if (editing) {
@@ -396,6 +444,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
           author: author.text,
           barcode: isbn.text,
           condition: condition,
+          coverUrl: coverUrl,
+          updateCover: true,
         );
         if (mounted) Navigator.pop(context, updated);
         return;
@@ -427,7 +477,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted) {
+        setState(() => saving = false);
+      } else {
+        await coverPicker.releaseExcept();
+      }
     }
   }
 
@@ -438,7 +492,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
         body: ListView(padding: const EdgeInsets.all(20), children: [
           if (!editing) ...[
             FilledButton.icon(
-              onPressed: scanBook,
+              onPressed: saving || selectingCover ? null : scanBook,
               icon: const Icon(Icons.qr_code_scanner),
               label: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -457,19 +511,43 @@ class _AddBookScreenState extends State<AddBookScreen> {
           Form(
             key: formKey,
             child: Column(children: [
-              if (coverUrl != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    coverUrl!,
-                    width: 100,
-                    height: 144,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
-                ),
-                const SizedBox(height: 18),
-              ],
+              BookCover(
+                  reference: coverUrl,
+                  title: 'Okładka',
+                  width: 100,
+                  height: 144,
+                  storage: widget.repository.coverStorage),
+              Text(coverUrl == null ? 'Dodaj okładkę' : 'Zmień okładkę'),
+              Wrap(alignment: WrapAlignment.center, children: [
+                TextButton.icon(
+                    onPressed: saving || selectingCover
+                        ? null
+                        : () => selectCover(source: ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Wybierz zdjęcie z urządzenia')),
+                TextButton.icon(
+                    onPressed: saving || selectingCover
+                        ? null
+                        : () => selectCover(source: ImageSource.camera),
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: const Text('Zrób zdjęcie')),
+                if (coverUrl != null && !CoverStorage.isNetwork(coverUrl!))
+                  TextButton(
+                      onPressed:
+                          saving || selectingCover ? null : () => selectCover(),
+                      child: const Text('Przytnij i dopasuj')),
+                if (coverUrl != null)
+                  TextButton(
+                      onPressed: saving || selectingCover
+                          ? null
+                          : () {
+                              setState(() => coverUrl = null);
+                              unawaited(coverPicker.releaseExcept());
+                            },
+                      child: const Text('Usuń okładkę')),
+              ]),
+              if (selectingCover) const LinearProgressIndicator(),
+              const SizedBox(height: 18),
               TextFormField(
                   controller: title,
                   decoration: const InputDecoration(labelText: 'Tytuł'),
@@ -502,7 +580,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
               SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                      onPressed: saving ? null : save,
+                      onPressed: saving || selectingCover ? null : save,
                       child: Padding(
                           padding: const EdgeInsets.all(15),
                           child: Text(saving
