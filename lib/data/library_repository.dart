@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../models/book.dart';
 import '../models/isbn.dart';
 import 'library_database.dart';
+import '../services/cover_storage.dart';
 
 class DuplicateIsbnException implements Exception {
   const DuplicateIsbnException();
@@ -16,8 +17,11 @@ class DuplicateIsbnException implements Exception {
 }
 
 class LibraryRepository {
-  LibraryRepository({LibraryDatabase? database})
-      : _database = database ?? LibraryDatabase.instance;
+  LibraryRepository({LibraryDatabase? database, CoverStorage? coverStorage})
+      : _database = database ?? LibraryDatabase.instance,
+        coverStorage = coverStorage ?? CoverStorage();
+
+  final CoverStorage coverStorage;
 
   final LibraryDatabase _database;
   final _uuid = const Uuid();
@@ -59,34 +63,40 @@ class LibraryRepository {
         throw const DuplicateIsbnException();
       }
     }
+    final storedCover = await coverStorage.persist(coverUrl);
     final now = DateTime.now();
     final book = Book(
       id: _uuid.v4(),
       title: title.trim(),
       author: author.trim(),
       description: description.trim(),
-      coverUrl: coverUrl,
+      coverUrl: storedCover,
       barcode: normalizedBarcode,
       condition: condition,
       directory: directory,
       createdAt: now,
       updatedAt: now,
     );
-    await db.transaction((txn) async {
-      try {
-        await txn.insert('books', book.toMap());
-      } on DatabaseException catch (error) {
-        // The preflight check cannot prevent concurrent inserts. Translate only
-        // the barcode unique constraint, leaving all other DB failures intact.
-        if (normalizedBarcode != null &&
-            error.isUniqueConstraintError('books.barcode')) {
-          throw const DuplicateIsbnException();
+    try {
+      await db.transaction((txn) async {
+        try {
+          await txn.insert('books', book.toMap());
+        } on DatabaseException catch (error) {
+          // The preflight check cannot prevent concurrent inserts. Translate only
+          // the barcode unique constraint, leaving all other DB failures intact.
+          if (normalizedBarcode != null &&
+              error.isUniqueConstraintError('books.barcode')) {
+            throw const DuplicateIsbnException();
+          }
+          rethrow;
         }
-        rethrow;
-      }
-      await txn.insert(
-          'history', _event(book, 'added', 'Dodano na półkę').toMap());
-    });
+        await txn.insert(
+            'history', _event(book, 'added', 'Dodano na półkę').toMap());
+      });
+    } catch (_) {
+      if (storedCover != coverUrl) await coverStorage.delete(storedCover);
+      rethrow;
+    }
     return book;
   }
 
@@ -98,46 +108,61 @@ class LibraryRepository {
     required String author,
     String? barcode,
     required String condition,
+    String? coverUrl,
+    bool updateCover = false,
   }) async {
     if (title.trim().isEmpty || author.trim().isEmpty) {
       throw ArgumentError('Title and author are required');
     }
     final normalizedBarcode = normalizeBookBarcode(barcode);
     final db = await _database.database;
-    return db.transaction((txn) async {
-      final rows = await txn.query('books', where: 'id = ?', whereArgs: [id]);
-      if (rows.isEmpty) throw StateError('Book no longer exists');
-      final current = rows.single;
-      if (normalizedBarcode != null) {
-        final others = await txn.query('books',
-            columns: ['barcode'], where: 'id != ?', whereArgs: [id]);
-        if (others.any((row) =>
-            normalizeBookBarcode(row['barcode'] as String?) ==
-            normalizedBarcode)) {
-          throw const DuplicateIsbnException();
+    final storedCover = updateCover ? await coverStorage.persist(coverUrl) : null;
+    String? previousCover;
+    try {
+      final result = await db.transaction((txn) async {
+        final rows = await txn.query('books', where: 'id = ?', whereArgs: [id]);
+        if (rows.isEmpty) throw StateError('Book no longer exists');
+        final current = rows.single;
+        previousCover = current['cover_url'] as String?;
+        if (normalizedBarcode != null) {
+          final others = await txn.query('books',
+              columns: ['barcode'], where: 'id != ?', whereArgs: [id]);
+          if (others.any((row) =>
+              normalizeBookBarcode(row['barcode'] as String?) ==
+              normalizedBarcode)) {
+            throw const DuplicateIsbnException();
+          }
         }
-      }
-      final changes = <String, Object?>{
-        'title': title.trim(),
-        'author': author.trim(),
-        'barcode': normalizedBarcode,
-        'condition': condition,
-      };
-      if (changes.entries.every((entry) => current[entry.key] == entry.value)) {
-        return Book.fromMap(current);
-      }
-      changes['updated_at'] = DateTime.now().toIso8601String();
-      try {
-        await txn.update('books', changes, where: 'id = ?', whereArgs: [id]);
-      } on DatabaseException catch (error) {
-        if (normalizedBarcode != null &&
-            error.isUniqueConstraintError('books.barcode')) {
-          throw const DuplicateIsbnException();
+        final changes = <String, Object?>{
+          'title': title.trim(),
+          'author': author.trim(),
+          'barcode': normalizedBarcode,
+          'condition': condition,
+          if (updateCover) 'cover_url': storedCover,
+        };
+        if (changes.entries.every((entry) => current[entry.key] == entry.value)) {
+          return Book.fromMap(current);
         }
-        rethrow;
+        changes['updated_at'] = DateTime.now().toIso8601String();
+        try {
+          await txn.update('books', changes, where: 'id = ?', whereArgs: [id]);
+        } on DatabaseException catch (error) {
+          if (normalizedBarcode != null &&
+              error.isUniqueConstraintError('books.barcode')) {
+            throw const DuplicateIsbnException();
+          }
+          rethrow;
+        }
+        return Book.fromMap({...current, ...changes});
+      });
+      if (updateCover && previousCover != storedCover) {
+        await _deleteUnusedCover(previousCover);
       }
-      return Book.fromMap({...current, ...changes});
-    });
+      return result;
+    } catch (_) {
+      if (storedCover != coverUrl) await _deleteUnusedCover(storedCover);
+      rethrow;
+    }
   }
 
   Future<void> lendBook(Book book, String borrower, DateTime? dueDate) async {
@@ -169,7 +194,21 @@ class LibraryRepository {
 
   Future<void> deleteBook(String bookId) async {
     final db = await _database.database;
+    final rows = await db.query('books', columns: ['cover_url'], where: 'id = ?', whereArgs: [bookId]);
     await db.delete('books', where: 'id = ?', whereArgs: [bookId]);
+    if (rows.isNotEmpty) await _deleteUnusedCover(rows.single['cover_url'] as String?);
+  }
+
+  Future<void> _deleteUnusedCover(String? reference) async {
+    if (reference == null || !CoverStorage.isManaged(reference)) return;
+    final db = await _database.database;
+    // Check and delete while holding SQLite's write lock, so another save
+    // cannot start referencing this file between the check and deletion.
+    await db.transaction((txn) async {
+      final users = await txn.query('books', columns: ['id'],
+          where: 'cover_url = ?', whereArgs: [reference], limit: 1);
+      if (users.isEmpty) await coverStorage.delete(reference);
+    });
   }
 
   Future<void> _updateWithHistory(

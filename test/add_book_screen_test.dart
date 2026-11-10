@@ -35,6 +35,8 @@ void main() {
   testWidgets(
       'duplicate ISBN shows Polish feedback and corrected retry succeeds',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final repository = RetryRepository();
     bool? added;
     await tester.pumpWidget(MaterialApp(
@@ -62,6 +64,7 @@ void main() {
     await tester.enterText(fields.at(2), '978-0-525-55947-4');
     final save = find.widgetWithText(FilledButton, 'Zapisz książkę');
     await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
     await tester.tap(save);
     await tester.pumpAndSettle();
 
@@ -76,6 +79,7 @@ void main() {
     await tester.ensureVisible(fields.at(2));
     await tester.enterText(fields.at(2), '080442957X');
     await tester.ensureVisible(save);
+      await tester.pumpAndSettle();
     await tester.tap(save);
     await tester.pumpAndSettle();
 
