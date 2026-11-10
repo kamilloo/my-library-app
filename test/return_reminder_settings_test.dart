@@ -44,7 +44,6 @@ void main() {
       body: ReturnReminderSettings(
         book: book,
         repository: LibraryRepository(reminders: reminders),
-        onBookChanged: (_) {},
       ),
     )));
     await tester.pumpAndSettle();

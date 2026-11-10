@@ -31,6 +31,20 @@ After generating the Android and iOS folders, apply the changes documented in
 [`docs/camera_permissions.md`](docs/camera_permissions.md). The scanner cannot
 open the camera until those platform declarations are present.
 
+## Change return date
+
+For a borrowed book, Book Details shows the saved return date or
+**Nie ustawiono terminu zwrotu**. Use **Zmień termin zwrotu** to select today or
+a future date, or **Usuń termin zwrotu** to clear it explicitly. The picker
+initially selects the saved date, including an overdue date (saving that unchanged
+date is a no-op).
+
+Actual calendar-date changes append a Polish `return_date_changed` event in the
+same SQLite transaction as the date update. Borrower, original lending date,
+status, book metadata, and previous history remain intact. Enabled reminders are
+rescheduled or canceled after commit without clearing the user's opt-in; an OS
+notification failure does not undo the saved date or history.
+
 ## Return-date reminders
 
 Borrowed books support optional local reminders at 09:00 on the return date.

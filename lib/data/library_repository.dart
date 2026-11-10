@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/book.dart';
 import '../models/isbn.dart';
+import '../models/return_date.dart';
 import 'library_database.dart';
 import '../services/cover_storage.dart';
 import '../services/return_reminders.dart';
@@ -19,12 +20,17 @@ class DuplicateIsbnException implements Exception {
 
 class LibraryRepository {
   LibraryRepository(
-      {LibraryDatabase? database, CoverStorage? coverStorage, this.reminders})
-      : _database = database ?? LibraryDatabase.instance,
+      {LibraryDatabase? database,
+      CoverStorage? coverStorage,
+      this.reminders,
+      DateTime Function()? clock})
+      : _now = clock ?? DateTime.now,
+        _database = database ?? LibraryDatabase.instance,
         coverStorage = coverStorage ?? CoverStorage();
 
   final CoverStorage coverStorage;
   final ReturnReminders? reminders;
+  final DateTime Function() _now;
 
   final LibraryDatabase _database;
   final _uuid = const Uuid();
@@ -198,21 +204,47 @@ class LibraryRepository {
 
   Future<Book> updateReturnDate(String bookId, DateTime? date) async {
     final db = await _database.database;
-    late Book updated;
-    await db.transaction((txn) async {
+    var changed = false;
+    final updated = await db.transaction((txn) async {
       final rows =
           await txn.query('books', where: 'id = ?', whereArgs: [bookId]);
-      if (rows.isEmpty || rows.single['status'] != BookStatus.borrowed.name) {
-        throw StateError('Book is not borrowed');
+      if (rows.isEmpty) {
+        throw const ReturnDateException('Nie znaleziono książki.');
+      }
+      final current = Book.fromMap(rows.single);
+      if (current.status != BookStatus.borrowed) {
+        throw const ReturnDateException(
+            'Termin zwrotu można zmienić tylko dla wypożyczonej książki.');
+      }
+      final oldDate =
+          current.returnDate == null ? null : calendarDate(current.returnDate!);
+      final newDate = date == null ? null : calendarDate(date);
+      if (oldDate == newDate) return current;
+      final now = _now();
+      if (newDate != null && newDate.isBefore(calendarDate(now))) {
+        throw const ReturnDateException(
+            'Termin zwrotu nie może być w przeszłości.');
       }
       final changes = <String, Object?>{
-        'return_date': date?.toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
+        'return_date': newDate?.toIso8601String(),
+        'updated_at': now.toIso8601String(),
       };
       await txn.update('books', changes, where: 'id = ?', whereArgs: [bookId]);
-      updated = Book.fromMap({...rows.single, ...changes});
+      await txn.insert(
+          'history',
+          HistoryEntry(
+            id: _uuid.v4(),
+            bookId: current.id,
+            bookTitle: current.title,
+            action: 'return_date_changed',
+            detail:
+                'Zmieniono termin zwrotu: ${returnDateHistoryValue(oldDate)} → ${returnDateHistoryValue(newDate)}',
+            timestamp: now,
+          ).toMap());
+      changed = true;
+      return Book.fromMap({...rows.single, ...changes});
     });
-    await _refreshReminders();
+    if (changed) await _refreshReminders();
     return updated;
   }
 

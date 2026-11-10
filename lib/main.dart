@@ -9,6 +9,7 @@ import 'data/library_database.dart';
 import 'services/return_reminders.dart';
 import 'services/local_reminder_notifications.dart';
 import 'screens/return_reminder_settings.dart';
+import 'screens/return_date_section.dart';
 import 'models/book.dart';
 import 'models/isbn.dart';
 import 'services/open_library_service.dart';
@@ -822,6 +823,14 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 child: _Detail(label: 'Dodano', value: _date(book.createdAt)))
           ]),
           const SizedBox(height: 24),
+          if (book.status == BookStatus.borrowed) ...[
+            ReturnDateSection(
+              book: book,
+              repository: widget.repository,
+              onBookChanged: (updated) => setState(() => book = updated),
+            ),
+            const SizedBox(height: 20),
+          ],
           BookHistorySection(
             key: ValueKey('${book.id}:${book.updatedAt.toIso8601String()}'),
             repository: widget.repository,
@@ -835,7 +844,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                   'reminder-${book.id}:${book.updatedAt.toIso8601String()}'),
               book: book,
               repository: widget.repository,
-              onBookChanged: (updated) => setState(() => book = updated),
             ),
           ],
           if (book.description.isNotEmpty) ...[
@@ -1033,5 +1041,6 @@ IconData _historyIcon(String action) => switch (action) {
       'borrowed' => Icons.handshake_outlined,
       'returned' => Icons.keyboard_return,
       'given' => Icons.card_giftcard,
+      'return_date_changed' => Icons.edit_calendar_outlined,
       _ => Icons.history,
     };
