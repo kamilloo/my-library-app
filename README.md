@@ -25,6 +25,36 @@ flutter run
 
 The source targets Flutter 3.22+ and Dart 3.4+.
 
+## Search Open Library by title or author
+
+In Add Book, choose **Szukaj książki po tytule lub autorze**. Enter a title,
+author, or both and press **Szukaj**. Searches are explicit GET requests through
+the existing Open Library service; opening the screen or editing text does not
+send requests. Results show available cover/title/author/year metadata. **Pokaż
+więcej** requests another page, capped at five pages of 20 results (100 total).
+No individual work/edition details are fetched.
+
+Selecting a result fills empty form fields. If available metadata differs from
+populated fields, choose whether to replace it, fill only empty fields, or cancel.
+A local cover is retained unless replacement is explicitly confirmed. Selection
+does not save anything; edit the form and press **Zapisz książkę** to insert a book.
+
+Search normally returns works spanning multiple editions. These results never
+supply an assumed physical-book ISBN, even when only one ISBN is listed. ISBN is
+filled only for an explicit edition record with one matching edition identifier
+and exactly one valid normalized ISBN. Otherwise an empty ISBN stays empty and
+an existing user-entered ISBN stays intact. Enter/scan the actual ISBN separately.
+
+Polish error/retry states cover offline requests, timeouts, HTTP errors, malformed
+responses, and no results. Older responses cannot replace newer query results;
+identical pending query/page requests share a future. Requests are not auto-retried.
+Manual entry, local covers, and offline library access remain available. Existing
+network cover URLs need connectivity to display their images; missing images use
+placeholders. No schema, account, remote library writes, descriptions, or category
+management are added.
+
+API: [Open Library Search documentation](https://openlibrary.org/dev/docs/api/search).
+
 ## Camera permissions
 
 After generating the Android and iOS folders, apply the changes documented in
