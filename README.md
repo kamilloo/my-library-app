@@ -45,6 +45,21 @@ status, book metadata, and previous history remain intact. Enabled reminders are
 rescheduled or canceled after commit without clearing the user's opt-in; an OS
 notification failure does not undo the saved date or history.
 
+## Extend an existing loan (Prolongata)
+
+For a borrowed book, **Przedłuż wypożyczenie** offers **+7 dni**, **+14 dni**,
+**+30 dni**, and **Wybierz datę**, with a date preview before confirmation.
+Presets add calendar days to the saved return date, including across month ends,
+leap years and DST transitions. Without a saved date, choose one explicitly.
+
+The resulting date must be later than the existing term and after today.
+Overdue loans may be extended, but a preset that still leaves the loan overdue
+cannot be confirmed. Borrower, original borrowing date, status, and metadata stay
+unchanged. One `loan_extended` history entry and the new return date commit
+together through the same date-update transaction used above. Repeated submissions
+of the same date cannot append another event. Enabled reminders keep their opt-in
+and stable ID, and reconcile after commit; OS failures are retried on app resume.
+
 ## Return-date reminders
 
 Borrowed books support optional local reminders at 09:00 on the return date.

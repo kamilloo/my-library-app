@@ -202,7 +202,14 @@ class LibraryRepository {
     }
   }
 
-  Future<Book> updateReturnDate(String bookId, DateTime? date) async {
+  Future<Book> updateReturnDate(String bookId, DateTime? date) =>
+      _updateReturnDate(bookId, date);
+
+  Future<Book> extendLoan(String bookId, DateTime date) =>
+      _updateReturnDate(bookId, date, extension: true);
+
+  Future<Book> _updateReturnDate(String bookId, DateTime? date,
+      {bool extension = false}) async {
     final db = await _database.database;
     var changed = false;
     final updated = await db.transaction((txn) async {
@@ -219,8 +226,13 @@ class LibraryRepository {
       final oldDate =
           current.returnDate == null ? null : calendarDate(current.returnDate!);
       final newDate = date == null ? null : calendarDate(date);
-      if (oldDate == newDate) return current;
       final now = _now();
+      if (extension) {
+        final validation = loanExtensionValidation(oldDate, newDate, now);
+        if (validation != null) throw ReturnDateException(validation);
+      } else if (oldDate == newDate) {
+        return current;
+      }
       if (newDate != null && newDate.isBefore(calendarDate(now))) {
         throw const ReturnDateException(
             'Termin zwrotu nie może być w przeszłości.');
@@ -236,9 +248,9 @@ class LibraryRepository {
             id: _uuid.v4(),
             bookId: current.id,
             bookTitle: current.title,
-            action: 'return_date_changed',
+            action: extension ? 'loan_extended' : 'return_date_changed',
             detail:
-                'Zmieniono termin zwrotu: ${returnDateHistoryValue(oldDate)} → ${returnDateHistoryValue(newDate)}',
+                '${extension ? 'Przedłużono wypożyczenie' : 'Zmieniono termin zwrotu'}: ${returnDateHistoryValue(oldDate)} → ${returnDateHistoryValue(newDate)}',
             timestamp: now,
           ).toMap());
       changed = true;

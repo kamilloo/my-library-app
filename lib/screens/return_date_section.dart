@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/library_repository.dart';
 import '../models/book.dart';
 import '../models/return_date.dart';
+import 'loan_extension_dialog.dart';
 
 class ReturnDateSection extends StatefulWidget {
   const ReturnDateSection({
@@ -67,6 +68,21 @@ class _ReturnDateSectionState extends State<ReturnDateSection> {
     if (selected != null && mounted) await save(selected);
   }
 
+  Future<void> extend() async {
+    final updated = await showDialog<Book>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          LoanExtensionDialog(book: widget.book, repository: widget.repository),
+    );
+    if (updated == null || !mounted) return;
+    widget.onBookChanged(updated);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(
+          'Przedłużono wypożyczenie do ${formatReturnDate(updated.returnDate!)}.'),
+    ));
+  }
+
   Future<void> clearDate() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -95,6 +111,10 @@ class _ReturnDateSectionState extends State<ReturnDateSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text('Wypożyczono: ${widget.book.borrowedBy ?? 'Nie podano osoby'}'),
+        Text(widget.book.borrowedDate == null
+            ? 'Nie ustawiono daty wypożyczenia'
+            : 'Data wypożyczenia: ${formatReturnDate(widget.book.borrowedDate!)}'),
         Text(
             widget.book.returnDate == null
                 ? 'Nie ustawiono terminu zwrotu'
@@ -104,6 +124,9 @@ class _ReturnDateSectionState extends State<ReturnDateSection> {
           TextButton(
               onPressed: saving ? null : chooseDate,
               child: const Text('Zmień termin zwrotu')),
+          TextButton(
+              onPressed: saving ? null : extend,
+              child: const Text('Przedłuż wypożyczenie')),
           if (widget.book.returnDate != null)
             TextButton(
                 onPressed: saving ? null : clearDate,
