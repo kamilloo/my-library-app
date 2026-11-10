@@ -9,7 +9,8 @@ import 'package:my_library/models/book.dart';
 import 'package:my_library/models/return_date.dart';
 
 class ExtensionRepository extends LibraryRepository {
-  ExtensionRepository(this.book);
+  ExtensionRepository(this.book)
+      : super(clock: () => DateTime(2026, 11, 10, 12));
   Book book;
   int calls = 0;
   bool fail = false;
@@ -38,13 +39,13 @@ class ExtensionRepository extends LibraryRepository {
         action: 'loan_extended',
         detail:
             'Przedłużono wypożyczenie: ${returnDateHistoryValue(old)} → ${formatReturnDate(date)}',
-        timestamp: DateTime.now()));
+        timestamp: currentTime));
     return book;
   }
 }
 
 void main() {
-  final due = DateTime(DateTime.now().year + 1, 11, 20);
+  final due = DateTime(2027, 11, 20);
   Book fixture(DateTime? date, {BookStatus status = BookStatus.borrowed}) =>
       Book(
           id: 'book',
@@ -142,7 +143,7 @@ void main() {
       await tester.pumpAndSettle();
       final picker =
           tester.widget<DatePickerDialog>(find.byType(DatePickerDialog));
-      expect(picker.firstDate.isAfter(calendarDate(DateTime.now())), isTrue);
+      expect(picker.firstDate.isAfter(DateTime(2026, 11, 10)), isTrue);
       if (hasDate) expect(picker.firstDate, extendedReturnDate(due, 1));
       await tester.tap(find.text('Wybierz'));
       await tester.pumpAndSettle();
@@ -155,7 +156,7 @@ void main() {
 
   testWidgets('overdue preset that remains past cannot be confirmed',
       (tester) async {
-    final old = extendedReturnDate(calendarDate(DateTime.now()), -20);
+    final old = extendedReturnDate(DateTime(2026, 11, 10), -20);
     final repo = ExtensionRepository(fixture(old));
     await open(tester, repo);
     await extend(tester);

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +28,23 @@ class FailingCleanupStorage extends CoverStorage {
       throw StateError('Unexpected cleanup failure');
     }
     await super.delete(reference);
+  }
+}
+
+class PausingCoverStorage extends CoverStorage {
+  PausingCoverStorage(Directory root)
+      : super(directory: () async => Directory('${root.path}/support'));
+  bool pause = false;
+  final staged = Completer<String?>();
+  final resume = Completer<void>();
+  @override
+  Future<String?> persist(String? reference) async {
+    final result = await super.persist(reference);
+    if (pause) {
+      staged.complete(result);
+      await resume.future;
+    }
+    return result;
   }
 }
 
@@ -326,6 +344,62 @@ void main() {
     final rows = await (await database.database)
         .query('books', where: 'id = ?', whereArgs: [second.id]);
     expect(rows.single['cover_url'], isNull);
+  });
+
+  test(
+      'deletion during staged cover edit cannot resurrect book or leave the new copy referenced',
+      () async {
+    final pausing = PausingCoverStorage(root);
+    repository = LibraryRepository(
+        database: database,
+        coverStorage: pausing,
+        clock: () => DateTime(2026, 11, 10));
+    final book = await repository.addBook(
+        title: 'Book', author: 'A', coverUrl: await image());
+    final source = await image();
+    pausing.pause = true;
+    final edit = repository.updateBook(
+        id: book.id,
+        title: 'Stale edit',
+        author: 'A',
+        condition: 'Dobry',
+        updateCover: true,
+        coverUrl: source);
+    final rejected = expectLater(edit, throwsStateError);
+    final staged = await pausing.staged.future;
+    expect(await (await pausing.resolve(staged!)).exists(), isTrue);
+    await repository.deleteBook(book.id);
+    pausing.resume.complete();
+    await rejected;
+    final db = await database.database;
+    expect(await db.query('books'), isEmpty);
+    expect(await db.query('history'), isEmpty);
+    expect(await (await pausing.resolve(staged)).exists(), isFalse);
+    expect(await File(source).exists(), isTrue);
+  });
+
+  test(
+      'copy failure during cover replacement preserves previous reference and file',
+      () async {
+    final book = await repository.addBook(
+        title: 'Book', author: 'A', coverUrl: await image());
+    final db = await database.database;
+    final before = await db.query('books');
+    final history = await db.query('history');
+    await expectLater(
+        repository.updateBook(
+            id: book.id,
+            title: 'Changed',
+            author: 'A',
+            condition: 'Dobry',
+            updateCover: true,
+            coverUrl: '${root.path}/missing-input.jpg'),
+        throwsA(isA<FileSystemException>()));
+    expect(await db.query('books'), before);
+    expect(await db.query('history'), history);
+    expect(await (await storage.resolve(book.coverUrl!)).readAsBytes(),
+        [1, 2, 3, 4]);
+    expect(await Directory('${root.path}/support/covers').list().length, 1);
   });
 
   test('cleanup never deletes external files', () async {

@@ -7,7 +7,7 @@ import 'package:my_library/models/book.dart';
 import 'package:my_library/models/return_date.dart';
 
 class DateRepository extends LibraryRepository {
-  DateRepository(this.book);
+  DateRepository(this.book) : super(clock: () => DateTime(2026, 11, 10, 12));
   Book book;
   bool fail = false;
   int saves = 0;
@@ -35,7 +35,7 @@ class DateRepository extends LibraryRepository {
         action: 'return_date_changed',
         detail:
             'Zmieniono termin zwrotu: ${returnDateHistoryValue(old)} → ${returnDateHistoryValue(date)}',
-        timestamp: DateTime.now()));
+        timestamp: currentTime));
     return book;
   }
 }
@@ -79,7 +79,7 @@ void main() {
   testWidgets(
       'saved date selected; save refreshes details and history without reminder service',
       (tester) async {
-    final due = DateTime(DateTime.now().year + 1, 11, 20);
+    final due = DateTime(2027, 11, 20);
     final repository = DateRepository(borrowed(due));
     await open(tester, repository);
     expect(
@@ -106,7 +106,7 @@ void main() {
 
   testWidgets('explicit clear confirms and refreshes missing-date state',
       (tester) async {
-    final due = DateTime(DateTime.now().year + 1, 11, 20);
+    final due = DateTime(2027, 11, 20);
     final repository = DateRepository(borrowed(due));
     await open(tester, repository);
     await tester.tap(find.text('Usuń termin zwrotu'));
@@ -131,7 +131,7 @@ void main() {
     await edit(tester);
     final dialog =
         tester.widget<DatePickerDialog>(find.byType(DatePickerDialog));
-    final today = calendarDate(DateTime.now());
+    final today = DateTime(2026, 11, 10);
     expect(dialog.initialDate, today);
     await tester.tap(find.text('Anuluj'));
     await tester.pumpAndSettle();
@@ -147,7 +147,7 @@ void main() {
   testWidgets(
       'overdue saved date stays selected; other past dates are disabled',
       (tester) async {
-    final today = calendarDate(DateTime.now());
+    final today = DateTime(2026, 11, 10);
     final saved = today.subtract(const Duration(days: 5));
     final repository = DateRepository(borrowed(saved));
     await open(tester, repository);
@@ -164,7 +164,7 @@ void main() {
 
   testWidgets('save error retains date and shows Polish retry feedback',
       (tester) async {
-    final due = DateTime(DateTime.now().year + 1, 11, 20);
+    final due = DateTime(2027, 11, 20);
     final repository = DateRepository(borrowed(due))..fail = true;
     await open(tester, repository);
     await edit(tester);

@@ -6,12 +6,17 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 void main() {
   late Database db;
   late LibraryRepository repository;
+  var tick = 0;
 
   setUpAll(sqfliteFfiInit);
   setUp(() async {
     final database = LibraryDatabase.inMemory(databaseFactoryFfi);
     db = await database.database;
-    repository = LibraryRepository(database: database);
+    tick = 0;
+    repository = LibraryRepository(
+        database: database,
+        clock: () =>
+            DateTime(2026, 11, 10).add(Duration(microseconds: tick++)));
   });
   tearDown(() async => db.close());
 

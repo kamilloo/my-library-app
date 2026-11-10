@@ -19,7 +19,7 @@ class RetryRepository extends LibraryRepository {
   }) async {
     submittedIsbns.add(barcode);
     if (submittedIsbns.length == 1) throw const DuplicateIsbnException();
-    final now = DateTime.now();
+    final now = DateTime(2026, 11, 10);
     return Book(
       id: 'saved',
       title: title,

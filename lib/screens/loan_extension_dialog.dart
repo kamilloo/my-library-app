@@ -20,11 +20,11 @@ class _LoanExtensionDialogState extends State<LoanExtensionDialog> {
   bool saving = false;
   String? error;
 
-  String? get validation =>
-      loanExtensionValidation(widget.book.returnDate, proposed, DateTime.now());
+  String? get validation => loanExtensionValidation(
+      widget.book.returnDate, proposed, widget.repository.currentTime);
 
   Future<void> chooseDate() async {
-    final today = calendarDate(DateTime.now());
+    final today = calendarDate(widget.repository.currentTime);
     final tomorrow = extendedReturnDate(today, 1);
     final old = widget.book.returnDate;
     final afterOld = old == null ? tomorrow : extendedReturnDate(old, 1);
@@ -32,6 +32,7 @@ class _LoanExtensionDialogState extends State<LoanExtensionDialog> {
     final horizon = DateTime(today.year + 10, 12, 31);
     final chosen = await showDatePicker(
       context: context,
+      currentDate: today,
       initialDate:
           proposed != null && !proposed!.isBefore(first) ? proposed : first,
       firstDate: first,
