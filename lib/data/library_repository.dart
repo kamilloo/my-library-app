@@ -6,6 +6,7 @@ import '../models/book.dart';
 import '../models/isbn.dart';
 import 'library_database.dart';
 import '../services/cover_storage.dart';
+import '../services/return_reminders.dart';
 
 class DuplicateIsbnException implements Exception {
   const DuplicateIsbnException();
@@ -17,11 +18,13 @@ class DuplicateIsbnException implements Exception {
 }
 
 class LibraryRepository {
-  LibraryRepository({LibraryDatabase? database, CoverStorage? coverStorage})
+  LibraryRepository(
+      {LibraryDatabase? database, CoverStorage? coverStorage, this.reminders})
       : _database = database ?? LibraryDatabase.instance,
         coverStorage = coverStorage ?? CoverStorage();
 
   final CoverStorage coverStorage;
+  final ReturnReminders? reminders;
 
   final LibraryDatabase _database;
   final _uuid = const Uuid();
@@ -184,6 +187,35 @@ class LibraryRepository {
     return result;
   }
 
+  Future<void> _refreshReminders() async {
+    try {
+      await reminders?.reconcile();
+    } catch (error) {
+      // Loan writes are committed; retry OS synchronization on next app resume.
+      debugPrint('Reminder synchronization failed: $error');
+    }
+  }
+
+  Future<Book> updateReturnDate(String bookId, DateTime? date) async {
+    final db = await _database.database;
+    late Book updated;
+    await db.transaction((txn) async {
+      final rows =
+          await txn.query('books', where: 'id = ?', whereArgs: [bookId]);
+      if (rows.isEmpty || rows.single['status'] != BookStatus.borrowed.name) {
+        throw StateError('Book is not borrowed');
+      }
+      final changes = <String, Object?>{
+        'return_date': date?.toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      await txn.update('books', changes, where: 'id = ?', whereArgs: [bookId]);
+      updated = Book.fromMap({...rows.single, ...changes});
+    });
+    await _refreshReminders();
+    return updated;
+  }
+
   Future<void> lendBook(Book book, String borrower, DateTime? dueDate) async {
     final updated = book.copyWith(
       status: BookStatus.borrowed,
@@ -216,9 +248,12 @@ class LibraryRepository {
     final previousCover = await db.transaction((txn) async {
       final rows = await txn.query('books',
           columns: ['cover_url'], where: 'id = ?', whereArgs: [bookId]);
+      await txn.update('return_reminders', {'enabled': 0},
+          where: 'book_id = ?', whereArgs: [bookId]);
       await txn.delete('books', where: 'id = ?', whereArgs: [bookId]);
       return rows.isEmpty ? null : rows.single['cover_url'] as String?;
     });
+    await _refreshReminders();
     await _deleteUnusedCover(previousCover);
   }
 
@@ -251,7 +286,11 @@ class LibraryRepository {
       await txn
           .update('books', book.toMap(), where: 'id = ?', whereArgs: [book.id]);
       await txn.insert('history', _event(book, action, detail).toMap());
+      // A new loan always needs its own explicit opt-in.
+      await txn.update('return_reminders', {'enabled': 0},
+          where: 'book_id = ?', whereArgs: [book.id]);
     });
+    await _refreshReminders();
   }
 
   HistoryEntry _event(Book book, String action, [String? detail]) =>

@@ -31,6 +31,12 @@ After generating the Android and iOS folders, apply the changes documented in
 [`docs/camera_permissions.md`](docs/camera_permissions.md). The scanner cannot
 open the camera until those platform declarations are present.
 
+## Return-date reminders
+
+Borrowed books support optional local reminders at 09:00 on the return date.
+Enable **Przypomnij o zwrocie** in Book Details. No account is needed.
+See [setup, limits, and physical-device verification](docs/return_reminders.md).
+
 ## CI
 
 [Flutter CI](https://github.com/kamilloo/my-library-app/actions/workflows/flutter-ci.yml)

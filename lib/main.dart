@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/library_repository.dart';
+import 'data/library_database.dart';
+import 'services/return_reminders.dart';
+import 'services/local_reminder_notifications.dart';
+import 'screens/return_reminder_settings.dart';
 import 'models/book.dart';
 import 'models/isbn.dart';
 import 'services/open_library_service.dart';
@@ -68,14 +72,40 @@ class LibraryShell extends StatefulWidget {
   State<LibraryShell> createState() => _LibraryShellState();
 }
 
-class _LibraryShellState extends State<LibraryShell> {
-  final repository = LibraryRepository();
+class _LibraryShellState extends State<LibraryShell>
+    with WidgetsBindingObserver {
+  final repository = LibraryRepository(
+    reminders:
+        ReturnReminders(LibraryDatabase.instance, LocalReminderNotifications()),
+  );
+
+  Future<void> refreshReminders() async {
+    try {
+      await repository.reminders!.reconcile();
+    } catch (error) {
+      debugPrint('Reminder synchronization deferred: $error');
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(refreshReminders());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   int index = 0;
   int refreshKey = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(refreshReminders());
     if (defaultTargetPlatform == TargetPlatform.android) {
       WidgetsBinding.instance.addPostFrameCallback((_) => recoverCover());
     }
@@ -797,6 +827,17 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             repository: widget.repository,
             bookId: book.id,
           ),
+          if (book.status == BookStatus.borrowed &&
+              widget.repository.reminders != null) ...[
+            const SizedBox(height: 20),
+            ReturnReminderSettings(
+              key: ValueKey(
+                  'reminder-${book.id}:${book.updatedAt.toIso8601String()}'),
+              book: book,
+              repository: widget.repository,
+              onBookChanged: (updated) => setState(() => book = updated),
+            ),
+          ],
           if (book.description.isNotEmpty) ...[
             const SizedBox(height: 20),
             Text(book.description)

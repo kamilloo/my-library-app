@@ -27,6 +27,14 @@ class LibraryDatabase {
   static Future<void> _createHistoryIndex(Database db) => db.execute(
       'CREATE INDEX IF NOT EXISTS idx_history_book_timestamp ON history(book_id, timestamp DESC, id DESC)');
 
+  static Future<void> _createReminders(Database db) => db.execute('''
+    CREATE TABLE return_reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      book_id TEXT NOT NULL UNIQUE,
+      enabled INTEGER NOT NULL DEFAULT 0
+    )
+  ''');
+
   Future<Database> _open() async {
     final factory = _factory ?? databaseFactory;
     final path = _path ??
@@ -36,9 +44,10 @@ class LibraryDatabase {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _createHistoryIndex(db);
+          if (oldVersion < 3) await _createReminders(db);
         },
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) async {
@@ -74,6 +83,7 @@ class LibraryDatabase {
             )
           ''');
           await _createHistoryIndex(db);
+          await _createReminders(db);
         },
       ),
     );
