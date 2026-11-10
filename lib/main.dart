@@ -226,6 +226,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         selected: filter == BookStatus.borrowed,
                         onSelected: (_) =>
                             setState(() => filter = BookStatus.borrowed)),
+                    FilterChip(
+                        label: const Text('Oddane na stałe'),
+                        selected: filter == BookStatus.given,
+                        onSelected: (_) =>
+                            setState(() => filter = BookStatus.given)),
                   ],
                 ),
                 const SizedBox(height: 18),
