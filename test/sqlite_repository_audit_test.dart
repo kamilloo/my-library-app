@@ -204,6 +204,102 @@ void main() {
     expect(await snapshot(), finalState);
   });
 
+  for (final action in ['returned', 'given', 'borrowed']) {
+    test('$action rejects a stale source snapshot without side effects',
+        () async {
+      final available = await add();
+      await repository.lendBook(available, 'Anna', DateTime(2026, 11, 20));
+      final borrowed = await current(available.id);
+      Book stale;
+      if (action == 'borrowed') {
+        await repository.returnBook(borrowed);
+        stale = borrowed;
+      } else {
+        await reminders.setEnabled(available.id, true);
+        stale = available;
+      }
+      final before = await snapshot();
+      final pending = Map.of(notifications.pending);
+      notifications.schedules.clear();
+      notifications.cancellations.clear();
+      final operation = switch (action) {
+        'returned' => repository.returnBook(stale),
+        'given' => repository.giveBook(stale, 'Jan'),
+        _ => repository.lendBook(stale, 'Jan', DateTime(2026, 12, 10)),
+      };
+      await expectLater(operation, throwsStateError);
+      expect(await snapshot(), before);
+      expect(notifications.pending, pending);
+      expect(notifications.schedules, isEmpty);
+      expect(notifications.cancellations, isEmpty);
+    });
+  }
+
+  for (final action in ['returned', 'given']) {
+    for (final mismatch in ['borrower', 'date']) {
+      test('$action rejects active loan with mismatched $mismatch', () async {
+        final book = await add();
+        await repository.lendBook(book, 'Anna', DateTime(2026, 11, 20));
+        final borrowed = await current(book.id);
+        final stale = borrowed.copyWith(
+          borrowedBy: mismatch == 'borrower' ? 'Jan' : borrowed.borrowedBy,
+          borrowedDate: mismatch == 'date'
+              ? borrowed.borrowedDate!.subtract(const Duration(days: 1))
+              : borrowed.borrowedDate,
+        );
+        await reminders.setEnabled(book.id, true);
+        final before = await snapshot();
+        final pending = Map.of(notifications.pending);
+        notifications.schedules.clear();
+        notifications.cancellations.clear();
+        await expectLater(
+            action == 'returned'
+                ? repository.returnBook(stale)
+                : repository.giveBook(stale, 'Jan'),
+            throwsStateError);
+        expect(await snapshot(), before);
+        expect(notifications.pending, pending);
+        expect(notifications.schedules, isEmpty);
+        expect(notifications.cancellations, isEmpty);
+      });
+    }
+  }
+
+  for (final action in ['returned', 'given borrowed', 'given available']) {
+    test('$action accepts the current source snapshot', () async {
+      final book = await add();
+      if (action != 'given available') {
+        await repository.lendBook(book, 'Anna', DateTime(2026, 11, 20));
+        await reminders.setEnabled(book.id, true);
+      }
+      final source = await current(book.id);
+      final before = await history();
+      if (action == 'returned') {
+        await repository.returnBook(source);
+      } else {
+        await repository.giveBook(source, 'Jan');
+      }
+      final saved = await current(book.id);
+      expect(saved.status,
+          action == 'returned' ? BookStatus.available : BookStatus.given);
+      expect(saved.title, source.title);
+      expect(saved.coverUrl, source.coverUrl);
+      expect(saved.returnDate, isNull);
+      expect(await reminders.enabled(book.id), isFalse);
+      expect(notifications.pending, isEmpty);
+      final events = await history();
+      expect(events, hasLength(before.length + 1));
+      expect(
+          events
+              .where((e) => !before.any((old) => old['id'] == e['id']))
+              .single['action'],
+          action == 'returned' ? 'returned' : 'given');
+      if (action == 'given borrowed') {
+        expect(saved.borrowedDate, source.borrowedDate);
+      }
+    });
+  }
+
   test('stale prior-loan return cannot end a new borrower loan', () async {
     final book = await add();
     await repository.lendBook(book, 'Anna', DateTime(2026, 11, 20));

@@ -7,7 +7,7 @@ and reminder integration. No schema version, production database filename, table
 dependency, or platform configuration was changed.
 
 Verified locally: dependency resolution, formatting (including no-change check),
-Flutter analysis, **184 passing tests**, Android debug APK build, and
+Flutter analysis, **194 passing tests**, Android debug APK build, and
 `git diff --check`. Tests use SQLite FFI with isolated memory/file databases,
 temporary cover directories, mocked HTTP, fake notifications, and controlled
 clocks. Trigger-injected failures exercise actual SQLite transaction rollback.
@@ -101,9 +101,13 @@ foreign_key_check. Local managed cover bytes survive reopening.
    current row and update only loan fields inside a transaction, using the current
    title for history.
 3. **Invalid/repeated loan transitions created history or changed records.**
-   Status and borrower validation now precedes writes. A stale borrowed snapshot
-   cannot return/give away a different subsequent loan. Missing/deleted books are
-   rejected without resurrection.
+   Snapshot and database source statuses must match before any writes. Returns
+   require both to be borrowed; lending requires both to be available; giving
+   permits matching available or borrowed states. For borrowed sources, borrower
+   and original borrowing date must also match the active loan. Focused tests
+   reproduce stale available return/give and stale borrowed lend attempts, verify
+   unchanged rows/history/reminders on rejection, and preserve all valid flows.
+   Missing/deleted books are rejected without resurrection.
 4. **Equivalent ISBN-10/ISBN-13 values bypassed duplicate detection**, including
    concurrent saves and edits. A comparison-only key maps a valid ISBN-10 to its
    exact corresponding 978 ISBN-13. The duplicate check runs inside the write

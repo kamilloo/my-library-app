@@ -323,7 +323,10 @@ class LibraryRepository {
         _ => false,
       };
       if (!valid) throw StateError('Stan książki nie pozwala na tę operację.');
-      if (snapshot.status == BookStatus.borrowed &&
+      if (snapshot.status != current.status) {
+        throw StateError('Stan książki zmienił się. Odśwież dane książki.');
+      }
+      if (current.status == BookStatus.borrowed &&
           action != 'borrowed' &&
           (current.status != BookStatus.borrowed ||
               snapshot.borrowedDate != current.borrowedDate ||

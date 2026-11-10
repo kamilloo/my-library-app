@@ -175,7 +175,8 @@ void main() {
     await reminders.setEnabled(book.id, true);
     final oldId = notifications.pending.keys.single;
     await repository.returnBook(book);
-    await repository.lendBook(book, 'Jan', DateTime(2030, 9, 1));
+    final returned = Book.fromMap((await db.query('books')).single);
+    await repository.lendBook(returned, 'Jan', DateTime(2030, 9, 1));
     expect(notifications.pending, isEmpty);
     expect(await reminders.enabled(book.id), isFalse);
     await reminders.setEnabled(book.id, true);
