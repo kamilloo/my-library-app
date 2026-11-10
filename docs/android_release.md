@@ -174,7 +174,8 @@ all native libraries support 16 KB pages. Test a 16 KB runtime.
 | Permission/component | Reason and behavior |
 | --- | --- |
 | CAMERA | User-initiated scanner and camera-cover operation; runtime grant/denial handled by plugins/UI |
-| INTERNET | HTTPS Open Library search/ISBN metadata and remote cover image retrieval |
+| INTERNET | HTTPS Open Library search/ISBN metadata and remote cover image retrieval; planned advertising SDK network requirements must be audited on integration |
+| com.google.android.gms.permission.AD_ID | Prepared for planned Google Play services Advertising ID use; normal permission, not a runtime prompt or consent grant |
 | POST_NOTIFICATIONS | Android 13+ permission only after explicit eligible reminder opt-in |
 | RECEIVE_BOOT_COMPLETED | Restore plugin schedules after reboot/package update |
 | VIBRATE (merged plugin permission) | Notification vibration, normal permission without a runtime prompt |
@@ -188,20 +189,21 @@ all native libraries support 16 KB pages. Test a 16 KB runtime.
 | ProfileInstallReceiver exported=true | AndroidX component protected by android.permission.DUMP; not an unprotected public receiver |
 | ML Kit/Google transport and AndroidX startup components | Packaged services/providers/receivers are non-exported (or disabled), except the permission-protected profile receiver |
 
-The unnecessary explicit **com.google.android.gms.permission.AD_ID** was removed.
-No ads, analytics, tracking, contacts/location, exact-alarm or foreground-service
-feature is introduced. System Photo Picker (with supported fallback) is enabled
+Advertisements are planned for Moja Biblioteka. A single standard **AD_ID**
+declaration is restored for intended advertising SDK use; this correction adds
+no advertising SDK, ID-reading code or ad placements. No contacts/location, exact-alarm or
+foreground-service feature is introduced. System Photo Picker (with supported fallback) is enabled
 by CoverPicker; no READ/WRITE_EXTERNAL_STORAGE or READ_MEDIA_IMAGES permission
 is required. A camera is optional hardware, so manual entry remains available
 without one. App traffic disallows cleartext HTTP. Legacy user-supplied HTTP
 cover references may therefore show a placeholder; use HTTPS or a local cover.
 
 Permissions must not be prompted for during launch/automatic reconciliation.
-The final release APK manifest was inspected with SDK tools: exactly the seven
-permissions above were present (the four explicit app permissions plus vibration,
-network state and the app-scoped signature permission). AD_ID, broad storage,
-location, exact-alarm and foreground-service permissions were absent. Source
-inspection alone is insufficient. AndroidX may add its signature-protected dynamic receiver
+The corrected release APK and AAB were inspected with SDK tools: each contains
+exactly one AD_ID declaration alongside the existing seven permissions (eight total). Broad storage, location, exact-alarm
+and foreground-service permissions remain absent. Recheck the final merged
+release manifest after advertising SDK integration; source inspection alone is
+insufficient. AndroidX may add its signature-protected dynamic receiver
 permission or platform components; distinguish those from public app APIs.
 Existing debug/profile INTERNET manifests support Flutter tooling; release
 debuggability must be checked in the release artifact. Transitive ML Kit/Google
@@ -279,6 +281,38 @@ Doze, force-stop, channel/permission blocks and OEM battery policies can delay o
 prevent delivery. No exact 09:00 guarantee is made.
 See [reminder limits](return_reminders.md) and device cases N01–N09.
 
+## Advertising readiness — integration pending
+
+The developer reports that advertising plans have been declared in Google Play
+Console. This audit does not access or independently verify that Console state.
+
+**Contains ads** and the **Advertising ID declaration** are separate requirements:
+the former describes ad presence in the product/listing; the latter describes
+whether the shipped app or its SDKs use Advertising ID and for which purposes.
+Neither the permission nor a Contains ads answer proves actual ID access, correct
+consent handling, or completed Data safety disclosures.
+[Play app-content declarations](https://support.google.com/googleplay/android-developer/answer/9859455),
+[Advertising ID guidance](https://support.google.com/googleplay/android-developer/answer/6048248).
+
+For apps targeting API 33+, Google Play services Advertising ID access requires
+AD_ID. The app supplies one plain uses-permission declaration now, with no
+tools:node removal/replacement rule. SDK manifests declaring the same permission
+merge by android:name into one effective entry; do not add competing declarations
+or variant-specific overrides. Once the intended SDK/version is selected, verify
+its actual requirements and the merged release APK/AAB. A library-supplied entry
+can be the sole source after verifying all shipped variants; do not remove
+advertising support on an assumption that ads are unwanted.
+[Android Advertising ID permission and merging](https://developer.android.com/about/versions/13/behavior-changes-13#advertising-id).
+
+Before publishing an advertising-enabled version, verify the intended SDK and
+any mediation adapters, initialization and actual ad integration in a separately
+authorized task. Review SDK data disclosures, applicable consent/age/region
+handling, ID deletion/opt-out behavior, privacy policy and Google Play Data safety
+answers against the actual build and data flows. Do not pass borrower names,
+library records or lending history as ad-targeting parameters. Test consent and
+ad behavior on devices; every such case remains pending. This permission-only
+correction does not establish advertising readiness or authorize publication.
+
 ## Google Play prerequisites — not executed
 
 Reviewed authoritative requirements on 2026-11-10; recheck at actual submission:
@@ -296,8 +330,10 @@ Reviewed authoritative requirements on 2026-11-10; recheck at actual submission:
   Open Library queries and remote cover requests. Complete Data safety from actual
   app/SDK behavior, including any applicable ephemeral data transmission.
   [Data safety guidance](https://support.google.com/googleplay/android-developer/answer/10787469).
-- Complete content rating, target audience, ads declaration (no ads), app access
-  (no account), permissions declarations and other applicable content forms.
+- Verify the separate Contains ads and Advertising ID declarations against the
+  advertising-enabled release and SDK behavior; advertising is planned. Complete
+  content rating, target audience, app access (no account), permissions
+  declarations and other applicable content forms.
 - Check native 16 KB support, current SDK/policy deadlines and pre-launch reports.
 - Run internal testing and installed-upgrade QA; satisfy any account-specific
   testing prerequisites before production access. Decide version code and rollout,
@@ -324,12 +360,14 @@ performed. Public release is a separate explicit authorization and QA gate.
   itself prove the intended signing identity or Play acceptance.
 - APK zipalign check with -P 16 passed. Native ELF alignment and a 16 KB runtime
   remain pending; ZIP alignment alone is insufficient.
-- Packaged manifest: API 24/36, com.kamilloo.mylibrary, 1.0.0+8, seven permissions
-  as documented above, backup/cleartext disabled.
+- Packaged manifest: API 24/36, com.kamilloo.mylibrary, 1.0.0+8;
+  corrected APK/AAB manifests verified with eight permissions including one AD_ID entry,
+  backup/cleartext disabled. No advertising SDK is installed by this correction.
 - Existing signing material was neither generated nor read into audit output.
   Missing-credentials assembleRelease and bundleRelease rejection passed locally
   with all four signing variables explicitly empty, and is also checked in CI.
-- Artifact SHA-256 from this clean local build:
+- Historical pre-advertising-correction artifact SHA-256 (these do not identify
+  the corrected manifest; regenerate for a new release candidate):
   APK: `18cc021937c30220f139dbf8b9ce1ddf6b25ca28a0d7d20f461f4facf480234a`;
   AAB: `0114a917bcf7e9999dc1d6f0843572c81c5b00b67f6e0820c6e8baa1c33f7160`.
   Future rebuilds may differ; regenerate checksums and record the source commit.

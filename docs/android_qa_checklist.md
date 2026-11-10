@@ -14,7 +14,7 @@ installation or upgrade success from a host build.
 | Formatting and analysis | Same host | Pass |
 | Clean debug APK compilation | Android platform 37.0; JDK from Android Studio; Gradle 9.3.1 | Pass |
 | Release APK/AAB packaging and signatures | Existing private local signing configuration; no key generated | Both build; APK verifies, AAB jar verified and bundletool validates; JDK 25 stream-order warning requires release review |
-| Packaged APK identity/permissions/components | Android SDK tools, host | Pass: com.kamilloo.mylibrary, 1.0.0+8, API 24/36; no AD_ID or broad storage; signature evidence in release record |
+| Packaged APK identity/permissions/components | Android SDK tools, host | Pass: com.kamilloo.mylibrary, 1.0.0+8, API 24/36; corrected APK/AAB each verified with exactly one AD_ID, no broad storage; signature evidence in release record |
 | Missing-credentials APK/AAB guard | Both Gradle release tasks, explicitly empty signing environment | Pass: both rejected with the intended credentials error |
 | Physical install, launch, upgrade, notification delivery | No connected Android device, rechecked after laptop restart | Pending |
 
@@ -104,12 +104,33 @@ changes are not an upgrade path; never solve incompatibility by clearing data.
 Notifications use **inexactAllowWhileIdle**. A host/fake backend cannot prove
 physical delivery, and 09:00 is not an exact alarm promise.
 
+## Planned advertising — all PENDING
+
+Advertising is planned; the developer reports declaring advertising plans in Play
+Console. That Console state is not independently verified here. Contains ads and
+Advertising ID declarations are separate: verify both against the shipped app and
+the selected SDK's actual ID use. Declaring AD_ID alone does not integrate ads,
+read an ID, obtain consent, or complete privacy/Data safety obligations.
+
+| ID | Procedure and expected result | Status |
+| --- | --- | --- |
+| AD01 | Select/integrate the intended advertising SDK and any mediation adapters in a separate authorized task; review supported Android versions and SDK data disclosures | Pending |
+| AD02 | Inspect final merged release APK/AAB after integration: one AD_ID entry when SDK uses Google Play services Advertising ID; no conflicting removal or duplicate declarations | Pending |
+| AD03 | Verify applicable consent, age/region handling, denial/revocation and deleted/reset Advertising ID behavior before ad/ID use | Pending |
+| AD04 | Verify privacy policy and Data safety against actual SDK network/data behavior; do not send borrower/library/history data as targeting parameters | Pending |
+| AD05 | Independently verify Contains ads and Advertising ID Console declarations, purposes and listing for the shipped build | Pending |
+| AD06 | Test ad/consent behavior, offline/error recovery and library usability on devices; permission-only host verification does not prove SDK behavior | Pending |
+
+This correction adds no advertising SDK or placements. Existing signing, backup,
+SQLite and Android security behavior remain in scope as previously documented.
+
 ## Release gates
 
 Confirmation of the intended production certificate and Play signing setup,
 JDK 17/internal-track review of the documented AAB signature warnings, real
 installed-upgrade tests, physical notification delivery, private-data loss
-disclosure, privacy policy/listing/Data safety, Play internal testing and final
+disclosure, advertising SDK/consent/disclosure verification (AD01–AD06),
+privacy policy/listing/Data safety, Play internal testing and final
 version-code checks remain developer release gates. Do not publish on the basis
 of this checklist's existence. Record evidence first; no Play Console access or
 publication has been performed.
