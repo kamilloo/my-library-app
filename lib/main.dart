@@ -6,6 +6,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/library_repository.dart';
 import 'models/book.dart';
+import 'models/isbn.dart';
+import 'services/open_library_service.dart';
 import 'screens/scan_book_screen.dart';
 import 'screens/book_cover.dart';
 import 'services/cover_picker.dart';
@@ -343,7 +345,9 @@ class AddBookScreen extends StatefulWidget {
       this.book,
       this.coverPicker,
       this.initialCover,
+      this.isbnService,
       super.key});
+  final OpenLibraryService? isbnService;
   final CoverPicker? coverPicker;
   final String? initialCover;
   final LibraryRepository repository;
@@ -358,6 +362,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
   final title = TextEditingController();
   final author = TextEditingController();
   final isbn = TextEditingController();
+  final description = TextEditingController();
+  bool lookingUp = false;
+  String? lookupMessage;
+  late final isbnService = widget.isbnService ?? OpenLibraryService();
   String condition = 'Dobry';
   String? coverUrl;
   bool saving = false;
@@ -405,6 +413,52 @@ class _AddBookScreenState extends State<AddBookScreen> {
     }
   }
 
+  Future<void> lookupIsbn() async {
+    if (lookingUp || saving || selectingCover) return;
+    final normalized = normalizeIsbn(isbn.text);
+    if (normalized == null) {
+      setState(() => lookupMessage = 'Wpisz poprawny ISBN-10 lub ISBN-13.');
+      return;
+    }
+    final requestedIsbn = isbn.text;
+    setState(() {
+      lookingUp = true;
+      lookupMessage = null;
+    });
+    try {
+      final book = await isbnService.lookupByIsbn(normalized);
+      if (!mounted || saving || isbn.text != requestedIsbn) return;
+      if (book == null) {
+        setState(() => lookupMessage =
+            'Nie znaleziono książki. Możesz wpisać dane ręcznie lub spróbować ponownie.');
+        return;
+      }
+      // Check current values after the await, including edits made while loading.
+      if (title.text.trim().isEmpty) title.text = book.title;
+      if (author.text.trim().isEmpty) author.text = book.author;
+      if (description.text.trim().isEmpty) {
+        description.text = book.description ?? '';
+      }
+      setState(() {
+        coverUrl ??= book.coverUrl;
+        lookupMessage =
+            'Uzupełniono puste pola z Open Library. Wpisane dane zachowano.';
+      });
+    } on TimeoutException {
+      if (mounted && isbn.text == requestedIsbn) {
+        setState(() => lookupMessage =
+            'Przekroczono czas wyszukiwania. Spróbuj ponownie.');
+      }
+    } catch (_) {
+      if (mounted && isbn.text == requestedIsbn) {
+        setState(() => lookupMessage =
+            'Nie udało się pobrać danych. Sprawdź połączenie z internetem i spróbuj ponownie.');
+      }
+    } finally {
+      if (mounted) setState(() => lookingUp = false);
+    }
+  }
+
   Future<void> scanBook() async {
     final scanned = await Navigator.push<ScannedBook>(
       context,
@@ -413,6 +467,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
     if (scanned == null || !mounted) return;
     title.text = scanned.book.title;
     author.text = scanned.book.author;
+    description.text = scanned.book.description ?? '';
     isbn.text = scanned.isbn;
     coverUrl = scanned.book.coverUrl;
     unawaited(coverPicker.releaseExcept(coverUrl));
@@ -427,6 +482,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
     title.dispose();
     author.dispose();
     isbn.dispose();
+    description.dispose();
     if (!saving && !selectingCover) {
       unawaited(coverPicker.releaseExcept());
     }
@@ -453,6 +509,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
       await widget.repository.addBook(
         title: title.text,
         author: author.text,
+        description: description.text,
         coverUrl: coverUrl,
         barcode: isbn.text,
         condition: condition,
@@ -564,9 +621,35 @@ class _AddBookScreenState extends State<AddBookScreen> {
               const SizedBox(height: 14),
               TextFormField(
                   controller: isbn,
-                  keyboardType: TextInputType.number,
+                  keyboardType: TextInputType.text,
+                  onChanged: (_) => setState(() => lookupMessage = null),
                   decoration: const InputDecoration(
                       labelText: 'ISBN lub kod kreskowy (opcjonalnie)')),
+              if (!editing) ...[
+                TextButton.icon(
+                  onPressed: lookingUp || saving || selectingCover
+                      ? null : lookupIsbn,
+                  icon: const Icon(Icons.search),
+                  label: const Text('Pobierz dane z ISBN'),
+                ),
+                if (lookingUp) ...[
+                  const LinearProgressIndicator(),
+                  const Text('Pobieranie danych…'),
+                ],
+                if (lookupMessage != null) ...[
+                  Text(lookupMessage!, semanticsLabel: lookupMessage),
+                  if (!lookingUp)
+                    TextButton(
+                      onPressed: saving || selectingCover ? null : lookupIsbn,
+                      child: const Text('Spróbuj ponownie'),
+                    ),
+                ],
+                TextFormField(
+                  controller: description,
+                  maxLines: 3,
+                  decoration: const InputDecoration(labelText: 'Opis (opcjonalnie)'),
+                ),
+              ],
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                   initialValue: condition,
