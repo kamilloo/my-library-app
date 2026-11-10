@@ -213,7 +213,7 @@ void main() {
               'SELECT type, name, sql FROM sqlite_master ORDER BY type, name'),
           schemaBefore);
       expect(await db.getVersion(), versionBefore);
-      expect(versionBefore, 2);
+      expect(versionBefore, 3);
     });
   }
 
