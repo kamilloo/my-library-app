@@ -12,6 +12,8 @@ import 'screens/return_reminder_settings.dart';
 import 'screens/return_date_section.dart';
 import 'models/book.dart';
 import 'models/isbn.dart';
+import 'models/open_library_search.dart';
+import 'screens/search_books_screen.dart';
 import 'models/return_date.dart';
 import 'services/open_library_service.dart';
 import 'screens/scan_book_screen.dart';
@@ -407,6 +409,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
   final author = TextEditingController();
   final isbn = TextEditingController();
   bool lookingUp = false;
+  bool searching = false;
   String? lookupMessage;
   late final isbnService = widget.isbnService ?? OpenLibraryService();
   String condition = 'Dobry';
@@ -499,6 +502,80 @@ class _AddBookScreenState extends State<AddBookScreen> {
     }
   }
 
+  Future<void> searchBooks() async {
+    if (saving || selectingCover || lookingUp || searching) return;
+    setState(() => searching = true);
+    try {
+      final selected = await Navigator.push<OpenLibrarySearchResult>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => SearchBooksScreen(
+                  service: isbnService,
+                  initialTitle: title.text,
+                  initialAuthor: author.text,
+                )),
+      );
+      if (selected == null || !mounted) return;
+      final conflicts = <String>[
+        if (title.text.trim().isNotEmpty && title.text != selected.title)
+          'tytuł',
+        if (author.text.trim().isNotEmpty &&
+            selected.author.isNotEmpty &&
+            author.text != selected.author)
+          'autor',
+        if (isbn.text.trim().isNotEmpty &&
+            selected.isbn != null &&
+            normalizeIsbn(isbn.text) != selected.isbn)
+          'ISBN',
+        if (coverUrl != null &&
+            selected.coverUrl != null &&
+            coverUrl != selected.coverUrl)
+          'okładka (w tym wybrane zdjęcie)',
+      ];
+      var replace = false;
+      if (conflicts.isNotEmpty) {
+        final answer = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Zastąpić wpisane dane?'),
+            content:
+                Text('Wybrana książka zmieni pola: ${conflicts.join(', ')}.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Anuluj')),
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Uzupełnij tylko puste pola')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Zastąp wpisane dane')),
+            ],
+          ),
+        );
+        if (answer == null || !mounted) return;
+        replace = answer;
+      }
+      if (replace || title.text.trim().isEmpty) title.text = selected.title;
+      if (selected.author.isNotEmpty &&
+          (replace || author.text.trim().isEmpty)) {
+        author.text = selected.author;
+      }
+      if (selected.isbn != null && (replace || isbn.text.trim().isEmpty)) {
+        isbn.text = selected.isbn!;
+      }
+      setState(() {
+        if (selected.coverUrl != null && (replace || coverUrl == null)) {
+          coverUrl = selected.coverUrl;
+        }
+        lookupMessage = null;
+      });
+      unawaited(coverPicker.releaseExcept(coverUrl));
+    } finally {
+      if (mounted) setState(() => searching = false);
+    }
+  }
+
   Future<void> scanBook() async {
     final scanned = await Navigator.push<ScannedBook>(
       context,
@@ -585,6 +662,17 @@ class _AddBookScreenState extends State<AddBookScreen> {
             AppBar(title: Text(editing ? 'Edytuj książkę' : 'Dodaj książkę')),
         body: ListView(padding: const EdgeInsets.all(20), children: [
           if (!editing) ...[
+            FilledButton.icon(
+              onPressed: saving || selectingCover || lookingUp || searching
+                  ? null
+                  : searchBooks,
+              icon: const Icon(Icons.manage_search),
+              label: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 14),
+                child: Text('Szukaj książki po tytule lub autorze'),
+              ),
+            ),
+            const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: saving || selectingCover ? null : scanBook,
               icon: const Icon(Icons.qr_code_scanner),
