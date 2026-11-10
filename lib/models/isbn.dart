@@ -27,6 +27,20 @@ bool _validIsbn13(String value) {
   return sum % 10 == 0;
 }
 
+// Comparison only: equivalent ISBN-10/978 ISBN-13 share an identity.
+// Stored values and legacy rows retain their original supported representation.
+String? bookBarcodeIdentity(String? rawValue) {
+  final value = normalizeBookBarcode(rawValue);
+  final isbn = normalizeIsbn(value);
+  if (isbn == null || isbn.length != 10) return value;
+  final prefix = '978${isbn.substring(0, 9)}';
+  var sum = 0;
+  for (var i = 0; i < prefix.length; i++) {
+    sum += int.parse(prefix[i]) * (i.isEven ? 1 : 3);
+  }
+  return '$prefix${(10 - sum % 10) % 10}';
+}
+
 // Preserve support for non-ISBN barcodes and SQLite's nullable unique index.
 String? normalizeBookBarcode(String? rawValue) {
   final value = rawValue?.trim();

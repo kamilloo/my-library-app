@@ -65,7 +65,8 @@ void main() {
     db = await database.database;
     notifications = FakeNotifications();
     reminders = ReturnReminders(database, notifications, now: () => now);
-    repository = LibraryRepository(database: database, reminders: reminders);
+    repository = LibraryRepository(
+        database: database, reminders: reminders, clock: () => now);
     book = await repository.addBook(title: 'Title', author: 'Author');
     await repository.lendBook(book, 'Anna', DateTime(2030, 6, 2));
     book = Book.fromMap((await db.query('books')).single);
@@ -164,7 +165,8 @@ void main() {
     await reminders.reconcile();
     expect(notifications.pending, isEmpty);
     notifications.allowed = true;
-    await repository.updateReturnDate(book.id, DateTime(2029));
+    await ReturnReminders(database, notifications,
+        now: () => DateTime.utc(2031)).reconcile();
     expect(notifications.pending, isEmpty);
     expect(notifications.permissionRequests, 1);
   });
@@ -173,7 +175,8 @@ void main() {
     await reminders.setEnabled(book.id, true);
     final oldId = notifications.pending.keys.single;
     await repository.returnBook(book);
-    await repository.lendBook(book, 'Jan', DateTime(2030, 9, 1));
+    final returned = Book.fromMap((await db.query('books')).single);
+    await repository.lendBook(returned, 'Jan', DateTime(2030, 9, 1));
     expect(notifications.pending, isEmpty);
     expect(await reminders.enabled(book.id), isFalse);
     await reminders.setEnabled(book.id, true);

@@ -32,17 +32,15 @@ class LibraryRepository {
   final ReturnReminders? reminders;
   final DateTime Function() _now;
 
+  DateTime get currentTime => _now();
+
   final LibraryDatabase _database;
   final _uuid = const Uuid();
 
   Future<List<Book>> books() async {
     final db = await _database.database;
     final rows = await db.query('books', orderBy: 'created_at DESC');
-    if (rows.isEmpty && !kReleaseMode) await _seed();
-    final current = rows.isEmpty
-        ? await db.query('books', orderBy: 'created_at DESC')
-        : rows;
-    return current.map(Book.fromMap).toList();
+    return rows.map(Book.fromMap).toList();
   }
 
   Future<List<HistoryEntry>> history() async {
@@ -65,6 +63,22 @@ class LibraryRepository {
     return rows.map(HistoryEntry.fromMap).toList();
   }
 
+  Future<void> _assertUniqueBarcode(DatabaseExecutor db, String? barcode,
+      {String? exceptId}) async {
+    if (barcode == null) return;
+    final identity = bookBarcodeIdentity(barcode);
+    final rows = await db.query('books',
+        columns: ['barcode'],
+        where: exceptId == null
+            ? 'barcode IS NOT NULL'
+            : 'id != ? AND barcode IS NOT NULL',
+        whereArgs: exceptId == null ? null : [exceptId]);
+    if (rows.any(
+        (row) => bookBarcodeIdentity(row['barcode'] as String?) == identity)) {
+      throw const DuplicateIsbnException();
+    }
+  }
+
   Future<Book> addBook({
     required String title,
     required String author,
@@ -76,18 +90,9 @@ class LibraryRepository {
   }) async {
     final normalizedBarcode = normalizeBookBarcode(barcode);
     final db = await _database.database;
-    if (normalizedBarcode != null) {
-      // Older versions saved formatted ISBNs, so normalize existing values too.
-      final rows = await db.query('books',
-          columns: ['barcode'], where: 'barcode IS NOT NULL');
-      if (rows.any((row) =>
-          normalizeBookBarcode(row['barcode'] as String?) ==
-          normalizedBarcode)) {
-        throw const DuplicateIsbnException();
-      }
-    }
+    await _assertUniqueBarcode(db, normalizedBarcode);
     final storedCover = await coverStorage.persist(coverUrl);
-    final now = DateTime.now();
+    final now = _now();
     final book = Book(
       id: _uuid.v4(),
       title: title.trim(),
@@ -102,6 +107,9 @@ class LibraryRepository {
     );
     try {
       await db.transaction((txn) async {
+        // Recheck under SQLite's write lock, including equivalent 10/13 values
+        // that the unchanged text-only unique index cannot compare.
+        await _assertUniqueBarcode(txn, normalizedBarcode);
         try {
           await txn.insert('books', book.toMap());
         } on DatabaseException catch (error) {
@@ -149,15 +157,7 @@ class LibraryRepository {
         if (rows.isEmpty) throw StateError('Book no longer exists');
         final current = rows.single;
         previousCover = current['cover_url'] as String?;
-        if (normalizedBarcode != null) {
-          final others = await txn.query('books',
-              columns: ['barcode'], where: 'id != ?', whereArgs: [id]);
-          if (others.any((row) =>
-              normalizeBookBarcode(row['barcode'] as String?) ==
-              normalizedBarcode)) {
-            throw const DuplicateIsbnException();
-          }
-        }
+        await _assertUniqueBarcode(txn, normalizedBarcode, exceptId: id);
         final changes = <String, Object?>{
           'title': title.trim(),
           'author': author.trim(),
@@ -169,7 +169,7 @@ class LibraryRepository {
             .every((entry) => current[entry.key] == entry.value)) {
           return Book.fromMap(current);
         }
-        changes['updated_at'] = DateTime.now().toIso8601String();
+        changes['updated_at'] = _now().toIso8601String();
         try {
           await txn.update('books', changes, where: 'id = ?', whereArgs: [id]);
         } on DatabaseException catch (error) {
@@ -260,32 +260,13 @@ class LibraryRepository {
     return updated;
   }
 
-  Future<void> lendBook(Book book, String borrower, DateTime? dueDate) async {
-    final updated = book.copyWith(
-      status: BookStatus.borrowed,
-      borrowedBy: borrower.trim(),
-      borrowedDate: DateTime.now(),
-      returnDate: dueDate,
-    );
-    await _updateWithHistory(
-        updated, 'borrowed', 'Wypożyczono: ${borrower.trim()}');
-  }
+  Future<void> lendBook(Book book, String borrower, DateTime? dueDate) =>
+      _transitionLoan(book, 'borrowed', person: borrower, dueDate: dueDate);
 
-  Future<void> giveBook(Book book, String recipient) async {
-    final updated = book.copyWith(
-      status: BookStatus.given,
-      borrowedBy: recipient.trim(),
-      borrowedDate: DateTime.now(),
-    );
-    await _updateWithHistory(
-        updated, 'given', 'Oddano na stałe: ${recipient.trim()}');
-  }
+  Future<void> giveBook(Book book, String recipient) =>
+      _transitionLoan(book, 'given', person: recipient);
 
-  Future<void> returnBook(Book book) async {
-    final updated =
-        book.copyWith(status: BookStatus.available, clearLoan: true);
-    await _updateWithHistory(updated, 'returned', 'Oznaczono jako zwróconą');
-  }
+  Future<void> returnBook(Book book) => _transitionLoan(book, 'returned');
 
   Future<void> deleteBook(String bookId) async {
     final db = await _database.database;
@@ -323,53 +304,74 @@ class LibraryRepository {
     }
   }
 
-  Future<void> _updateWithHistory(
-      Book book, String action, String detail) async {
+  Future<void> _transitionLoan(Book snapshot, String action,
+      {String? person, DateTime? dueDate}) async {
+    final name = person?.trim();
+    if (action != 'returned' && (name == null || name.isEmpty)) {
+      throw ArgumentError('Wpisz imię osoby.');
+    }
     final db = await _database.database;
     await db.transaction((txn) async {
+      final rows = await txn.query('books',
+          where: 'id = ?', whereArgs: [snapshot.id], limit: 1);
+      if (rows.isEmpty) throw StateError('Nie znaleziono książki.');
+      final current = Book.fromMap(rows.single);
+      final valid = switch (action) {
+        'borrowed' => current.status == BookStatus.available,
+        'returned' => current.status == BookStatus.borrowed,
+        'given' => current.status != BookStatus.given,
+        _ => false,
+      };
+      if (!valid) throw StateError('Stan książki nie pozwala na tę operację.');
+      if (snapshot.status != current.status) {
+        throw StateError('Stan książki zmienił się. Odśwież dane książki.');
+      }
+      if (current.status == BookStatus.borrowed &&
+          action != 'borrowed' &&
+          (current.status != BookStatus.borrowed ||
+              snapshot.borrowedDate != current.borrowedDate ||
+              snapshot.borrowedBy != current.borrowedBy)) {
+        throw StateError('Wypożyczenie zmieniło się. Odśwież dane książki.');
+      }
+      final now = _now();
+      final changes = <String, Object?>{
+        'status': switch (action) {
+          'borrowed' => 'borrowed',
+          'given' => 'given',
+          _ => 'available',
+        },
+        'borrowed_by': action == 'returned' ? null : name,
+        'borrowed_date': action == 'returned'
+            ? null
+            : action == 'given' && current.status == BookStatus.borrowed
+                ? current.borrowedDate?.toIso8601String()
+                : now.toIso8601String(),
+        'return_date': action == 'borrowed' ? dueDate?.toIso8601String() : null,
+        'updated_at': now.toIso8601String(),
+      };
+      // Never write metadata from a potentially stale UI snapshot.
       await txn
-          .update('books', book.toMap(), where: 'id = ?', whereArgs: [book.id]);
-      await txn.insert('history', _event(book, action, detail).toMap());
-      // A new loan always needs its own explicit opt-in.
+          .update('books', changes, where: 'id = ?', whereArgs: [current.id]);
+      final detail = switch (action) {
+        'borrowed' => 'Wypożyczono: $name',
+        'given' => 'Oddano na stałe: $name',
+        _ => 'Oznaczono jako zwróconą',
+      };
+      await txn.insert('history', _event(current, action, detail, now).toMap());
       await txn.update('return_reminders', {'enabled': 0},
-          where: 'book_id = ?', whereArgs: [book.id]);
+          where: 'book_id = ?', whereArgs: [current.id]);
     });
     await _refreshReminders();
   }
 
-  HistoryEntry _event(Book book, String action, [String? detail]) =>
+  HistoryEntry _event(Book book, String action,
+          [String? detail, DateTime? at]) =>
       HistoryEntry(
         id: _uuid.v4(),
         bookId: book.id,
         bookTitle: book.title,
         action: action,
         detail: detail,
-        timestamp: DateTime.now(),
+        timestamp: at ?? _now(),
       );
-
-  Future<void> _seed() async {
-    await addBook(
-      title: 'Siedem sióstr',
-      author: 'Lucinda Riley',
-      barcode: '9788379859436',
-      directory: 'Fikcja',
-      coverUrl: 'https://covers.openlibrary.org/b/isbn/9788379859436-L.jpg',
-    );
-
-    await addBook(
-      title: 'Sześć cztery',
-      author: 'Hideo Yokoyama',
-      barcode: '9788308065174',
-      directory: 'Kryminał',
-      coverUrl: 'https://covers.openlibrary.org/b/isbn/9788308065174-L.jpg',
-    );
-
-    await addBook(
-      title: 'Sprawa honoru',
-      author: 'Lynne Olson',
-      barcode: '9788392140160',
-      directory: 'Historia',
-      coverUrl: 'https://covers.openlibrary.org/b/isbn/9788392140160-L.jpg',
-    );
-  }
 }

@@ -47,13 +47,14 @@ class _ReturnDateSectionState extends State<ReturnDateSection> {
   }
 
   Future<void> chooseDate() async {
-    final today = calendarDate(DateTime.now());
+    final today = calendarDate(widget.repository.currentTime);
     final saved = widget.book.returnDate == null
         ? null
         : calendarDate(widget.book.returnDate!);
     final horizon = DateTime(today.year + 10, 12, 31);
     final selected = await showDatePicker(
       context: context,
+      currentDate: today,
       initialDate: saved ?? today,
       firstDate: saved != null && saved.isBefore(today) ? saved : today,
       lastDate: saved != null && saved.isAfter(horizon) ? saved : horizon,

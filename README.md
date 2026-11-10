@@ -10,7 +10,9 @@ Local-first Flutter MVP for cataloging books and tracking lending.
 - Book details, lend, return, and history flows
 - Camera barcode/QR scanning with ISBN validation
 - Open Library metadata lookup and Add Book form prefilling
-- Seed books on first launch
+
+Database safety, supported migration paths, regression coverage and Android
+upgrade checks: [SQLite regression audit](docs/sqlite_regression_audit.md).
 
 ## Run
 
