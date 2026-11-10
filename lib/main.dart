@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -77,14 +79,21 @@ class _LibraryShellState extends State<LibraryShell> {
   }
 
   Future<void> recoverCover() async {
+    final picker = CoverPicker();
+    var handedOff = false;
     try {
-      final recovered = await CoverPicker().recover();
+      final recovered = await picker.recover();
       if (recovered == null || !mounted) return;
-      final added = await Navigator.push<bool>(
+      final result = Navigator.push<bool>(
           context,
           MaterialPageRoute(
               builder: (_) => AddBookScreen(
-                  repository: repository, initialCover: recovered)));
+                  repository: repository,
+                  initialCover: recovered,
+                  coverPicker: picker)));
+      // The form now owns cleanup, including an in-flight save after back.
+      handedOff = true;
+      final added = await result;
       if (added == true && mounted) setState(() => refreshKey++);
     } catch (_) {
       if (mounted) {
@@ -92,6 +101,8 @@ class _LibraryShellState extends State<LibraryShell> {
             content: Text(
                 'Nie udało się odzyskać zdjęcia. Wybierz okładkę ponownie.')));
       }
+    } finally {
+      if (!handedOff) await picker.releaseExcept();
     }
   }
 
@@ -378,6 +389,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
           : await coverPicker.adjust(
               (await widget.repository.coverStorage.resolve(coverUrl!)).path);
       if (mounted && result != null) setState(() => coverUrl = result);
+      await coverPicker.releaseExcept(mounted ? coverUrl : null);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -385,7 +397,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
                 'Nie udało się otworzyć zdjęcia. Sprawdź dostęp do aparatu w ustawieniach lub wybierz zdjęcie z urządzenia.')));
       }
     } finally {
-      if (mounted) setState(() => selectingCover = false);
+      if (mounted) {
+        setState(() => selectingCover = false);
+      } else {
+        await coverPicker.releaseExcept();
+      }
     }
   }
 
@@ -399,6 +415,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
     author.text = scanned.book.author;
     isbn.text = scanned.isbn;
     coverUrl = scanned.book.coverUrl;
+    unawaited(coverPicker.releaseExcept(coverUrl));
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Dane książki uzupełniono z Open Library.')),
@@ -410,6 +427,9 @@ class _AddBookScreenState extends State<AddBookScreen> {
     title.dispose();
     author.dispose();
     isbn.dispose();
+    if (!saving && !selectingCover) {
+      unawaited(coverPicker.releaseExcept());
+    }
     super.dispose();
   }
 
@@ -457,7 +477,11 @@ class _AddBookScreenState extends State<AddBookScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted) {
+        setState(() => saving = false);
+      } else {
+        await coverPicker.releaseExcept();
+      }
     }
   }
 
@@ -516,7 +540,10 @@ class _AddBookScreenState extends State<AddBookScreen> {
                   TextButton(
                       onPressed: saving || selectingCover
                           ? null
-                          : () => setState(() => coverUrl = null),
+                          : () {
+                              setState(() => coverUrl = null);
+                              unawaited(coverPicker.releaseExcept());
+                            },
                       child: const Text('Usuń okładkę')),
               ]),
               if (selectingCover) const LinearProgressIndicator(),

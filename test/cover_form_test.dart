@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,18 +10,24 @@ import 'package:my_library/services/cover_picker.dart';
 
 class Picker extends CoverPicker {
   String? result;
+  Completer<String?>? pending;
+  final releases = <String?>[];
   ImageSource? source;
   @override
   Future<String?> pick(ImageSource source) async {
     this.source = source;
-    return result;
+    return pending == null ? result : await pending!.future;
   }
+
+  @override
+  Future<void> releaseExcept([String? keep]) async => releases.add(keep);
 
   @override
   Future<String?> adjust(String path) async => result;
 }
 
 class Repository extends LibraryRepository {
+  Completer<Book>? pendingSave;
   String? savedCover;
   bool? coverUpdated;
   Book result(String? cover) => Book(
@@ -54,11 +62,73 @@ class Repository extends LibraryRepository {
       bool updateCover = false}) async {
     savedCover = coverUrl;
     coverUpdated = updateCover;
-    return result(coverUrl);
+    return pendingSave == null ? result(coverUrl) : await pendingSave!.future;
   }
 }
 
 void main() {
+  testWidgets('leaving without saving releases draft and leaves book untouched',
+      (tester) async {
+    final repository = Repository();
+    final picker = Picker()..result = '/temporary/cover.jpg';
+    await tester.pumpWidget(MaterialApp(
+        home: AddBookScreen(
+            repository: repository,
+            book: repository.result(null),
+            coverPicker: picker)));
+    await tester.tap(find.text('Wybierz zdjęcie z urządzenia'));
+    await tester.pumpAndSettle();
+    expect(picker.releases.last, '/temporary/cover.jpg');
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    expect(picker.releases.last, isNull);
+    expect(repository.coverUpdated, isNull);
+  });
+
+  testWidgets('leaving during native selection releases late result',
+      (tester) async {
+    final repository = Repository();
+    final picker = Picker()..pending = Completer<String?>();
+    await tester.pumpWidget(MaterialApp(
+        home: AddBookScreen(
+            repository: repository,
+            book: repository.result(null),
+            coverPicker: picker)));
+    await tester.tap(find.text('Wybierz zdjęcie z urządzenia'));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+    expect(picker.releases, isEmpty);
+    picker.pending!.complete('/temporary/late.jpg');
+    await tester.pumpAndSettle();
+    expect(picker.releases.last, isNull);
+    expect(repository.coverUpdated, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('leaving during save retains source until the write completes',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = Repository()..pendingSave = Completer<Book>();
+    final picker = Picker()..result = '/temporary/cover.jpg';
+    await tester.pumpWidget(MaterialApp(
+        home: AddBookScreen(
+            repository: repository,
+            book: repository.result(null),
+            coverPicker: picker)));
+    await tester.tap(find.text('Wybierz zdjęcie z urządzenia'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz zmiany'));
+    await tester.pump();
+    picker.releases.clear();
+    await tester.pumpWidget(const SizedBox());
+    expect(picker.releases, isEmpty);
+    repository.pendingSave!.complete(repository.result('covers/saved.jpg'));
+    await tester.pumpAndSettle();
+    expect(picker.releases.last, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final editing in [false, true]) {
     testWidgets(
         'shared form chooses camera/gallery, cancels, adjusts and saves (edit=$editing)',

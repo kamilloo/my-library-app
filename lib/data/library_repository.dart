@@ -94,7 +94,7 @@ class LibraryRepository {
             'history', _event(book, 'added', 'Dodano na półkę').toMap());
       });
     } catch (_) {
-      if (storedCover != coverUrl) await coverStorage.delete(storedCover);
+      if (storedCover != coverUrl) await _deleteUnusedCover(storedCover);
       rethrow;
     }
     return book;
@@ -119,8 +119,9 @@ class LibraryRepository {
     final storedCover =
         updateCover ? await coverStorage.persist(coverUrl) : null;
     String? previousCover;
+    late final Book result;
     try {
-      final result = await db.transaction((txn) async {
+      result = await db.transaction((txn) async {
         final rows = await txn.query('books', where: 'id = ?', whereArgs: [id]);
         if (rows.isEmpty) throw StateError('Book no longer exists');
         final current = rows.single;
@@ -157,14 +158,16 @@ class LibraryRepository {
         }
         return Book.fromMap({...current, ...changes});
       });
-      if (updateCover && previousCover != storedCover) {
-        await _deleteUnusedCover(previousCover);
-      }
-      return result;
     } catch (_) {
+      // Only rollback-created files are candidates here; never existing covers.
       if (storedCover != coverUrl) await _deleteUnusedCover(storedCover);
       rethrow;
     }
+    // The write has committed. Cleanup cannot change the saved result.
+    if (updateCover && previousCover != storedCover) {
+      await _deleteUnusedCover(previousCover);
+    }
+    return result;
   }
 
   Future<void> lendBook(Book book, String borrower, DateTime? dueDate) async {
@@ -196,26 +199,35 @@ class LibraryRepository {
 
   Future<void> deleteBook(String bookId) async {
     final db = await _database.database;
-    final rows = await db.query('books',
-        columns: ['cover_url'], where: 'id = ?', whereArgs: [bookId]);
-    await db.delete('books', where: 'id = ?', whereArgs: [bookId]);
-    if (rows.isNotEmpty)
-      await _deleteUnusedCover(rows.single['cover_url'] as String?);
+    final previousCover = await db.transaction((txn) async {
+      final rows = await txn.query('books',
+          columns: ['cover_url'], where: 'id = ?', whereArgs: [bookId]);
+      await txn.delete('books', where: 'id = ?', whereArgs: [bookId]);
+      return rows.isEmpty ? null : rows.single['cover_url'] as String?;
+    });
+    await _deleteUnusedCover(previousCover);
   }
 
   Future<void> _deleteUnusedCover(String? reference) async {
     if (reference == null || !CoverStorage.isManaged(reference)) return;
-    final db = await _database.database;
-    // Check and delete while holding SQLite's write lock, so another save
-    // cannot start referencing this file between the check and deletion.
-    await db.transaction((txn) async {
-      final users = await txn.query('books',
-          columns: ['id'],
-          where: 'cover_url = ?',
-          whereArgs: [reference],
-          limit: 1);
-      if (users.isEmpty) await coverStorage.delete(reference);
-    });
+    try {
+      final db = await _database.database;
+      // Check and delete while holding SQLite's write lock, so another save
+      // cannot start referencing this file between the check and deletion.
+      await db.transaction((txn) async {
+        final users = await txn.query('books',
+            columns: ['id'],
+            where: 'cover_url = ?',
+            whereArgs: [reference],
+            limit: 1);
+        if (users.isEmpty) await coverStorage.delete(reference);
+      });
+    } catch (error, stackTrace) {
+      // Cleanup is best effort, including unexpected storage/DB failures.
+      // Preserve the original transaction error or successful committed result.
+      debugPrint('Cover cleanup failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Future<void> _updateWithHistory(

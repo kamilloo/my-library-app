@@ -6,6 +6,30 @@ import 'package:my_library/data/library_repository.dart';
 import 'package:my_library/services/cover_storage.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+class AlwaysFailingCleanupStorage extends CoverStorage {
+  AlwaysFailingCleanupStorage(Directory root)
+      : super(directory: () async => Directory('${root.path}/support'));
+  @override
+  Future<void> delete(String? reference) async =>
+      throw StateError('Cleanup unavailable');
+}
+
+class FailingCleanupStorage extends CoverStorage {
+  FailingCleanupStorage(Directory root)
+      : super(directory: () async => Directory('${root.path}/support'));
+  String? failReference;
+  final deleted = <String?>[];
+
+  @override
+  Future<void> delete(String? reference) async {
+    deleted.add(reference);
+    if (reference == failReference) {
+      throw StateError('Unexpected cleanup failure');
+    }
+    await super.delete(reference);
+  }
+}
+
 void main() {
   late Directory root;
   late LibraryDatabase database;
@@ -123,6 +147,185 @@ void main() {
         await Directory('${root.path}/support/covers').list().toList();
     expect(files, hasLength(1));
     expect(await (await storage.resolve(first.coverUrl!)).exists(), isTrue);
+  });
+
+  test('committed replacement succeeds even when old-cover cleanup throws',
+      () async {
+    final failing = FailingCleanupStorage(root);
+    repository = LibraryRepository(database: database, coverStorage: failing);
+    final first = await repository.addBook(
+        title: 'First', author: 'A', coverUrl: await image());
+    failing.failReference = first.coverUrl;
+    final saved = await repository.updateBook(
+        id: first.id,
+        title: 'Saved',
+        author: 'A',
+        condition: 'Dobry',
+        updateCover: true,
+        coverUrl: await image());
+    final row = (await (await database.database).query('books')).single;
+    expect(row['title'], 'Saved');
+    expect(row['cover_url'], saved.coverUrl);
+    expect(await (await storage.resolve(saved.coverUrl!)).exists(), isTrue);
+    expect(failing.deleted, [first.coverUrl]);
+    expect(await (await storage.resolve(first.coverUrl!)).exists(), isTrue);
+  });
+
+  test(
+      'failed update transaction rolls back metadata and removes only new copy',
+      () async {
+    final first = await repository.addBook(
+        title: 'First', author: 'A', coverUrl: await image());
+    final db = await database.database;
+    final before = await db.query('books');
+    final history = await db.query('history');
+    await db.execute(
+        "CREATE TRIGGER reject_edit BEFORE UPDATE ON books BEGIN SELECT RAISE(ABORT, 'rejected edit'); END");
+    await expectLater(
+        repository.updateBook(
+            id: first.id,
+            title: 'Changed',
+            author: 'A',
+            condition: 'Dobry',
+            updateCover: true,
+            coverUrl: await image()),
+        throwsA(isA<DatabaseException>()));
+    expect(await db.query('books'), before);
+    expect(await db.query('history'), history);
+    expect(await Directory('${root.path}/support/covers').list().length, 1);
+    expect(await (await storage.resolve(first.coverUrl!)).exists(), isTrue);
+  });
+
+  test(
+      'failed add transaction removes copy and leaves no book or history reference',
+      () async {
+    final db = await database.database;
+    await db.execute(
+        "CREATE TRIGGER reject_history BEFORE INSERT ON history BEGIN SELECT RAISE(ABORT, 'rejected history'); END");
+    final source = await image();
+    await expectLater(
+        repository.addBook(title: 'First', author: 'A', coverUrl: source),
+        throwsA(isA<DatabaseException>()));
+    expect(await db.query('books'), isEmpty);
+    expect(await db.query('history'), isEmpty);
+    expect(await Directory('${root.path}/support/covers').list().length, 0);
+    expect(await File(source).exists(), isTrue);
+  });
+
+  test(
+      'rollback cleanup failure preserves transaction error and existing reference',
+      () async {
+    final failing = FailingCleanupStorage(root);
+    repository = LibraryRepository(database: database, coverStorage: failing);
+    final first = await repository.addBook(
+        title: 'First', author: 'A', coverUrl: await image());
+    final db = await database.database;
+    await db.execute(
+        "CREATE TRIGGER reject_edit BEFORE UPDATE ON books BEGIN SELECT RAISE(ABORT, 'rejected edit'); END");
+    // Make every cleanup throw, including for the newly copied cover.
+    final unavailable = AlwaysFailingCleanupStorage(root);
+    repository =
+        LibraryRepository(database: database, coverStorage: unavailable);
+    await expectLater(
+        repository.updateBook(
+            id: first.id,
+            title: 'Changed',
+            author: 'A',
+            condition: 'Dobry',
+            updateCover: true,
+            coverUrl: await image()),
+        throwsA(isA<DatabaseException>()));
+    expect((await db.query('books')).single['cover_url'], first.coverUrl);
+    expect(await (await storage.resolve(first.coverUrl!)).exists(), isTrue);
+  });
+
+  test('deleting shared cover keeps it until last book is deleted', () async {
+    final first = await repository.addBook(
+        title: 'First', author: 'A', coverUrl: await image());
+    final second = await repository.addBook(
+        title: 'Second', author: 'A', coverUrl: first.coverUrl);
+    final file = await storage.resolve(first.coverUrl!);
+    await repository.deleteBook(first.id);
+    expect(await file.exists(), isTrue);
+    expect((await (await database.database).query('books')).single['cover_url'],
+        second.coverUrl);
+    await repository.deleteBook(second.id);
+    expect(await file.exists(), isFalse);
+    expect(await (await database.database).query('books'), isEmpty);
+  });
+
+  test(
+      'delete commits despite cleanup failure; failed delete retains its cover',
+      () async {
+    final failing = FailingCleanupStorage(root);
+    repository = LibraryRepository(database: database, coverStorage: failing);
+    final first = await repository.addBook(
+        title: 'First', author: 'A', coverUrl: await image());
+    final db = await database.database;
+    await db.execute(
+        "CREATE TRIGGER reject_delete BEFORE DELETE ON books BEGIN SELECT RAISE(ABORT, 'rejected delete'); END");
+    await expectLater(
+        repository.deleteBook(first.id), throwsA(isA<DatabaseException>()));
+    expect(await (await storage.resolve(first.coverUrl!)).exists(), isTrue);
+    expect((await db.query('books')).single['cover_url'], first.coverUrl);
+    expect(failing.deleted, isEmpty);
+    await db.execute('DROP TRIGGER reject_delete');
+    failing.failReference = first.coverUrl;
+    await repository.deleteBook(first.id);
+    expect(await db.query('books'), isEmpty);
+  });
+
+  test('removing a cover preserves metadata lending state and history',
+      () async {
+    final first = await repository.addBook(
+        title: 'First',
+        author: 'A',
+        barcode: '111',
+        description: 'Description',
+        directory: 'Shelf',
+        condition: 'Nowa',
+        coverUrl: await image());
+    await repository.lendBook(first, 'Borrower', DateTime(2030));
+    final db = await database.database;
+    final before = Map<String, Object?>.from((await db.query('books')).single);
+    final history = await db.query('history');
+    await repository.updateBook(
+        id: first.id,
+        title: 'First',
+        author: 'A',
+        barcode: '111',
+        condition: 'Nowa',
+        updateCover: true);
+    final after = Map<String, Object?>.from((await db.query('books')).single);
+    expect(after.remove('cover_url'), isNull);
+    before.remove('cover_url');
+    before.remove('updated_at');
+    after.remove('updated_at');
+    expect(after, before);
+    expect(await db.query('history'), history);
+    expect(await (await storage.resolve(first.coverUrl!)).exists(), isFalse);
+  });
+
+  test('failed edit never cleans an existing shared managed reference',
+      () async {
+    final first = await repository.addBook(
+        title: 'First', author: 'A', barcode: '111', coverUrl: await image());
+    final second =
+        await repository.addBook(title: 'Second', author: 'A', barcode: '222');
+    await expectLater(
+        repository.updateBook(
+            id: second.id,
+            title: 'Second',
+            author: 'A',
+            barcode: '111',
+            condition: 'Dobry',
+            updateCover: true,
+            coverUrl: first.coverUrl),
+        throwsA(isA<DuplicateIsbnException>()));
+    expect(await (await storage.resolve(first.coverUrl!)).exists(), isTrue);
+    final rows = await (await database.database)
+        .query('books', where: 'id = ?', whereArgs: [second.id]);
+    expect(rows.single['cover_url'], isNull);
   });
 
   test('cleanup never deletes external files', () async {
