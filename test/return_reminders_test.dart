@@ -13,6 +13,13 @@ class FakeNotifications extends ReminderNotifications {
   int permissionRequests = 0;
   final pending = <int, tz.TZDateTime>{};
   final cancellations = <int>[];
+  final schedules = <int>[];
+  final payloads = <int, String?>{};
+  final failScheduleIds = <int>{};
+  final failCancelIds = <int>{};
+  @override
+  Future<Map<int, String?>> pendingRequests() async =>
+      {for (final id in pending.keys) id: payloads[id]};
   @override
   Future<void> prepare() async {}
   @override
@@ -23,14 +30,20 @@ class FakeNotifications extends ReminderNotifications {
 
   @override
   Future<void> schedule(int id, Book book, tz.TZDateTime date) async {
-    if (fail) throw StateError('OS unavailable');
+    schedules.add(id);
+    if (fail || failScheduleIds.contains(id)) {
+      throw StateError('OS unavailable');
+    }
     pending[id] = date;
+    payloads[id] = reminderFingerprint(book, date);
   }
 
   @override
   Future<void> cancel(int id) async {
     cancellations.add(id);
+    if (failCancelIds.contains(id)) throw StateError('Cannot cancel');
     pending.remove(id);
+    payloads.remove(id);
   }
 }
 
@@ -197,6 +210,162 @@ void main() {
     await later.reconcile();
     expect(notifications.pending.length, lessThan(60));
     expect(notifications.pending.values.any((d) => d.month == 4), isTrue);
+  });
+
+  Future<int> addOptedLoan(String id, DateTime due) async {
+    await db.insert('books', {
+      ...book.toMap(),
+      'id': id,
+      'return_date': due.toIso8601String(),
+    });
+    return db.insert('return_reminders', {'book_id': id, 'enabled': 1});
+  }
+
+  test(
+      'unchanged schedules survive repeated reconciliation and restart untouched',
+      () async {
+    await reminders.setEnabled(book.id, true);
+    final original = Map.of(notifications.pending);
+    notifications.schedules.clear();
+    notifications.cancellations.clear();
+    await reminders.reconcile();
+    await reminders.reconcile();
+    await ReturnReminders(database, notifications, now: () => now).reconcile();
+    expect(notifications.pending, original);
+    expect(notifications.schedules, isEmpty);
+    expect(notifications.cancellations, isEmpty);
+    expect(notifications.permissionRequests, 1);
+  });
+
+  test(
+      'midway schedule failure preserves other books and recovers after restart',
+      () async {
+    final ids = [
+      for (var i = 0; i < 3; i++)
+        await addOptedLoan('multi-$i', DateTime(2030, 2, i + 1)),
+    ];
+    await reminders.reconcile();
+    final oldMiddle = notifications.pending[ids[1]];
+    for (var i = 0; i < 3; i++) {
+      await db.update(
+          'books', {'return_date': DateTime(2030, 3, i + 1).toIso8601String()},
+          where: 'id = ?', whereArgs: ['multi-$i']);
+    }
+    notifications.schedules.clear();
+    notifications.cancellations.clear();
+    notifications.failScheduleIds.add(ids[1]);
+    await expectLater(reminders.reconcile(), throwsStateError);
+    expect(notifications.schedules, ids);
+    expect(notifications.cancellations, isEmpty);
+    expect(notifications.pending[ids[0]]!.month, 3);
+    expect(notifications.pending[ids[1]], oldMiddle);
+    expect(notifications.pending[ids[2]]!.month, 3);
+    expect(await reminders.enabled('multi-1'), isTrue);
+
+    notifications.failScheduleIds.clear();
+    notifications.schedules.clear();
+    await ReturnReminders(database, notifications, now: () => now).reconcile();
+    expect(notifications.schedules, [ids[1]]);
+    expect(
+        notifications.pending.values.every((date) => date.month == 3), isTrue);
+    expect(notifications.permissionRequests, 0);
+  });
+
+  test(
+      'failed cancellation does not block other cancellations or valid new schedules',
+      () async {
+    final returned = await addOptedLoan('returned', DateTime(2030, 2, 1));
+    final deleted = await addOptedLoan('deleted', DateTime(2030, 2, 2));
+    final given = await addOptedLoan('given', DateTime(2030, 2, 3));
+    final valid = await addOptedLoan('valid', DateTime(2030, 2, 4));
+    await reminders.reconcile();
+    await db.update('books', {'status': 'available'},
+        where: 'id = ?', whereArgs: ['returned']);
+    await db.delete('books', where: 'id = ?', whereArgs: ['deleted']);
+    await db.update('books', {'status': 'given'},
+        where: 'id = ?', whereArgs: ['given']);
+    final fresh = await addOptedLoan('fresh', DateTime(2030, 2, 5));
+    notifications.failCancelIds.add(returned);
+    notifications.cancellations.clear();
+    notifications.schedules.clear();
+    await expectLater(reminders.reconcile(), throwsStateError);
+    expect(
+        notifications.cancellations, containsAll([returned, deleted, given]));
+    expect(notifications.schedules, [fresh]);
+    expect(notifications.pending.keys.toSet(), {returned, valid, fresh});
+    expect(await reminders.enabled('returned'), isFalse);
+    expect(await reminders.enabled('valid'), isTrue);
+    notifications.failCancelIds.clear();
+    notifications.schedules.clear();
+    await ReturnReminders(database, notifications, now: () => now).reconcile();
+    expect(notifications.pending.keys.toSet(), {valid, fresh});
+    expect(notifications.schedules, isEmpty);
+  });
+
+  test(
+      'date replacement touches only its own ID and permission restoration restores intent',
+      () async {
+    await reminders.setEnabled(book.id, true);
+    final id = notifications.pending.keys.single;
+    final other = await addOptedLoan('other', DateTime(2030, 4, 1));
+    await reminders.reconcile();
+    notifications.schedules.clear();
+    notifications.cancellations.clear();
+    await repository.updateReturnDate(book.id, DateTime(2030, 3, 1));
+    expect(notifications.schedules, [id]);
+    expect(notifications.cancellations, isEmpty);
+    expect(notifications.pending[other]!.month, 4);
+    notifications.allowed = false;
+    await reminders.reconcile();
+    expect(notifications.pending, isEmpty);
+    expect(await reminders.enabled(book.id), isTrue);
+    expect(await reminders.enabled('other'), isTrue);
+    notifications.allowed = true;
+    await reminders.reconcile();
+    expect(notifications.pending.keys.toSet(), {id, other});
+    expect(notifications.permissionRequests, 1);
+  });
+
+  test('timezone change replaces schedules once with the same IDs', () async {
+    await reminders.setEnabled(book.id, true);
+    final id = notifications.pending.keys.single;
+    final oldTime = notifications.pending[id]!.millisecondsSinceEpoch;
+    notifications.schedules.clear();
+    try {
+      tz.setLocalLocation(tz.getLocation('America/New_York'));
+      await reminders.reconcile();
+      expect(notifications.schedules, [id]);
+      expect(notifications.pending[id]!.hour, 9);
+      expect(notifications.pending[id]!.millisecondsSinceEpoch, isNot(oldTime));
+      notifications.schedules.clear();
+      await reminders.reconcile();
+      expect(notifications.schedules, isEmpty);
+    } finally {
+      tz.setLocalLocation(tz.getLocation('Europe/Warsaw'));
+    }
+  });
+
+  test(
+      'failed eviction reserves capacity and nearest-60 refills after recovery',
+      () async {
+    final ids = [
+      for (var i = 0; i < 60; i++)
+        await addOptedLoan(
+            'queue-$i', DateTime(2030, 3, 1).add(Duration(days: i))),
+    ];
+    await reminders.reconcile();
+    final earlier = await addOptedLoan('earlier', DateTime(2030, 2, 1));
+    notifications.failCancelIds.add(ids.last);
+    notifications.schedules.clear();
+    await expectLater(reminders.reconcile(), throwsStateError);
+    expect(notifications.pending, hasLength(60));
+    expect(notifications.pending.containsKey(earlier), isFalse);
+    expect(notifications.schedules, isEmpty);
+    notifications.failCancelIds.clear();
+    await ReturnReminders(database, notifications, now: () => now).reconcile();
+    expect(notifications.pending, hasLength(60));
+    expect(notifications.pending.containsKey(ids.last), isFalse);
+    expect(notifications.schedules, [earlier]);
   });
 
   test('OS failure retains intent for retry without undoing loan writes',

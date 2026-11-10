@@ -91,6 +91,12 @@ class LocalReminderNotifications extends ReminderNotifications {
   Future<void> cancel(int id) => plugin.cancel(id: id);
 
   @override
+  Future<Map<int, String?>> pendingRequests() async => {
+        for (final request in await plugin.pendingNotificationRequests())
+          request.id: request.payload,
+      };
+
+  @override
   Future<void> schedule(int id, Book book, tz.TZDateTime date) =>
       plugin.zonedSchedule(
         id: id,
@@ -104,6 +110,6 @@ class LocalReminderNotifications extends ReminderNotifications {
           iOS: const DarwinNotificationDetails(),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        payload: book.id,
+        payload: reminderFingerprint(book, date),
       );
 }

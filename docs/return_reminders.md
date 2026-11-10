@@ -21,7 +21,17 @@ or explicitly disabling cancels the notification. Changing/removing a return dat
 reschedules/cancels it. A new loan requires a new opt-in.
 
 Startup and app resume reconcile saved intent with current loans, permissions,
-and device timezone, without permission prompts. If permissions are revoked,
+and device timezone, without permission prompts. The native pending-request payload
+stores a versioned schedule fingerprint (book ID, title, instant, timezone).
+Unchanged pending reminders are left untouched, including after app restart;
+older book-ID-only payloads are replaced once using the same notification ID.
+Changed schedules replace their own ID without a preceding cancellation.
+Each scheduling/cancellation failure is isolated; independent books are still
+attempted and saved opt-in intent remains available for retry. If native inventory
+cannot be read, reconciliation stops before changing schedules. Failed cancellations
+and uncertain scheduling outcomes conservatively reserve queue slots until native
+inventory is read again; this can temporarily defer a nearer reminder, but prevents
+exceeding the 60-request policy. If permissions are revoked,
 pending reminders are canceled on the next reconciliation. OS failures never
 roll back loan writes; saved intent is retried on the next resume. Cancellation
 failures can therefore leave an old OS notification until synchronization succeeds.
