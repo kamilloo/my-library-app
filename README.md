@@ -1,5 +1,14 @@
 # My Library
 
+## Offline SMS loan messages
+
+Android supports user-reviewed SMS invitations, extension requests and decisions,
+with explicit local approval import. No automatic SMS sending/reading or cloud
+synchronization is used. See [offline loan messaging](docs/offline_loan_messaging.md)
+for v1 QR compatibility, local contact storage, authenticity limits and device QA.
+
+
+
 Local-first Flutter MVP for cataloging books and tracking lending.
 
 ## Included

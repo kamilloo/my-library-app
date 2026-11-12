@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../data/library_repository.dart';
 import '../models/loan_transfer.dart';
+import 'loan_messaging.dart';
 
 const offlineExplanation =
     'Dane wypożyczenia są zapisywane tylko na tym urządzeniu.\n'
@@ -199,6 +200,18 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
                   children: snapshot.data!
                       .map((loan) => Card(
                               child: ListTile(
+                            onTap: busy
+                                ? null
+                                : () async {
+                                    await Navigator.push<void>(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => LoanMessagingScreen(
+                                                repository: widget.repository,
+                                                loan: loan,
+                                                ownerSide: false)));
+                                    if (mounted) reload();
+                                  },
                             title: Text(loan.title),
                             subtitle: Text(
                                 '${loan.author}\nWłaściciel: ${loan.owner ?? 'Nie podano'}\n'

@@ -291,7 +291,7 @@ void main() {
     await legacy.close();
     final upgradedDatabase = LibraryDatabase.file(databaseFactoryFfi, path);
     final upgraded = await upgradedDatabase.database;
-    expect(await upgraded.getVersion(), 4);
+    expect(await upgraded.getVersion(), 5);
     expect(await upgraded.query('borrowed_loans'), isEmpty);
     expect(await upgraded.query('loan_transfers'), isEmpty);
     final owner = LibraryRepository(

@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../models/book.dart';
 import '../models/loan_transfer.dart';
+import '../models/loan_message.dart';
 import '../models/isbn.dart';
 import '../models/return_date.dart';
 import 'library_database.dart';
@@ -40,55 +41,56 @@ class LibraryRepository {
 
   Future<LoanTransfer> loanInvitation(String bookId) async {
     final db = await _database.database;
-    return db.transaction((txn) async {
-      final rows =
-          await txn.query('books', where: 'id = ?', whereArgs: [bookId]);
-      if (rows.isEmpty) throw StateError('Nie znaleziono książki.');
-      final book = Book.fromMap(rows.single);
-      if (book.status != BookStatus.borrowed || book.borrowedDate == null) {
-        throw StateError('Brak aktywnego wypożyczenia.');
-      }
-      final instances = await txn.query('owner_loan_instances',
-          where: 'book_id = ?', whereArgs: [bookId]);
-      // Existing v3 active loans receive a durable ID without rewriting books/history.
-      final loanId = instances.isEmpty
-          ? _uuid.v4()
-          : instances.single['loan_id']! as String;
-      if (instances.isEmpty) {
-        await txn.insert(
-            'owner_loan_instances', {'book_id': bookId, 'loan_id': loanId});
-      }
-      final saved = await txn
-          .query('loan_transfers', where: 'loan_id = ?', whereArgs: [loanId]);
-      final old = saved.isEmpty
-          ? null
-          : LoanTransfer.decode(saved.single['payload']! as String);
-      final isbn = normalizeIsbn(book.barcode);
-      if (old != null &&
-          old.title == book.title &&
-          old.author == book.author &&
-          old.isbn == isbn &&
-          old.returnDate == book.returnDate) {
-        return old;
-      }
-      final invitation = LoanTransfer(
-          transferId: old?.transferId ?? _uuid.v4(),
-          loanId: loanId,
-          bookId: book.id,
-          title: book.title,
-          author: book.author,
-          isbn: isbn,
-          borrowedAt: book.borrowedDate!,
-          returnDate: book.returnDate,
-          issuedAt: _now(),
-          revision: (old?.revision ?? 0) + 1);
-      final payload = invitation.encode();
-      LoanTransfer.decode(payload);
+    return db.transaction((txn) => _loanInvitation(txn, bookId));
+  }
+
+  Future<LoanTransfer> _loanInvitation(DatabaseExecutor txn, String bookId,
+      {bool dateOnly = false}) async {
+    final rows = await txn.query('books', where: 'id = ?', whereArgs: [bookId]);
+    if (rows.isEmpty) throw StateError('Nie znaleziono książki.');
+    final book = Book.fromMap(rows.single);
+    if (book.status != BookStatus.borrowed || book.borrowedDate == null) {
+      throw StateError('Brak aktywnego wypożyczenia.');
+    }
+    final instances = await txn.query('owner_loan_instances',
+        where: 'book_id = ?', whereArgs: [bookId]);
+    // Existing v3 active loans receive a durable ID without rewriting books/history.
+    final loanId =
+        instances.isEmpty ? _uuid.v4() : instances.single['loan_id']! as String;
+    if (instances.isEmpty) {
       await txn.insert(
-          'loan_transfers', {'loan_id': loanId, 'payload': payload},
-          conflictAlgorithm: ConflictAlgorithm.replace);
-      return invitation;
-    });
+          'owner_loan_instances', {'book_id': bookId, 'loan_id': loanId});
+    }
+    final saved = await txn
+        .query('loan_transfers', where: 'loan_id = ?', whereArgs: [loanId]);
+    final old = saved.isEmpty
+        ? null
+        : LoanTransfer.decode(saved.single['payload']! as String);
+    final isbn = normalizeIsbn(book.barcode);
+    if (old != null &&
+        (dateOnly ||
+            (old.title == book.title &&
+                old.author == book.author &&
+                old.isbn == isbn)) &&
+        old.returnDate == book.returnDate) {
+      return old;
+    }
+    final invitation = LoanTransfer(
+        transferId: old?.transferId ?? _uuid.v4(),
+        loanId: loanId,
+        bookId: book.id,
+        title: dateOnly && old != null ? old.title : book.title,
+        author: dateOnly && old != null ? old.author : book.author,
+        isbn: dateOnly && old != null ? old.isbn : isbn,
+        borrowedAt: book.borrowedDate!,
+        returnDate: book.returnDate,
+        issuedAt: _now(),
+        revision: (old?.revision ?? 0) + 1);
+    final payload = invitation.encode();
+    LoanTransfer.decode(payload);
+    await txn.insert('loan_transfers', {'loan_id': loanId, 'payload': payload},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+    return invitation;
   }
 
   Future<List<LoanTransfer>> borrowedLoans() async {
@@ -136,6 +138,242 @@ class LibraryRepository {
     final db = await _database.database;
     await db.transaction((txn) => txn
         .delete('borrowed_loans', where: 'loan_id = ?', whereArgs: [loanId]));
+  }
+
+  Future<void> _checkRequest(
+      DatabaseExecutor txn, LoanMessage input, Book book) async {
+    final request = LoanMessage.decode(input.encode());
+    if (request.type != 'extension_request' ||
+        request.bookId != book.id ||
+        book.status != BookStatus.borrowed) {
+      throw const FormatException('Prośba nie dotyczy aktywnego wypożyczenia.');
+    }
+    final instances = await txn.query('owner_loan_instances',
+        where: 'book_id = ? AND loan_id = ?',
+        whereArgs: [book.id, request.loanId]);
+    final transfers = await txn.query('loan_transfers',
+        where: 'loan_id = ?', whereArgs: [request.loanId]);
+    final decisions = await txn.query('loan_messages',
+        where: 'role = ? AND request_id = ?',
+        whereArgs: ['owner', request.requestId]);
+    if (decisions.isNotEmpty) {
+      throw const FormatException(
+          'Ta prośba ma już zapisaną decyzję. Otwórz ją w historii wiadomości.');
+    }
+    if (instances.isEmpty ||
+        transfers.isEmpty ||
+        !request.matches(
+            LoanTransfer.decode(transfers.single['payload']! as String)) ||
+        (book.returnDate == null ? null : calendarDate(book.returnDate!)) !=
+            request.previousDate) {
+      throw const FormatException(
+          'Prośba dotyczy starszego terminu lub innego wypożyczenia.');
+    }
+    final validation =
+        loanExtensionValidation(book.returnDate, request.newDate, _now());
+    if (validation != null) throw FormatException(validation);
+  }
+
+  /// Read-only preview. Approval repeats these checks under SQLite's write lock.
+  Future<Book> previewExtension(LoanMessage request) async {
+    final db = await _database.database;
+    return db.transaction((txn) async {
+      final rows = await txn
+          .query('books', where: 'id = ?', whereArgs: [request.bookId]);
+      if (rows.isEmpty) throw const FormatException('Nie znaleziono książki.');
+      final book = Book.fromMap(rows.single);
+      await _checkRequest(txn, request, book);
+      return book;
+    });
+  }
+
+  Future<LoanMessage> decideExtension(
+      LoanMessage request, bool approved) async {
+    if (approved) {
+      await _updateReturnDate(request.bookId, request.newDate,
+          extension: true, request: request);
+    } else {
+      final db = await _database.database;
+      await db.transaction((txn) async {
+        final rows = await txn
+            .query('books', where: 'id = ?', whereArgs: [request.bookId]);
+        if (rows.isEmpty) {
+          throw const FormatException('Nie znaleziono książki.');
+        }
+        await _checkRequest(txn, request, Book.fromMap(rows.single));
+        final decision = request.decision(false, _now(), request.revision);
+        await txn.insert('loan_messages', {
+          'role': 'owner',
+          'request_id': request.requestId,
+          'loan_id': request.loanId,
+          'request': request.encode(),
+          'decision': decision.encode(),
+          'state': 'rejected',
+        });
+      });
+    }
+    final rows = await messages('owner', loanId: request.loanId);
+    return LoanMessage.decode(rows.singleWhere(
+        (r) => r['request_id'] == request.requestId)['decision']! as String);
+  }
+
+  Future<LoanMessage> prepareExtension(String loanId, DateTime date) async {
+    final db = await _database.database;
+    return db.transaction((txn) async {
+      final rows = await txn
+          .query('borrowed_loans', where: 'loan_id = ?', whereArgs: [loanId]);
+      if (rows.isEmpty || rows.single['local_status'] != 'active') {
+        throw const FormatException('Brak aktywnego lokalnego wypożyczenia.');
+      }
+      final loan = LoanTransfer.decode(rows.single['payload']! as String);
+      final validation = loanExtensionValidation(loan.returnDate, date, _now());
+      if (validation != null) throw FormatException(validation);
+      final request = LoanMessage(
+          type: 'extension_request',
+          requestId: _uuid.v4(),
+          loanId: loan.loanId,
+          bookId: loan.bookId,
+          previousDate:
+              loan.returnDate == null ? null : calendarDate(loan.returnDate!),
+          newDate: calendarDate(date),
+          revision: loan.revision,
+          timestamp: _now());
+      final code = request.encode();
+      LoanMessage.decode(code);
+      await txn.insert('loan_messages', {
+        'role': 'borrower',
+        'request_id': request.requestId,
+        'loan_id': loanId,
+        'request': code,
+        'state': 'prepared'
+      });
+      return request;
+    });
+  }
+
+  Future<List<Map<String, Object?>>> messages(String role,
+      {String? loanId}) async {
+    final db = await _database.database;
+    return db.query('loan_messages',
+        where: loanId == null ? 'role = ?' : 'role = ? AND loan_id = ?',
+        whereArgs: loanId == null ? [role] : [role, loanId],
+        orderBy: 'rowid DESC');
+  }
+
+  Future<void> markRequestSent(String requestId) async {
+    final db = await _database.database;
+    await db.update('loan_messages', {'state': 'pending'},
+        where: "role = 'borrower' AND request_id = ? AND state = 'prepared'",
+        whereArgs: [requestId]);
+  }
+
+  Future<LoanTransfer> _checkConfirmation(
+      DatabaseExecutor txn, LoanMessage input) async {
+    final message = LoanMessage.decode(input.encode());
+    if (message.type != 'extension_approved') {
+      throw const FormatException('Wklej kod zatwierdzonego przedłużenia.');
+    }
+    final rows = await txn.query('borrowed_loans',
+        where: 'loan_id = ?', whereArgs: [message.loanId]);
+    if (rows.isEmpty || rows.single['local_status'] != 'active') {
+      throw const FormatException(
+          'Nie znaleziono aktywnego wypożyczenia na tym urządzeniu.');
+    }
+    final loan = LoanTransfer.decode(rows.single['payload']! as String);
+    final prior = await txn.query('loan_messages',
+        where: "role = 'borrower' AND request_id = ?",
+        whereArgs: [message.requestId]);
+    if (prior.isNotEmpty && prior.single['state'] == 'imported') {
+      if (prior.single['decision'] == message.encode()) return loan;
+      throw const FormatException(
+          'Konflikt kodów o tym samym identyfikatorze.');
+    }
+    if (!message.matches(loan) || message.timestamp.isBefore(loan.issuedAt)) {
+      throw const FormatException(
+          'Potwierdzenie dotyczy innego wypożyczenia lub starszego terminu.');
+    }
+    if (prior.isNotEmpty) {
+      final request = LoanMessage.decode(prior.single['request']! as String);
+      if (request.loanId != message.loanId ||
+          request.bookId != message.bookId ||
+          request.previousDate != message.previousDate ||
+          request.newDate != message.newDate ||
+          request.revision != message.revision) {
+        throw const FormatException(
+            'Potwierdzenie nie odpowiada zapisanej prośbie.');
+      }
+    }
+    return loan;
+  }
+
+  Future<LoanTransfer> previewConfirmation(LoanMessage message) async {
+    final db = await _database.database;
+    return db.transaction((txn) => _checkConfirmation(txn, message));
+  }
+
+  Future<void> importConfirmation(LoanMessage message) async {
+    final db = await _database.database;
+    await db.transaction((txn) async {
+      final loan = await _checkConfirmation(txn, message);
+      final prior = await txn.query('loan_messages',
+          where: "role = 'borrower' AND request_id = ?",
+          whereArgs: [message.requestId]);
+      if (prior.isNotEmpty && prior.single['state'] == 'imported') return;
+      final updated = LoanTransfer(
+          transferId: loan.transferId,
+          loanId: loan.loanId,
+          bookId: loan.bookId,
+          title: loan.title,
+          author: loan.author,
+          isbn: loan.isbn,
+          owner: loan.owner,
+          borrowedAt: loan.borrowedAt,
+          issuedAt: message.timestamp,
+          returnDate: message.newDate,
+          revision: message.newRevision!);
+      final code = updated.encode();
+      LoanTransfer.decode(code);
+      await txn.update(
+          'borrowed_loans', {'payload': code, 'revision': updated.revision},
+          where: 'loan_id = ?', whereArgs: [loan.loanId]);
+      if (prior.isEmpty) {
+        await txn.insert('loan_messages', {
+          'role': 'borrower',
+          'request_id': message.requestId,
+          'loan_id': message.loanId,
+          'request': message.encode(),
+          'decision': message.encode(),
+          'state': 'imported'
+        });
+      } else {
+        await txn.update('loan_messages',
+            {'decision': message.encode(), 'state': 'imported'},
+            where: "role = 'borrower' AND request_id = ?",
+            whereArgs: [message.requestId]);
+      }
+    });
+  }
+
+  Future<String?> contact(String role, String loanId) async {
+    final db = await _database.database;
+    final rows = await db.query('loan_contacts',
+        where: 'role = ? AND loan_id = ?', whereArgs: [role, loanId]);
+    return rows.isEmpty ? null : rows.single['phone'] as String;
+  }
+
+  Future<void> saveContact(String role, String loanId, String phone) async {
+    if (!RegExp(r'^[+0-9 ()-]{0,40}$').hasMatch(phone)) {
+      throw const FormatException('Nieprawidłowy numer telefonu.');
+    }
+    final db = await _database.database;
+    if (phone.trim().isEmpty) {
+      await db.delete('loan_contacts',
+          where: 'role = ? AND loan_id = ?', whereArgs: [role, loanId]);
+    } else {
+      await db.insert('loan_contacts',
+          {'role': role, 'loan_id': loanId, 'phone': phone.trim()},
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    }
   }
 
   Future<List<Book>> books() async {
@@ -310,7 +548,7 @@ class LibraryRepository {
       _updateReturnDate(bookId, date, extension: true);
 
   Future<Book> _updateReturnDate(String bookId, DateTime? date,
-      {bool extension = false}) async {
+      {bool extension = false, LoanMessage? request}) async {
     final db = await _database.database;
     var changed = false;
     final updated = await db.transaction((txn) async {
@@ -320,6 +558,12 @@ class LibraryRepository {
         throw const ReturnDateException('Nie znaleziono książki.');
       }
       final current = Book.fromMap(rows.single);
+      if (request != null) {
+        await _checkRequest(txn, request, current);
+        if (calendarDate(date!) != request.newDate) {
+          throw const FormatException('Termin nie odpowiada prośbie.');
+        }
+      }
       if (current.status != BookStatus.borrowed) {
         throw const ReturnDateException(
             'Termin zwrotu można zmienić tylko dla wypożyczonej książki.');
@@ -354,6 +598,25 @@ class LibraryRepository {
                 '${extension ? 'Przedłużono wypożyczenie' : 'Zmieniono termin zwrotu'}: ${returnDateHistoryValue(oldDate)} → ${returnDateHistoryValue(newDate)}',
             timestamp: now,
           ).toMap());
+      // Only refresh an existing export. Ordinary date management must not
+      // depend on whether a legacy loan can be represented by the QR protocol.
+      final exported = await txn.rawQuery(
+          'SELECT t.loan_id FROM loan_transfers t JOIN owner_loan_instances i ON t.loan_id = i.loan_id WHERE i.book_id = ?',
+          [bookId]);
+      final next = exported.isEmpty
+          ? null
+          : await _loanInvitation(txn, bookId, dateOnly: true);
+      if (request != null) {
+        final decision = request.decision(true, now, next!.revision);
+        await txn.insert('loan_messages', {
+          'role': 'owner',
+          'request_id': request.requestId,
+          'loan_id': request.loanId,
+          'request': request.encode(),
+          'decision': decision.encode(),
+          'state': 'approved',
+        });
+      }
       changed = true;
       return Book.fromMap({...rows.single, ...changes});
     });
