@@ -136,8 +136,11 @@ class LibraryRepository {
 
   Future<void> deleteBorrowedLoan(String loanId) async {
     final db = await _database.database;
-    await db.transaction((txn) => txn
-        .delete('borrowed_loans', where: 'loan_id = ?', whereArgs: [loanId]));
+    await db.transaction((txn) async {
+      await txn
+          .delete('borrowed_loans', where: 'loan_id = ?', whereArgs: [loanId]);
+      await _deleteLoanPersonalData(txn, 'borrower', loanId);
+    });
   }
 
   Future<void> _checkRequest(
@@ -632,14 +635,60 @@ class LibraryRepository {
 
   Future<void> returnBook(Book book) => _transitionLoan(book, 'returned');
 
+  Future<void> _deleteLoanPersonalData(
+      DatabaseExecutor txn, String role, String loanId) async {
+    for (final table in ['loan_messages', 'loan_contacts']) {
+      await txn.delete(table,
+          where: 'role = ? AND loan_id = ?', whereArgs: [role, loanId]);
+    }
+  }
+
+  Future<Set<String>> _ownerLoanIdsForBook(
+      DatabaseExecutor txn, String bookId) async {
+    final active = await txn.query('owner_loan_instances',
+        columns: ['loan_id'], where: 'book_id = ?', whereArgs: [bookId]);
+    // New lending periods use the borrowed history event's UUID. Keep this
+    // lookup before deleting books, which cascades their history/active mapping.
+    final history = await txn.query('history',
+        columns: ['id'],
+        where: 'book_id = ? AND action = ?',
+        whereArgs: [bookId, 'borrowed']);
+    final ids = <String>{
+      ...active.map((r) => r['loan_id']! as String),
+      ...history.map((r) => r['id']! as String),
+    };
+    // Legacy v3 active loans were assigned an independent UUID on first export.
+    // Their snapshots survive return/re-lending and retain the owning book ID.
+    final transfers = await txn.query('loan_transfers');
+    for (final row in transfers) {
+      final loan = LoanTransfer.decode(row['payload']! as String);
+      if (loan.bookId == bookId) ids.add(row['loan_id']! as String);
+    }
+    final messages = await txn.query('loan_messages',
+        columns: ['loan_id', 'request'],
+        where: 'role = ?',
+        whereArgs: ['owner']);
+    for (final row in messages) {
+      final request = LoanMessage.decode(row['request']! as String);
+      if (request.bookId == bookId) ids.add(row['loan_id']! as String);
+    }
+    return ids;
+  }
+
   Future<void> deleteBook(String bookId) async {
     final db = await _database.database;
     final previousCover = await db.transaction((txn) async {
       final rows = await txn.query('books',
           columns: ['cover_url'], where: 'id = ?', whereArgs: [bookId]);
+      final loanIds = await _ownerLoanIdsForBook(txn, bookId);
       await txn.update('return_reminders', {'enabled': 0},
           where: 'book_id = ?', whereArgs: [bookId]);
       await txn.delete('books', where: 'id = ?', whereArgs: [bookId]);
+      for (final loanId in loanIds) {
+        await _deleteLoanPersonalData(txn, 'owner', loanId);
+        await txn.delete('loan_transfers',
+            where: 'loan_id = ?', whereArgs: [loanId]);
+      }
       return rows.isEmpty ? null : rows.single['cover_url'] as String?;
     });
     await _refreshReminders();

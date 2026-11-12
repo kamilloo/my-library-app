@@ -97,7 +97,14 @@ Existing books/history/reminders and v4 transfer rows are preserved by migration
 Messages store role + request ID, loan ID, encoded request, encoded decision and
 local status. Owner and borrower roles use distinct namespaces, including when
 both are exercised on the same device. Decisions are retained as replay
-tombstones separately from loan history; uninstall/clear data deletes them.
+tombstones separately from loan history during normal return and re-lending.
+Explicitly deleting a borrowed record atomically removes its borrower-role
+messages and saved contact, without changing owner-role or unrelated data.
+Deleting an owned book atomically removes owner-role messages, contacts and
+transfer snapshots for all its current and historical loan instances, including
+legacy exported loans. Borrower-role copies remain independent. Reimporting a
+deleted borrowed record starts without its former messages/contact. Uninstall
+or clearing app data also deletes this local information.
 
 An optional borrower/owner phone number is stored in `loan_contacts` keyed by
 role and loan ID **only** after **Zapisz numer tylko na tym urządzeniu**. Saving
@@ -121,7 +128,9 @@ No recovery/synchronization is promised after app data loss.
 ## Verification and physical-device QA
 
 Host validation for Task 20: dependency resolution, formatting (including the
-no-change check), analysis, **260 Flutter tests** and debug APK build passed.
+no-change check), analysis, **270 Flutter tests** and debug APK build passed.
+This includes 10 deletion/privacy regressions for role isolation, historical
+instances, reimport, rollback, cover cleanup and reminder reconciliation.
 GitHub quality-checks/android-build results and final commit are recorded in the PR.
 No real SMS or physical-device delivery test was executed.
 
