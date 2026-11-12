@@ -18,6 +18,7 @@ import 'models/return_date.dart';
 import 'services/open_library_service.dart';
 import 'screens/scan_book_screen.dart';
 import 'screens/offline_loans.dart';
+import 'screens/loan_messaging.dart';
 import 'screens/book_cover.dart';
 import 'screens/book_history_section.dart';
 import 'services/cover_picker.dart';
@@ -881,6 +882,26 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     }
   }
 
+  Future<void> showMessages() async {
+    try {
+      final loan = await widget.repository.loanInvitation(book.id);
+      if (!mounted) return;
+      await Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+              builder: (_) => LoanMessagingScreen(
+                  repository: widget.repository, loan: loan, ownerSide: true)));
+      final updated =
+          (await widget.repository.books()).where((b) => b.id == book.id);
+      if (mounted && updated.isNotEmpty) setState(() => book = updated.single);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Nie udało się otworzyć wiadomości.')));
+      }
+    }
+  }
+
   Future<void> showQr() async {
     try {
       final loan = await widget.repository.loanInvitation(book.id);
@@ -974,6 +995,12 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           ]),
           const SizedBox(height: 24),
           if (book.status == BookStatus.borrowed) ...[
+            OutlinedButton(
+                onPressed: showMessages,
+                child: const Text('Wyślij informacje SMS')),
+            TextButton(
+                onPressed: showMessages,
+                child: const Text('Odczytaj prośbę o przedłużenie')),
             OutlinedButton.icon(
                 onPressed: showQr,
                 icon: const Icon(Icons.qr_code),

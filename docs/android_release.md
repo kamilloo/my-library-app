@@ -1,5 +1,16 @@
 # Android V1 release preparation
 
+## Task 20: offline SMS messaging
+
+SQLite schema v5 adds separate local message/decision and opt-in contact tables;
+existing books/history/reminders and Task 19 payloads are preserved. No restricted
+SMS or contacts permissions, backend, Firebase or advertising changes are added.
+ACTION_SENDTO only opens a composer; delivery and identity are unverified.
+See [protocol, privacy and physical-device gates](offline_loan_messaging.md).
+Physical SMS application checks remain pending; host tests do not prove delivery.
+
+
+
 ## Status and release gates
 
 This prepares **Moja Biblioteka** for Android release review; it does not authorize

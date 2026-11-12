@@ -6,8 +6,12 @@ import '../models/return_date.dart';
 
 class LoanExtensionDialog extends StatefulWidget {
   const LoanExtensionDialog(
-      {required this.book, required this.repository, super.key});
+      {required this.book,
+      required this.repository,
+      this.requestLoanId,
+      super.key});
   final Book book;
+  final String? requestLoanId;
   final LibraryRepository repository;
 
   @override
@@ -59,9 +63,13 @@ class _LoanExtensionDialogState extends State<LoanExtensionDialog> {
       error = null;
     });
     try {
-      final updated =
-          await widget.repository.extendLoan(widget.book.id, proposed!);
+      final Object updated = widget.requestLoanId == null
+          ? await widget.repository.extendLoan(widget.book.id, proposed!)
+          : await widget.repository
+              .prepareExtension(widget.requestLoanId!, proposed!);
       if (mounted) Navigator.pop(context, updated);
+    } on FormatException catch (exception) {
+      if (mounted) setState(() => error = exception.message);
     } on ReturnDateException catch (exception) {
       if (mounted) setState(() => error = exception.message);
     } catch (_) {
@@ -76,12 +84,17 @@ class _LoanExtensionDialogState extends State<LoanExtensionDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Przedłuż wypożyczenie'),
+        title: Text(widget.requestLoanId == null
+            ? 'Przedłuż wypożyczenie'
+            : 'Poproś o przedłużenie'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.requestLoanId != null)
+                const Text(
+                    'Prośba nie przedłuża wypożyczenia. Termin zmieni się dopiero po jawnym zaimportowaniu zatwierdzonego potwierdzenia.'),
               Text(widget.book.returnDate == null
                   ? 'Nie ustawiono terminu zwrotu'
                   : 'Obecny termin: ${formatReturnDate(widget.book.returnDate!)}'),
@@ -123,7 +136,9 @@ class _LoanExtensionDialogState extends State<LoanExtensionDialog> {
               child: const Text('Anuluj')),
           FilledButton(
             onPressed: saving || validation != null ? null : confirm,
-            child: const Text('Potwierdź prolongatę'),
+            child: Text(widget.requestLoanId == null
+                ? 'Potwierdź prolongatę'
+                : 'Przygotuj prośbę SMS'),
           ),
         ],
       );

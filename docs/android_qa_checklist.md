@@ -1,5 +1,18 @@
 # Android V1 QA checklist
 
+## Task 20: SMS and offline extension QA
+
+All physical-device cases remain **Pending**. Execute the two-device workflow,
+composer cancellation, missing SMS handler, Unicode/multipart SMS, offline/restart,
+stale/replayed codes and APK permission checks listed in
+[offline loan messaging](offline_loan_messaging.md#verification-and-physical-device-qa).
+Record device model/API, commit, signing identity, tester, evidence and outcome.
+Automated tests use mocked composers and never send real SMS. Schema is now v5;
+installed upgrades from v1–v4 must preserve owned books, history, opt-in and v4
+borrower records. Explicitly review the authenticity and delivery warnings.
+
+
+
 ## Execution record
 
 Repository: kamilloo/my-library-app. Preparation date: 2026-11-10.
