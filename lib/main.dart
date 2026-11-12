@@ -17,6 +17,7 @@ import 'screens/search_books_screen.dart';
 import 'models/return_date.dart';
 import 'services/open_library_service.dart';
 import 'screens/scan_book_screen.dart';
+import 'screens/offline_loans.dart';
 import 'screens/book_cover.dart';
 import 'screens/book_history_section.dart';
 import 'services/cover_picker.dart';
@@ -161,14 +162,17 @@ class _LibraryShellState extends State<LibraryShell>
                   key: ValueKey('library-$refreshKey'), repository: repository),
               HistoryScreen(
                   key: ValueKey('history-$refreshKey'), repository: repository),
+              BorrowedLoansScreen(repository: repository),
             ],
           ),
         ),
-        floatingActionButton: FloatingActionButton.large(
-          onPressed: openAdd,
-          tooltip: 'Dodaj książkę',
-          child: const Icon(Icons.add),
-        ),
+        floatingActionButton: index == 2
+            ? null
+            : FloatingActionButton.large(
+                onPressed: openAdd,
+                tooltip: 'Dodaj książkę',
+                child: const Icon(Icons.add),
+              ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: NavigationBar(
           selectedIndex: index,
@@ -177,11 +181,14 @@ class _LibraryShellState extends State<LibraryShell>
             NavigationDestination(
                 icon: Icon(Icons.local_library_outlined),
                 selectedIcon: Icon(Icons.local_library),
-                label: 'Biblioteka'),
+                label: 'Moje książki'),
             NavigationDestination(
                 icon: Icon(Icons.history_outlined),
                 selectedIcon: Icon(Icons.history),
                 label: 'Historia'),
+            NavigationDestination(
+                icon: Icon(Icons.move_to_inbox_outlined),
+                label: 'Pożyczone od innych'),
           ],
         ),
       );
@@ -826,21 +833,69 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         context: context,
         isScrollControlled: true,
         builder: (_) => const LendSheet());
-    if (request == null) return;
-    if (request.permanent) {
-      await widget.repository.giveBook(book, request.borrower);
-      book =
-          book.copyWith(status: BookStatus.given, borrowedBy: request.borrower);
-    } else {
-      await widget.repository
-          .lendBook(book, request.borrower, request.returnDate);
-      book = book.copyWith(
-          status: BookStatus.borrowed,
-          borrowedBy: request.borrower,
-          borrowedDate: DateTime.now(),
-          returnDate: request.returnDate);
+    if (request == null || !mounted) return;
+    final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+                title: Text(request.permanent
+                    ? 'Potwierdź oddanie'
+                    : 'Potwierdź wypożyczenie'),
+                content: Text(
+                    '${book.title}\n${book.author}\nOsoba: ${request.borrower}\n'
+                    'Termin zwrotu: ${loanDate(request.returnDate)}'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Anuluj')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text(request.permanent
+                          ? 'Potwierdź oddanie'
+                          : 'Potwierdź wypożyczenie')),
+                ]));
+    if (confirmed != true) return;
+    try {
+      if (request.permanent) {
+        await widget.repository.giveBook(book, request.borrower);
+        book = book.copyWith(
+            status: BookStatus.given, borrowedBy: request.borrower);
+      } else {
+        await widget.repository
+            .lendBook(book, request.borrower, request.returnDate);
+        book = book.copyWith(
+            status: BookStatus.borrowed,
+            borrowedBy: request.borrower,
+            borrowedDate: DateTime.now(),
+            returnDate: request.returnDate);
+      }
+      final saved =
+          (await widget.repository.books()).firstWhere((b) => b.id == book.id);
+      if (mounted) setState(() => book = saved);
+      if (!request.permanent && mounted) await showQr();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Nie udało się wykonać operacji. Odśwież dane i spróbuj ponownie.')));
+      }
     }
-    if (mounted) setState(() {});
+  }
+
+  Future<void> showQr() async {
+    try {
+      final loan = await widget.repository.loanInvitation(book.id);
+      if (!mounted) return;
+      await Navigator.push<void>(
+          context,
+          MaterialPageRoute(
+              builder: (_) =>
+                  LoanQrScreen(loan: loan, borrower: book.borrowedBy)));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Nie udało się utworzyć kodu wypożyczenia.')));
+      }
+    }
   }
 
   Future<void> returnBook() async {
@@ -919,6 +974,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           ]),
           const SizedBox(height: 24),
           if (book.status == BookStatus.borrowed) ...[
+            OutlinedButton.icon(
+                onPressed: showQr,
+                icon: const Icon(Icons.qr_code),
+                label: const Text('Pokaż kod QR')),
             ReturnDateSection(
               book: book,
               repository: widget.repository,
@@ -1002,6 +1061,7 @@ class LendSheet extends StatefulWidget {
 class _LendSheetState extends State<LendSheet> {
   final borrower = TextEditingController();
   bool permanent = false;
+  bool dateReviewed = false;
   DateTime? returnDate;
 
   @override
@@ -1011,7 +1071,8 @@ class _LendSheetState extends State<LendSheet> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) => SingleChildScrollView(
+          child: Padding(
         padding: EdgeInsets.fromLTRB(
             20, 20, 20, MediaQuery.viewInsetsOf(context).bottom + 24),
         child: Column(
@@ -1041,7 +1102,7 @@ class _LendSheetState extends State<LendSheet> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Termin zwrotu'),
                     subtitle: Text(returnDate == null
-                        ? 'Opcjonalnie'
+                        ? 'Nie ustawiono terminu zwrotu — wybierz datę lub pozostaw bez terminu'
                         : _date(returnDate!)),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
@@ -1050,13 +1111,28 @@ class _LendSheetState extends State<LendSheet> {
                           firstDate: DateTime.now(),
                           lastDate:
                               DateTime.now().add(const Duration(days: 3650)));
-                      if (value != null) setState(() => returnDate = value);
+                      if (value != null && mounted) {
+                        setState(() {
+                          returnDate = value;
+                          dateReviewed = true;
+                        });
+                      }
                     }),
+              if (!permanent)
+                CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Bez terminu zwrotu'),
+                    value: dateReviewed && returnDate == null,
+                    onChanged: (value) => setState(() {
+                          dateReviewed = value ?? false;
+                          returnDate = null;
+                        })),
               const SizedBox(height: 14),
               SizedBox(
                   width: double.infinity,
                   child: FilledButton(
-                      onPressed: borrower.text.trim().isEmpty
+                      onPressed: borrower.text.trim().isEmpty ||
+                              (!permanent && !dateReviewed)
                           ? null
                           : () => Navigator.pop(
                               context,
@@ -1064,9 +1140,9 @@ class _LendSheetState extends State<LendSheet> {
                                   borrower.text.trim(), returnDate, permanent)),
                       child: const Padding(
                           padding: EdgeInsets.all(15),
-                          child: Text('Potwierdź wypożyczenie')))),
+                          child: Text('Dalej — sprawdź dane')))),
             ]),
-      );
+      ));
 }
 
 class _LoanRequest {

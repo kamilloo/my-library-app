@@ -35,6 +35,20 @@ class LibraryDatabase {
     )
   ''');
 
+  static Future<void> _createTransfers(Database db) async {
+    await db.execute('''CREATE TABLE owner_loan_instances (
+      book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+      loan_id TEXT NOT NULL UNIQUE
+    )''');
+    await db.execute(
+        'CREATE TABLE loan_transfers (loan_id TEXT PRIMARY KEY, payload TEXT NOT NULL)');
+    await db.execute("""CREATE TABLE borrowed_loans (
+      loan_id TEXT PRIMARY KEY, transfer_id TEXT NOT NULL UNIQUE,
+      payload TEXT NOT NULL, revision INTEGER NOT NULL,
+      local_status TEXT NOT NULL DEFAULT 'active'
+    )""");
+  }
+
   Future<Database> _open() async {
     final factory = _factory ?? databaseFactory;
     final path = _path ??
@@ -44,10 +58,11 @@ class LibraryDatabase {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 4,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _createHistoryIndex(db);
           if (oldVersion < 3) await _createReminders(db);
+          if (oldVersion < 4) await _createTransfers(db);
         },
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) async {
@@ -84,6 +99,7 @@ class LibraryDatabase {
           ''');
           await _createHistoryIndex(db);
           await _createReminders(db);
+          await _createTransfers(db);
         },
       ),
     );
