@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/book.dart';
+import '../models/loan_transfer.dart';
 import '../models/isbn.dart';
 import '../models/return_date.dart';
 import 'library_database.dart';
@@ -36,6 +37,106 @@ class LibraryRepository {
 
   final LibraryDatabase _database;
   final _uuid = const Uuid();
+
+  Future<LoanTransfer> loanInvitation(String bookId) async {
+    final db = await _database.database;
+    return db.transaction((txn) async {
+      final rows =
+          await txn.query('books', where: 'id = ?', whereArgs: [bookId]);
+      if (rows.isEmpty) throw StateError('Nie znaleziono książki.');
+      final book = Book.fromMap(rows.single);
+      if (book.status != BookStatus.borrowed || book.borrowedDate == null) {
+        throw StateError('Brak aktywnego wypożyczenia.');
+      }
+      final instances = await txn.query('owner_loan_instances',
+          where: 'book_id = ?', whereArgs: [bookId]);
+      // Existing v3 active loans receive a durable ID without rewriting books/history.
+      final loanId = instances.isEmpty
+          ? _uuid.v4()
+          : instances.single['loan_id']! as String;
+      if (instances.isEmpty) {
+        await txn.insert(
+            'owner_loan_instances', {'book_id': bookId, 'loan_id': loanId});
+      }
+      final saved = await txn
+          .query('loan_transfers', where: 'loan_id = ?', whereArgs: [loanId]);
+      final old = saved.isEmpty
+          ? null
+          : LoanTransfer.decode(saved.single['payload']! as String);
+      final isbn = normalizeIsbn(book.barcode);
+      if (old != null &&
+          old.title == book.title &&
+          old.author == book.author &&
+          old.isbn == isbn &&
+          old.returnDate == book.returnDate) {
+        return old;
+      }
+      final invitation = LoanTransfer(
+          transferId: old?.transferId ?? _uuid.v4(),
+          loanId: loanId,
+          bookId: book.id,
+          title: book.title,
+          author: book.author,
+          isbn: isbn,
+          borrowedAt: book.borrowedDate!,
+          returnDate: book.returnDate,
+          issuedAt: _now(),
+          revision: (old?.revision ?? 0) + 1);
+      final payload = invitation.encode();
+      LoanTransfer.decode(payload);
+      await txn.insert(
+          'loan_transfers', {'loan_id': loanId, 'payload': payload},
+          conflictAlgorithm: ConflictAlgorithm.replace);
+      return invitation;
+    });
+  }
+
+  Future<List<LoanTransfer>> borrowedLoans() async {
+    final db = await _database.database;
+    final rows = await db.query('borrowed_loans', orderBy: 'rowid DESC');
+    return rows
+        .map((r) => LoanTransfer.decode(r['payload']! as String))
+        .toList();
+  }
+
+  Future<void> importLoan(LoanTransfer invitation) async {
+    final payload = invitation.encode();
+    final incoming = LoanTransfer.decode(payload);
+    final db = await _database.database;
+    await db.transaction((txn) async {
+      final rows = await txn.query('borrowed_loans',
+          where: 'loan_id = ?', whereArgs: [incoming.loanId]);
+      if (rows.isNotEmpty) {
+        final old = LoanTransfer.decode(rows.single['payload']! as String);
+        if (payload == old.encode()) return;
+        if (incoming.transferId != old.transferId ||
+            incoming.bookId != old.bookId ||
+            incoming.borrowedAt != old.borrowedAt ||
+            incoming.owner != old.owner ||
+            incoming.revision <= old.revision ||
+            incoming.issuedAt.isBefore(old.issuedAt)) {
+          throw const FormatException(
+              'Kod jest starszy lub koliduje z zapisanym wypożyczeniem.');
+        }
+        await txn.update('borrowed_loans',
+            {'payload': payload, 'revision': incoming.revision},
+            where: 'loan_id = ?', whereArgs: [incoming.loanId]);
+      } else {
+        await txn.insert('borrowed_loans', {
+          'loan_id': incoming.loanId,
+          'transfer_id': incoming.transferId,
+          'payload': payload,
+          'revision': incoming.revision
+        });
+      }
+    });
+  }
+
+  Future<void> deleteBorrowedLoan(String loanId) async {
+    final db = await _database.database;
+    await db.transaction((txn) => txn
+        .delete('borrowed_loans', where: 'loan_id = ?', whereArgs: [loanId]));
+  }
 
   Future<List<Book>> books() async {
     final db = await _database.database;
@@ -359,7 +460,14 @@ class LibraryRepository {
         'given' => 'Oddano na stałe: $name',
         _ => 'Oznaczono jako zwróconą',
       };
-      await txn.insert('history', _event(current, action, detail, now).toMap());
+      final event = _event(current, action, detail, now);
+      await txn.insert('history', event.toMap());
+      await txn.delete('owner_loan_instances',
+          where: 'book_id = ?', whereArgs: [current.id]);
+      if (action == 'borrowed') {
+        await txn.insert('owner_loan_instances',
+            {'book_id': current.id, 'loan_id': event.id});
+      }
       await txn.update('return_reminders', {'enabled': 0},
           where: 'book_id = ?', whereArgs: [current.id]);
     });

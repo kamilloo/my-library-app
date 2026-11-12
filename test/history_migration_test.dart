@@ -88,7 +88,7 @@ void main() {
         for (var pass = 0; pass < 2; pass++) {
           final database = LibraryDatabase.file(databaseFactoryFfi, path);
           db = await database.database;
-          expect(await db.getVersion(), 3);
+          expect(await db.getVersion(), 4);
           expect(await db.query('books', orderBy: 'id'), books);
           expect(await db.query('history', orderBy: 'id'), history);
           expect(await db.query('return_reminders', orderBy: 'id'), reminders);
@@ -114,7 +114,7 @@ void main() {
                 schema.where((entry) => entry['name'] == name), hasLength(1));
           }
           expect(
-              schema.where((entry) => entry['type'] == 'table'), hasLength(3));
+              schema.where((entry) => entry['type'] == 'table'), hasLength(6));
           final loaded = await LibraryRepository(database: database).books();
           expect(loaded, hasLength(3));
           final storage = CoverStorage(
