@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'screens/tutorial_screen.dart';
+import 'services/tutorial_preferences.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -67,7 +70,12 @@ class MyLibraryApp extends StatelessWidget {
             ),
           ),
         ),
-        home: const LibraryShell(),
+        home: defaultTargetPlatform == TargetPlatform.android
+            ? TutorialGate(
+                preferences: LocalTutorialPreferences(),
+                libraryBuilder: (_) => const LibraryShell(),
+              )
+            : const LibraryShell(),
       );
 }
 
@@ -229,11 +237,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 Text('${snapshot.data!.length} książek w kolekcji',
                     style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 4),
-                Text('Moja biblioteka',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.w600)),
+                Row(children: [
+                  Expanded(
+                      child: Text('Moja biblioteka',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.w600))),
+                  const TutorialHelpButton(),
+                ]),
                 const SizedBox(height: 20),
                 SearchBar(
                   leading: const Icon(Icons.search),

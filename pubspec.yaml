@@ -12,6 +12,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.3
   http: ^1.2.2
   image_picker: ^1.2.4
   image_picker_android: ^0.8.13+25
