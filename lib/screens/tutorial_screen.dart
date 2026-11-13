@@ -46,6 +46,10 @@ const tutorialSlides = [
       'Po wypożyczeniu pokaż kod QR. Druga osoba może go zeskanować i dodać książkę do listy „Pożyczone od innych”.',
       Icons.qr_code_2_rounded),
   TutorialSlide(
+      'Proś o przedłużenie',
+      'Wyślij prośbę o przedłużenie wypożyczenia przez SMS. Właściciel zatwierdza nowy termin, a Ty wklejasz potwierdzenie w aplikacji.',
+      Icons.sms_outlined),
+  TutorialSlide(
       'Pilnuj terminów zwrotu',
       'Włącz przypomnienia o zwrocie książek, zmieniaj terminy i przedłużaj wypożyczenia.',
       Icons.event_available_outlined),
