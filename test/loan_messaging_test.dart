@@ -680,7 +680,11 @@ void main() {
               await db.execute(
                   "CREATE TABLE borrowed_loans (loan_id TEXT PRIMARY KEY, transfer_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, revision INTEGER NOT NULL, local_status TEXT NOT NULL DEFAULT 'active')");
             }));
-    await v4.insert('books', book.toMap());
+    await v4.insert(
+        'books',
+        {...book.toMap()}
+          ..remove('genre')
+          ..['directory'] = 'Bez kategorii');
     await v4.insert('return_reminders', {'book_id': book.id, 'enabled': 1});
     await v4.insert('borrowed_loans', {
       'loan_id': loan.loanId,
@@ -695,8 +699,13 @@ void main() {
     var db = LibraryDatabase.file(databaseFactoryFfi, path);
     var repo = LibraryRepository(database: db, clock: () => now);
     final sqlite = await db.database;
-    expect(await sqlite.getVersion(), 5);
-    expect(await sqlite.query('books'), oldBooks);
+    expect(await sqlite.getVersion(), 6);
+    expect(
+        await sqlite.query('books'),
+        oldBooks
+            .map((r) => {...r}..remove('directory'))
+            .map((r) => {...r, 'genre': 'Bez gatunku'})
+            .toList());
     expect(await sqlite.query('borrowed_loans'), oldBorrowed);
     expect(await sqlite.query('return_reminders'), oldReminders);
     final pending = await repo.prepareExtension(loan.loanId, DateTime(2027));

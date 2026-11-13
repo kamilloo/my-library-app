@@ -300,7 +300,7 @@ void main() {
         author: 'A',
         barcode: '111',
         description: 'Description',
-        directory: 'Shelf',
+        genre: 'Fantastyka',
         condition: 'Nowa',
         coverUrl: await image());
     await repository.lendBook(first, 'Borrower', DateTime(2030));

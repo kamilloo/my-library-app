@@ -2,7 +2,8 @@
 
 Current scope: [canonical Android V1 specification](MyLibrary_Version_1_Updated_Specification.txt).
 This document describes Task 19 invitations and its historical v3 → v4 migration.
-The active database is **v5**. Task 20 has since implemented separate v1 extension
+The active database in PR #19 is **v6** (genre migration only; wire format unchanged).
+Task 20 has since implemented separate v1 extension
 message codecs and manual SMS workflows; see [offline loan messaging](offline_loan_messaging.md).
 The invitation decoder still accepts invitations only. Historical Task 19 test
 and migration statements below do not claim a new verification run.

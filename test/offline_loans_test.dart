@@ -286,19 +286,28 @@ void main() {
         status: BookStatus.borrowed,
         borrowedBy: 'Anna',
         borrowedDate: DateTime(2026, 1, 2));
-    await legacy.insert('books', book.toMap());
+    await legacy.insert(
+        'books',
+        {...book.toMap()}
+          ..remove('genre')
+          ..['directory'] = 'Bez kategorii');
     final original = await legacy.query('books');
     await legacy.close();
     final upgradedDatabase = LibraryDatabase.file(databaseFactoryFfi, path);
     final upgraded = await upgradedDatabase.database;
-    expect(await upgraded.getVersion(), 5);
+    expect(await upgraded.getVersion(), 6);
     expect(await upgraded.query('borrowed_loans'), isEmpty);
     expect(await upgraded.query('loan_transfers'), isEmpty);
     final owner = LibraryRepository(
         database: upgradedDatabase, clock: () => DateTime(2026, 1, 3));
     final code = await owner.loanInvitation(book.id);
     expect((await owner.loanInvitation(book.id)).encode(), code.encode());
-    expect(await upgraded.query('books'), original);
+    expect(
+        await upgraded.query('books'),
+        original
+            .map((r) => {...r}..remove('directory'))
+            .map((r) => {...r, 'genre': 'Bez gatunku'})
+            .toList());
     expect(await upgraded.query('history'), isEmpty);
     expect(await upgraded.query('owner_loan_instances'), hasLength(1));
     expect(await upgraded.rawQuery('PRAGMA integrity_check'), [

@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/book.dart';
+import '../models/genre.dart';
 import '../models/loan_transfer.dart';
 import '../models/loan_message.dart';
 import '../models/isbn.dart';
@@ -38,6 +39,95 @@ class LibraryRepository {
 
   final LibraryDatabase _database;
   final _uuid = const Uuid();
+  // Emitted only after a successful registry transaction.
+  final genreChanges = ValueNotifier<GenreChange?>(null);
+
+  Future<List<Genre>> genres() async {
+    final db = await _database.database;
+    final rows = await db.rawQuery(
+        'SELECT g.id, g.name, COUNT(b.id) AS count FROM genres g LEFT JOIN books b ON b.genre = g.name GROUP BY g.id ORDER BY g.normalized_name');
+    final count = Sqflite.firstIntValue(await db.rawQuery(
+            'SELECT COUNT(*) FROM books WHERE genre = ?', [defaultGenre])) ??
+        0;
+    return [
+      Genre('', defaultGenre, count),
+      ...rows.map((r) =>
+          Genre(r['id']! as String, r['name']! as String, r['count']! as int))
+    ];
+  }
+
+  Future<String> _requireGenre(DatabaseExecutor txn, String name) async {
+    if (name == defaultGenre) return name;
+    final rows =
+        await txn.query('genres', where: 'name = ?', whereArgs: [name]);
+    if (rows.isEmpty) {
+      throw const GenreException(
+          'Wybrany gatunek już nie istnieje. Wybierz gatunek ponownie.');
+    }
+    return rows.single['name']! as String;
+  }
+
+  Future<Genre> saveGenre(String input, {String? id}) async {
+    if (id == '') {
+      throw const GenreException('Nie można zmienić gatunku „Bez gatunku”.');
+    }
+    final name = validateGenreName(input);
+    final key = normalizedGenre(name);
+    final db = await _database.database;
+    final genreId = id ?? _uuid.v4();
+    String? previousName;
+    try {
+      await db.transaction((txn) async {
+        final duplicates = await txn.query('genres',
+            where: 'normalized_name = ? AND id != ?',
+            whereArgs: [key, genreId]);
+        if (duplicates.isNotEmpty) {
+          throw const GenreException('Ten gatunek już istnieje.');
+        }
+        if (id == null) {
+          await txn.insert(
+              'genres', {'id': genreId, 'name': name, 'normalized_name': key});
+        } else {
+          final old =
+              await txn.query('genres', where: 'id = ?', whereArgs: [id]);
+          if (old.isEmpty) {
+            throw const GenreException('Wybrany gatunek już nie istnieje.');
+          }
+          previousName = old.single['name']! as String;
+          await txn.update('genres', {'name': name, 'normalized_name': key},
+              where: 'id = ?', whereArgs: [id]);
+          await txn.update('books', {'genre': name},
+              where: 'genre = ?', whereArgs: [old.single['name']]);
+        }
+      });
+    } on DatabaseException catch (e) {
+      if (e.isUniqueConstraintError()) {
+        throw const GenreException('Ten gatunek już istnieje.');
+      }
+      throw const GenreException('Nie udało się zapisać gatunku.');
+    }
+    genreChanges.value = GenreChange(previousName, name);
+    return Genre(genreId, name, 0);
+  }
+
+  Future<void> deleteGenre(String id) async {
+    if (id.isEmpty) {
+      throw const GenreException('Nie można zmienić gatunku „Bez gatunku”.');
+    }
+    final db = await _database.database;
+    late String previousName;
+    await db.transaction((txn) async {
+      final rows = await txn.query('genres', where: 'id = ?', whereArgs: [id]);
+      if (rows.isEmpty) {
+        throw const GenreException('Wybrany gatunek już nie istnieje.');
+      }
+      previousName = rows.single['name']! as String;
+      await txn.update('books', {'genre': defaultGenre},
+          where: 'genre = ?', whereArgs: [rows.single['name']]);
+      await txn.delete('genres', where: 'id = ?', whereArgs: [id]);
+    });
+    genreChanges.value = GenreChange(previousName, null);
+  }
 
   Future<LoanTransfer> loanInvitation(String bookId) async {
     final db = await _database.database;
@@ -428,7 +518,7 @@ class LibraryRepository {
     String? coverUrl,
     String? barcode,
     String condition = 'Dobry',
-    String directory = 'Bez kategorii',
+    String genre = defaultGenre,
   }) async {
     final normalizedBarcode = normalizeBookBarcode(barcode);
     final db = await _database.database;
@@ -443,7 +533,7 @@ class LibraryRepository {
       coverUrl: storedCover,
       barcode: normalizedBarcode,
       condition: condition,
-      directory: directory,
+      genre: genre,
       createdAt: now,
       updatedAt: now,
     );
@@ -452,6 +542,7 @@ class LibraryRepository {
         // Recheck under SQLite's write lock, including equivalent 10/13 values
         // that the unchanged text-only unique index cannot compare.
         await _assertUniqueBarcode(txn, normalizedBarcode);
+        await _requireGenre(txn, genre);
         try {
           await txn.insert('books', book.toMap());
         } on DatabaseException catch (error) {
@@ -483,6 +574,7 @@ class LibraryRepository {
     required String condition,
     String? coverUrl,
     bool updateCover = false,
+    String? genre,
   }) async {
     if (title.trim().isEmpty || author.trim().isEmpty) {
       throw ArgumentError('Title and author are required');
@@ -505,6 +597,7 @@ class LibraryRepository {
           'author': author.trim(),
           'barcode': normalizedBarcode,
           'condition': condition,
+          if (genre != null) 'genre': await _requireGenre(txn, genre),
           if (updateCover) 'cover_url': storedCover,
         };
         if (changes.entries

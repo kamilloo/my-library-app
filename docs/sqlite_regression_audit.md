@@ -4,11 +4,14 @@
 
 The audit below is the **Task 11 / PR #12 historical snapshot** (schema v3,
 194 tests), retained without claiming a new run. Active source now opens
-**my_library.db schema v5**, with eight tables and additive v1–v4 → v5 upgrades.
+**my_library.db schema v6 in PR #19**, with nine tables and v1–v5 → v6 upgrades.
+Task 22 intentionally replaces directory with genre, assigns all old books
+Bez gatunku without inference, and adds the persistent genres registry. All other
+book data and linked tables are preserved; see [genre migration](genres.md).
 See [canonical schema and status](MyLibrary_Version_1_Updated_Specification.txt),
 [Task 19 transfer additions](offline-loan-protocol.md) and
 [Task 20 messages/contacts](offline_loan_messaging.md). Current migration tests
-assert v5 even where historical test descriptions still mention v3 reopening.
+assert v6 even where historical test descriptions still mention v3 reopening.
 Later test-run snapshots are recorded in the canonical specification; installed
 Android upgrades remain unverified until device QA is recorded.
 

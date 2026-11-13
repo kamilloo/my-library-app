@@ -26,6 +26,20 @@ Future<void> createLegacySchema(Database db, int version) async {
     await db.execute(
         'CREATE INDEX idx_history_book_timestamp ON history(book_id, timestamp DESC, id DESC)');
   }
+  if (version >= 4) {
+    await db.execute(
+        'CREATE TABLE owner_loan_instances (book_id TEXT PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE, loan_id TEXT NOT NULL UNIQUE)');
+    await db.execute(
+        'CREATE TABLE loan_transfers (loan_id TEXT PRIMARY KEY, payload TEXT NOT NULL)');
+    await db.execute(
+        "CREATE TABLE borrowed_loans (loan_id TEXT PRIMARY KEY, transfer_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, revision INTEGER NOT NULL, local_status TEXT NOT NULL DEFAULT 'active')");
+  }
+  if (version >= 5) {
+    await db.execute(
+        'CREATE TABLE loan_messages (role TEXT NOT NULL, request_id TEXT NOT NULL, loan_id TEXT NOT NULL, request TEXT NOT NULL, decision TEXT, state TEXT NOT NULL, PRIMARY KEY (role, request_id))');
+    await db.execute(
+        'CREATE TABLE loan_contacts (role TEXT NOT NULL, loan_id TEXT NOT NULL, phone TEXT NOT NULL, PRIMARY KEY (role, loan_id))');
+  }
   if (version >= 3) {
     await db.execute('''
       CREATE TABLE return_reminders (

@@ -15,7 +15,7 @@ class RetryRepository extends LibraryRepository {
     String? coverUrl,
     String? barcode,
     String condition = 'Dobry',
-    String directory = 'Bez kategorii',
+    String genre = 'Bez gatunku',
   }) async {
     submittedIsbns.add(barcode);
     if (submittedIsbns.length == 1) throw const DuplicateIsbnException();

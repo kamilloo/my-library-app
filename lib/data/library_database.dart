@@ -1,4 +1,5 @@
 import 'package:path/path.dart';
+import '../models/genre.dart';
 import 'package:sqflite/sqflite.dart';
 
 class LibraryDatabase {
@@ -61,6 +62,55 @@ class LibraryDatabase {
     )''');
   }
 
+  static Future<void> _createGenres(Database db) async {
+    await db.execute(
+        'CREATE TABLE genres (id TEXT PRIMARY KEY, name TEXT NOT NULL, normalized_name TEXT NOT NULL UNIQUE)');
+    for (final name in starterGenres) {
+      await db.insert('genres', {
+        'id': 'starter-${normalizedGenre(name)}',
+        'name': name,
+        'normalized_name': normalizedGenre(name)
+      });
+    }
+  }
+
+  static Future<void> _upgradeGenres(Database db) async {
+    // Rebuild without renaming the old parent: child references keep books(id).
+    final schema = await db.rawQuery(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'books'");
+    final original = schema.single['sql']! as String;
+    final replacement = original
+        .replaceFirst(
+            RegExp(r'CREATE TABLE\s+["\x60\[]?books["\x60\]]?',
+                caseSensitive: false),
+            'CREATE TABLE books_v6')
+        .replaceFirst(
+            RegExp(r'directory\s+TEXT\s+NOT\s+NULL', caseSensitive: false),
+            "genre TEXT NOT NULL DEFAULT 'Bez gatunku'");
+    if (replacement == original || !replacement.contains('genre TEXT')) {
+      throw StateError('Nieobsługiwany schemat książek.');
+    }
+    final indexes = await db.rawQuery(
+        "SELECT sql FROM sqlite_master WHERE tbl_name = 'books' AND type IN ('index', 'trigger') AND sql IS NOT NULL");
+    await db.execute(replacement);
+    final columns = (await db.rawQuery('PRAGMA table_info(books)'))
+        .map((r) => r['name']! as String)
+        .where((n) => n != 'directory')
+        .toList();
+    final names = columns.map((n) => '"${n.replaceAll('"', '""')}"').join(', ');
+    await db.execute(
+        "INSERT INTO books_v6 ($names, genre) SELECT $names, 'Bez gatunku' FROM books");
+    await db.execute('DROP TABLE books');
+    await db.execute('ALTER TABLE books_v6 RENAME TO books');
+    for (final index in indexes) {
+      await db.execute(index['sql']! as String);
+    }
+    await _createGenres(db);
+    if ((await db.rawQuery('PRAGMA foreign_key_check')).isNotEmpty) {
+      throw StateError('Naruszone relacje bazy danych.');
+    }
+  }
+
   Future<Database> _open() async {
     final factory = _factory ?? databaseFactory;
     final path = _path ??
@@ -70,14 +120,23 @@ class LibraryDatabase {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 5,
+        version: 6,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _createHistoryIndex(db);
           if (oldVersion < 3) await _createReminders(db);
           if (oldVersion < 4) await _createTransfers(db);
           if (oldVersion < 5) await _createMessages(db);
+          if (oldVersion < 6) await _upgradeGenres(db);
         },
-        onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+        onConfigure: (db) async {
+          final version =
+              Sqflite.firstIntValue(await db.rawQuery('PRAGMA user_version')) ??
+                  0;
+          // Must happen BEFORE sqflite starts its upgrade transaction.
+          await db.execute(
+              'PRAGMA foreign_keys = ${version > 0 && version < 6 ? 'OFF' : 'ON'}');
+        },
+        onOpen: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) async {
           await db.execute('''
             CREATE TABLE books (
@@ -88,7 +147,7 @@ class LibraryDatabase {
               cover_url TEXT,
               barcode TEXT,
               condition TEXT NOT NULL,
-              directory TEXT NOT NULL,
+              genre TEXT NOT NULL DEFAULT 'Bez gatunku',
               status TEXT NOT NULL,
               borrowed_by TEXT,
               borrowed_date TEXT,
@@ -114,6 +173,7 @@ class LibraryDatabase {
           await _createReminders(db);
           await _createTransfers(db);
           await _createMessages(db);
+          await _createGenres(db);
         },
       ),
     );

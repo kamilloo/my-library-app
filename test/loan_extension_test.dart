@@ -37,7 +37,7 @@ void main() {
       coverUrl: 'covers/original.jpg',
       barcode: '080442957X',
       condition: 'Nowa',
-      directory: 'Shelf',
+      genre: 'Fantastyka',
       status: BookStatus.borrowed,
       borrowedBy: 'Anna',
       borrowedDate: DateTime(2026, 11, 1),

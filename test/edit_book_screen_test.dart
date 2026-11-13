@@ -27,6 +27,7 @@ class EditRepository extends LibraryRepository {
       String? barcode,
       required String condition,
       String? coverUrl,
+      String? genre,
       bool updateCover = false}) async {
     if (reject) throw const DuplicateIsbnException();
     expect(id, book.id);

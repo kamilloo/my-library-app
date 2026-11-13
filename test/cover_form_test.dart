@@ -49,7 +49,7 @@ class Repository extends LibraryRepository {
       String? coverUrl,
       String? barcode,
       String condition = 'Dobry',
-      String directory = 'Bez kategorii'}) async {
+      String genre = 'Bez gatunku'}) async {
     savedCover = coverUrl;
     savedTitle = title;
     savedAuthor = author;
@@ -65,6 +65,7 @@ class Repository extends LibraryRepository {
       String? barcode,
       required String condition,
       String? coverUrl,
+      String? genre,
       bool updateCover = false}) async {
     savedCover = coverUrl;
     coverUpdated = updateCover;
