@@ -1,5 +1,13 @@
 # Android V1 release preparation
 
+Current product scope and implementation status are owned by the
+[canonical Android V1 specification](MyLibrary_Version_1_Updated_Specification.txt).
+The validation record below is the **Task 12 / PR #13 historical release-preparation
+snapshot** (194 tests), not a fresh run against today's source. Later merged QR,
+SMS and tutorial changes require a new release candidate and device QA. Active
+schema is v5; later test-count snapshots are listed in the canonical specification.
+Original build/signature/checksum evidence and dates are preserved.
+
 ## Task 20: offline SMS messaging
 
 SQLite schema v5 adds separate local message/decision and opt-in contact tables;
@@ -268,11 +276,16 @@ a separate reviewed design and tests. OEM transfer behavior still needs device Q
 
 ## SQLite, covers and reminders
 
-Production path stays `getDatabasesPath()/my_library.db`, schema **3**, migrations
-**1→3**, **2→3** and current-3 reopen. Task 11 verified complete-row preservation,
-foreign keys, indexes, history, reminder opt-in/IDs and transactional rollback.
-Empty reads never seed demo books. No destructive migration is added.
-See [SQLite audit](sqlite_regression_audit.md) for evidence and limits.
+Production path stays `getDatabasesPath()/my_library.db`; active schema is **5**.
+Additive upgrades support **1/2/3/4→5** and current-v5 reopen: v2 adds the history
+index, v3 reminders, v4 loan transfers/borrower records, v5 messages/contacts.
+The original Task 11/12 evidence below concerned v3; current source and migration
+suites extend preservation checks to v5. Preserve complete books/history, cover
+references, opt-in/IDs, v4 borrower rows and v5 messages/contacts. Installed-device
+upgrades remain pending. Empty reads never seed demo books; no destructive
+migration is added. See the [historical SQLite audit](sqlite_regression_audit.md),
+[QR protocol](offline-loan-protocol.md), [message migration](offline_loan_messaging.md)
+and [canonical schema](MyLibrary_Version_1_Updated_Specification.txt).
 
 Managed covers are copied into application-support `covers/<uuid>.jpg` and stored
 as relative references. Cache/picker files are not durable storage. Existing

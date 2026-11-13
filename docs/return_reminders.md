@@ -1,5 +1,11 @@
 # Local return reminders
 
+Current Android V1 scope: [canonical specification](MyLibrary_Version_1_Updated_Specification.txt).
+Active SQLite schema is **v5**; the reminder table was introduced in v3 and is
+preserved by later migrations. iOS setup/limits below are retained as technical
+reference for a deferred platform, not a current supported release or device-QA
+claim. Android physical delivery and reboot verification remain pending.
+
 ## Behavior
 
 On a borrowed book's Details screen, choose **Zmień termin zwrotu**, then enable
@@ -14,8 +20,9 @@ skipped rather than firing immediately. The notification includes the book title
 but not the borrower. Android lock-screen visibility is private; iOS previews
 follow the user's system settings.
 
-SQLite schema version 3 stores per-book opt-in and an AUTOINCREMENT notification
-ID. The plugin persists native schedules. The same ID is reused, so repeated
+The reminder table, introduced in SQLite schema version 3 and retained in current
+schema version 5, stores per-book opt-in and an AUTOINCREMENT notification ID.
+The plugin persists native schedules. The same ID is reused, so repeated
 requests and restarts do not create duplicates. Returning, giving away, deleting,
 or explicitly disabling cancels the notification. Changing/removing a return date
 reschedules/cancels it. A new loan requires a new opt-in.
@@ -74,7 +81,9 @@ No remote push entitlement or background mode is needed for these local reminder
   app. Reinstalling/clearing app data removes local opt-ins. Timezone changes are
   reconciled on next resume; while the app stays closed the existing native
   schedule retains its previously scheduled timezone.
-- This feature targets Android and iOS. No desktop/web scheduling is configured.
+- Current supported release target is Android. Existing iOS adapter/setup notes
+  are retained for the deferred iOS platform; no iOS release validation is claimed.
+  No desktop/web scheduling is configured.
 
 Package setup/limits:
 https://pub.dev/packages/flutter_local_notifications
