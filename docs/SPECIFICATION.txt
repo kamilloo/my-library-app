@@ -1,0 +1,145 @@
+MY LIBRARY - FINAL MVP SPECIFICATION
+Version: 1.0
+Platform: Flutter (Android and iOS)
+Interface language: Polish
+Architecture: Local-first, offline-capable
+
+1. PRODUCT GOAL
+
+My Library is a personal bookshelf application for cataloging physical books
+and tracking loans. The MVP works without user accounts or a backend. Data is
+stored locally and structured so synchronization can be added later.
+
+2. COMPLETED USER FLOWS
+
+Library:
+- View locally stored books.
+- Search by title or author.
+- Filter by available or borrowed status.
+- Sort alphabetically or by recently added.
+- Display cover images when supplied by Open Library.
+
+Adding a book:
+- Scan EAN-13, EAN-8, or QR codes with mobile_scanner.
+- Validate ISBN-10 and ISBN-13 checksums.
+- Look up title, author, and cover through Open Library Search API.
+- Confirm scan results before using them.
+- Prefill the Add Book form from lookup results.
+- Add books manually when no result is available.
+
+Lending:
+- Record borrower name.
+- Set an optional return date.
+- Give a book away permanently.
+- Mark a borrowed book as returned.
+- Permanently delete a book after confirmation.
+- Record each action in local history.
+
+History:
+- Show added, borrowed, returned, and permanently given events.
+- Store timestamps and action details locally.
+
+3. SCREENS
+
+- Biblioteka: book list, search, filter chips, sorting, add button.
+- Dodaj książkę: scanner entry point and manual form.
+- Skanuj ISBN: camera preview, flashlight, lookup progress, errors, result.
+- Szczegóły książki: cover, metadata, availability, lending actions.
+- Wypożycz książkę: borrower, return date, permanent-give option.
+- Historia: chronological activity list.
+
+4. DATA MODEL
+
+Book:
+- id (UUID)
+- title
+- author
+- description
+- coverUrl
+- barcode / ISBN
+- condition
+- directory
+- status: available, borrowed, given
+- borrowedBy
+- borrowedDate
+- returnDate
+- createdAt
+- updatedAt
+
+HistoryEntry:
+- id (UUID)
+- bookId
+- bookTitle
+- action
+- detail
+- timestamp
+
+5. TECHNOLOGY
+
+- Flutter and Dart
+- SQLite through sqflite
+- mobile_scanner for barcode and QR scanning
+- http for Open Library requests
+- uuid for local identifiers
+- Open Library Search API: /search.json?q=isbn:<ISBN>
+- Open Library Covers API for cover images
+
+6. PLATFORM PERMISSIONS
+
+AndroidManifest.xml must include:
+- android.permission.CAMERA
+- android.permission.INTERNET
+
+Info.plist must include:
+- NSCameraUsageDescription
+
+Exact snippets are documented in docs/camera_permissions.md.
+
+7. DEVELOPMENT STEPS COMPLETED
+
+1. Reviewed the original product specification and Phase 1 scope.
+2. Converted the screen outline into an interactive mobile design.
+3. Created the Flutter project structure and Material 3 theme.
+4. Added SQLite tables, UUID records, repository operations, and seed data.
+5. Implemented library, search, filters, sorting, details, lending, and history.
+6. Connected mobile_scanner and added ISBN checksum validation.
+7. Replaced the obsolete Open Library Books API with the Search API.
+8. Added lookup loading, timeout, not-found, and retry states.
+9. Persisted and rendered Open Library cover URLs.
+10. Translated the complete visible interface to Polish.
+11. Added model and ISBN tests and resolved Flutter analyzer issues.
+12. Added confirmed permanent book deletion with automatic list refresh.
+13. Prepared Git and release-build instructions.
+
+8. LOCAL BUILD AND VERIFICATION
+
+Run:
+
+flutter pub get
+dart format lib test
+flutter analyze
+flutter test
+flutter build apk --release
+
+For iOS, build on macOS with Xcode configured:
+
+flutter build ios
+
+9. KNOWN MVP LIMITATIONS
+
+- No cloud synchronization or user accounts.
+- No social graph, resale, maps, Discord, or blacklist.
+- Open Library may not contain every regional or newly published edition.
+- Books saved before cover support was added may need to be re-added.
+- Custom directories are represented in the schema but do not yet have a
+  dedicated management screen.
+- Edit-book flow remains a future enhancement.
+
+10. RECOMMENDED NEXT RELEASE
+
+- Add edit and delete/archive actions.
+- Add custom directory management.
+- Add overdue local notifications.
+- Cache cover images for fully offline display.
+- Add database migrations and import/export backup.
+- Add optional backend synchronization and accounts.

@@ -1,0 +1,468 @@
+MY LIBRARY / MOJA BIBLIOTEKA
+UPDATED VERSION 1 SPECIFICATION AND IMPLEMENTATION SUMMARY
+
+Document status: Updated after comparison of the original specification with the current Flutter application
+Application version reviewed: 1.0.0+8
+Primary language: Polish
+Platform: Flutter mobile application (Android and iOS)
+
+======================================================================
+1. PRODUCT SUMMARY
+======================================================================
+
+Moja Biblioteka is a local-first mobile application for cataloguing a
+personal book collection and tracking books lent to other people.
+
+The application allows the user to:
+
+- add a book manually;
+- scan an ISBN barcode or a QR code containing an ISBN;
+- retrieve title, author, and cover information from Open Library;
+- search and sort the local collection;
+- track whether a book is available, borrowed, or given away permanently;
+- record the borrower's name and an optional return date;
+- return a borrowed book;
+- review lending and collection history;
+- delete a book from the collection.
+
+Version 1 is designed as a personal, local-only bookshelf application.
+Accounts, cloud synchronization, and social functionality are outside the
+final Version 1 scope.
+
+======================================================================
+2. VERSION 1 GOALS
+======================================================================
+
+Primary goals:
+
+1. Provide a simple Polish interface for managing a personal library.
+2. Reduce manual data entry through ISBN scanning and Open Library lookup.
+3. Store the collection locally without requiring an account.
+4. Track basic lending, returns, and permanent transfers.
+5. Keep the data model ready for a future backend and synchronization.
+
+Version 1 success criteria:
+
+- A user can add, find, view, lend, return, give away, and delete a book.
+- The application works with locally stored data when offline.
+- ISBN lookup works when an internet connection is available.
+- Lending changes are written to a persistent history log.
+- Android release builds can be produced and published.
+
+======================================================================
+3. IMPLEMENTED FUNCTIONAL REQUIREMENTS
+======================================================================
+
+3.1 Library screen
+
+Status: IMPLEMENTED
+
+- Displays all books stored in SQLite.
+- Displays the total number of books.
+- Shows title, author, cover or placeholder, and current status.
+- Supports pull-to-refresh.
+- Supports search by title and author.
+- Supports sorting alphabetically from A to Z.
+- Supports sorting by recently added.
+- Supports filters for all, available, and borrowed books.
+- Opens the selected book's details screen.
+
+3.2 Add Book screen
+
+Status: IMPLEMENTED WITH LIMITATIONS
+
+- Supports manual title entry.
+- Supports manual author entry.
+- Supports optional ISBN or barcode entry.
+- Supports selection of book condition: new, good, or worn.
+- Supports opening the ISBN scanner.
+- Saves the book in the local database.
+- Creates an "added" history entry.
+
+Current limitations:
+
+- No manual description field.
+- No manual cover selection.
+- No category or directory selector.
+- A manually entered ISBN does not automatically trigger metadata lookup.
+- Duplicate ISBN database errors are not presented as a friendly message.
+
+3.3 ISBN scanning and metadata lookup
+
+Status: IMPLEMENTED
+
+- Uses the device camera through mobile_scanner.
+- Accepts EAN-13, EAN-8, and QR code formats.
+- Normalizes and validates ISBN-10 and ISBN-13 values.
+- Calls Open Library using an ISBN search.
+- Retrieves title, author, and cover identifier.
+- Builds an Open Library cover URL when a cover is available.
+- Shows a confirmation screen before transferring data to the Add Book form.
+- Provides retry messages for no result, timeout, and network failure.
+- Includes torch control.
+
+Notes:
+
+- QR codes are accepted only when their content normalizes to a valid ISBN.
+- Metadata and cover retrieval require an internet connection.
+
+3.4 Book details
+
+Status: IMPLEMENTED WITH LIMITATIONS
+
+- Displays cover or a generated placeholder.
+- Displays title and author.
+- Displays current status.
+- Displays condition, category, ISBN, and creation date.
+- Displays description when a description exists.
+- Provides lending, return, and deletion actions.
+
+Current limitations:
+
+- Existing books cannot be edited.
+- Description is normally empty because it is neither fetched nor entered.
+- The book's individual lending history is not shown on this screen.
+
+3.5 Lending and return flow
+
+Status: IMPLEMENTED
+
+- An available book can be lent to a person identified by free-text name.
+- An optional return date can be selected.
+- A book can be marked as given away permanently.
+- A borrowed book can be marked as returned.
+- Status, borrower, lending date, and return date are saved locally.
+- Borrow, return, and permanent-transfer events are added to history.
+
+Current limitations:
+
+- No notification is scheduled for the return date.
+- Lending and return cannot be initiated by scanning an existing book.
+- There is no reminder or "request return" action.
+
+3.6 History screen
+
+Status: IMPLEMENTED
+
+- Displays events ordered by most recent first.
+- Records books added, borrowed, returned, and given away.
+- Displays the book title, event detail, and event date.
+
+Current limitation:
+
+- Deleting a book also deletes its history because of the database foreign-key
+  cascade.
+
+3.7 Delete Book
+
+Status: IMPLEMENTED
+
+- Provides a delete action from the Book Details screen.
+- Requires confirmation.
+- Deletes the book and its linked history.
+- Refreshes the library after deletion.
+
+3.8 Polish localization
+
+Status: IMPLEMENTED
+
+- The Flutter application locale is fixed to Polish.
+- Material, widget, and Cupertino localization delegates are configured.
+- Primary user-facing application text is in Polish.
+
+Current limitation:
+
+- The iOS display name is still "My Library" instead of "Moja Biblioteka".
+
+======================================================================
+4. DATA AND TECHNICAL DESIGN
+======================================================================
+
+4.1 Technology stack
+
+- Flutter and Dart
+- Material 3 user interface
+- SQLite through sqflite
+- UUID identifiers
+- mobile_scanner for barcode and QR scanning
+- HTTP integration with Open Library
+- Local device storage as the source of truth
+
+4.2 Book model
+
+Implemented fields:
+
+- id
+- title
+- author
+- description
+- coverUrl
+- barcode / ISBN
+- condition
+- directory
+- status
+- borrowedBy
+- borrowedDate
+- returnDate
+- createdAt
+- updatedAt
+
+Implemented statuses:
+
+- available
+- borrowed
+- given
+
+4.3 History model
+
+Implemented fields:
+
+- id
+- bookId
+- bookTitle
+- action
+- detail
+- timestamp
+
+Implemented actions:
+
+- added
+- borrowed
+- returned
+- given
+
+4.4 Database behavior
+
+- Foreign keys are enabled.
+- Barcode values are unique when present.
+- Book and history changes use transactions where appropriate.
+- UUIDs are used for books and history records.
+- createdAt and updatedAt fields make the data model suitable for future sync.
+- Database schema version is currently 1.
+
+======================================================================
+5. SUCCESSFULLY COMPLETED VERSION 1 FEATURES
+======================================================================
+
+The following original requirements were completed successfully:
+
+- Flutter application foundation
+- Local SQLite database
+- UUID-based records
+- Backend-ready timestamps
+- Polish-only application interface
+- Book list
+- Manual basic book entry
+- ISBN barcode and QR scanning
+- ISBN validation
+- Open Library metadata lookup
+- Automatic title and author prefilling
+- Automatic cover display
+- Book status management
+- Free-text borrower name
+- Optional return date
+- Borrow flow
+- Return flow
+- Give-away-permanently flow
+- Search by title and author
+- Sort A-Z and recently added
+- Available and borrowed filters
+- Global history screen
+- Book deletion with confirmation
+- Android camera permission
+- Android and iOS launcher icon generation
+- Android release configuration
+- Basic model and ISBN unit tests
+
+Overall assessment:
+
+- Phase 1 local bookshelf scope: approximately 80 percent complete.
+- Original broad personal and social library vision: approximately 30 percent
+  complete, because social features were deferred.
+
+======================================================================
+6. PARTIALLY IMPLEMENTED FEATURES
+======================================================================
+
+6.1 Manual book entry
+
+The basic form exists, but it does not expose description, directory, or cover
+editing.
+
+6.2 Descriptions
+
+The database and details view support a description, but Open Library does not
+request one and the form cannot enter one.
+
+6.3 Covers
+
+Open Library covers are supported. The user cannot upload, replace, or remove a
+cover manually.
+
+6.4 Categories and directories
+
+The database contains a directory field. Seed books use categories, but a user
+cannot create, select, rename, filter, or manage directories.
+
+6.5 Filtering
+
+Available and borrowed filters exist. A filter for permanently given-away books
+is missing.
+
+6.6 Lending history
+
+A global history exists, but there is no per-book history section.
+
+6.7 Scan-based actions
+
+Scanning is available when adding a book. Lending and returning an existing
+book require selecting it from the library list.
+
+6.8 Automated testing
+
+Tests cover model serialization and ISBN validation. Database transactions,
+repository methods, Open Library responses, scanner behavior, and important UI
+flows are not covered.
+
+======================================================================
+7. SKIPPED OR FORGOTTEN VERSION 1 ITEMS
+======================================================================
+
+7.1 iOS camera usage description - CRITICAL
+
+The iOS Info.plist does not contain NSCameraUsageDescription. Add:
+
+<key>NSCameraUsageDescription</key>
+<string>Aparat służy do skanowania kodów ISBN książek.</string>
+
+Without this entry, camera access can fail on iOS and the application may be
+rejected during App Store review.
+
+7.2 Notifications and return reminders
+
+The return date is stored, but the application does not schedule local
+notifications or reminders.
+
+7.3 Edit Book functionality
+
+The original system modules included manual editing, but Version 1 does not
+allow an existing record to be corrected.
+
+7.4 Duplicate ISBN handling
+
+The database prevents duplicate barcodes, but the UI does not catch the error
+and explain it to the user.
+
+7.5 Given-away filter
+
+Given-away status exists, but it has no dedicated library filter.
+
+7.6 Per-book history
+
+The specification expected booking/lending history to be available when viewing
+a book. Only a global history is currently available.
+
+7.7 iOS product name
+
+CFBundleDisplayName remains "My Library" and should be changed to
+"Moja Biblioteka" for consistent Polish branding.
+
+7.8 Android advertising identifier permission
+
+The Android manifest declares AD_ID permission, but no advertising SDK is
+present in the reviewed project. Remove the permission if the published app
+does not contain advertising.
+
+======================================================================
+8. FEATURES DEFERRED TO VERSION 2 OR LATER
+======================================================================
+
+The following original ideas are explicitly outside the final Version 1 scope:
+
+- authentication;
+- user profiles;
+- friends and followers;
+- real borrower accounts;
+- social reviews;
+- social graph;
+- nearby discovery;
+- maps integration;
+- Discord integration;
+- cloud synchronization;
+- multiple-device synchronization;
+- resale marketplace;
+- user blacklist;
+- reservation workflow;
+- "view only, do not lend" mode;
+- remote borrower notifications;
+- backend service and public API.
+
+These features require a backend, account security, data synchronization,
+privacy controls, and potentially moderation. They should not be treated as
+Version 1 defects.
+
+======================================================================
+9. RECOMMENDED VERSION 1 COMPLETION PLAN
+======================================================================
+
+Priority 1 - Release blockers and correctness
+
+1. Add NSCameraUsageDescription to the iOS Info.plist.
+2. Change the iOS display name to "Moja Biblioteka".
+3. Handle duplicate ISBN errors with a clear Polish message.
+4. Remove Android AD_ID permission if advertising is not used.
+5. Test camera, scanning, lookup, saving, lending, returning, and deletion on a
+   physical device.
+
+Priority 2 - Complete the original Phase 1 experience
+
+6. Add Edit Book functionality.
+7. Add description and directory/category fields to Add and Edit Book forms.
+8. Add a category selector and basic directory management.
+9. Add a filter for permanently given-away books.
+10. Add per-book history to the Book Details screen.
+11. Allow metadata lookup after manually entering an ISBN.
+
+Priority 3 - Reliability and polish
+
+12. Add local return-date notifications.
+13. Add repository and SQLite integration tests.
+14. Add Open Library response and failure tests.
+15. Add widget tests for the critical user flows.
+16. Define the database migration strategy before schema version 2.
+17. Consider local cover caching or manual cover selection.
+
+======================================================================
+10. FINAL VERSION 1 ACCEPTANCE DEFINITION
+======================================================================
+
+Version 1 can be considered fully complete when:
+
+- Android and iOS camera permissions work correctly;
+- books can be added by scanning or manual entry;
+- users can edit incorrect book information;
+- duplicate ISBN values are handled safely;
+- title, author, description, condition, category, cover, and ISBN can be
+  maintained;
+- search, sorting, and all status filters work;
+- lending, return, permanent transfer, and per-book history work;
+- optional return reminders work;
+- critical database and user flows have automated tests;
+- release builds pass analysis and tests;
+- the final package has the correct Polish name, icon, version, and privacy
+  declarations.
+
+======================================================================
+11. CONCLUSION
+======================================================================
+
+The implemented application is a successful and useful Android-focused MVP.
+Its strongest areas are ISBN scanning, Open Library integration, local data
+storage, collection search, and basic lending management.
+
+The original specification was not fully implemented. The most important
+remaining Version 1 work is iOS camera configuration, book editing, directory
+management, duplicate handling, per-book history, and return reminders.
+
+Social networking, accounts, maps, resale, Discord, and cloud synchronization
+remain appropriate candidates for Version 2 and later releases.
