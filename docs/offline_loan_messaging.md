@@ -127,6 +127,11 @@ No recovery/synchronization is promised after app data loss.
 
 ## Verification and physical-device QA
 
+The 270-test result below is the historical Task 20 / PR #15 run, not a new
+Task 21 result or current suite total. Later tutorial PRs record 280 and 282 tests;
+see [canonical evidence and scope](MyLibrary_Version_1_Updated_Specification.txt).
+All native/device cases remain pending until executed.
+
 Host validation for Task 20: dependency resolution, formatting (including the
 no-change check), analysis, **270 Flutter tests** and debug APK build passed.
 This includes 10 deletion/privacy regressions for role isolation, historical

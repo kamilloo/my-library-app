@@ -39,6 +39,10 @@ automatic approval, cryptographic sender verification, Firebase or push integrat
 
 ## Reproducible widget evidence
 
+The Task 18.1 / PR #17 results below are a historical validation snapshot, not a
+new Task 21 run. Current [canonical Android V1 scope and release gates](MyLibrary_Version_1_Updated_Specification.txt)
+separate source implementation, automated results and pending physical QA.
+
 Run flutter test test/tutorial_test.dart. Task 18.1 validation passed: all 282
 unit/widget tests, flutter analyze, formatting checks, debug APK build and
 git diff --check. The tutorial suite includes the fifth-slide widget evidence below.

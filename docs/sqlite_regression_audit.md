@@ -1,5 +1,17 @@
 # SQLite regression audit — Android V1
 
+## Current state versus historical audit
+
+The audit below is the **Task 11 / PR #12 historical snapshot** (schema v3,
+194 tests), retained without claiming a new run. Active source now opens
+**my_library.db schema v5**, with eight tables and additive v1–v4 → v5 upgrades.
+See [canonical schema and status](MyLibrary_Version_1_Updated_Specification.txt),
+[Task 19 transfer additions](offline-loan-protocol.md) and
+[Task 20 messages/contacts](offline_loan_messaging.md). Current migration tests
+assert v5 even where historical test descriptions still mention v3 reopening.
+Later test-run snapshots are recorded in the canonical specification; installed
+Android upgrades remain unverified until device QA is recorded.
+
 ## Scope and validation
 
 Task 11 audits the existing local database, repository, covers, metadata imports,
@@ -13,7 +25,7 @@ temporary cover directories, mocked HTTP, fake notifications, and controlled
 clocks. Trigger-injected failures exercise actual SQLite transaction rollback.
 These results do not substitute for an installed Android application upgrade.
 
-## Current schema
+## Schema at the Task 11 audit (historical v3)
 
 Version: **3**. Production location remains
 `join(await getDatabasesPath(), 'my_library.db')`.
@@ -67,7 +79,7 @@ constraints for statuses, date formats or reminder booleans. SQLite TEXT primary
 keys do not themselves imply NOT NULL; normal application writes supply IDs.
 These are application invariants, not guarantees for unsupported direct SQL writes.
 
-## Supported creation and migration paths
+## Creation and migration paths at the Task 11 audit (historical)
 
 | Starting version | Behavior |
 | --- | --- |

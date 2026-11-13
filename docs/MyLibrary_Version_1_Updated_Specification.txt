@@ -1,468 +1,665 @@
-MY LIBRARY / MOJA BIBLIOTEKA
-UPDATED VERSION 1 SPECIFICATION AND IMPLEMENTATION SUMMARY
-
-Document status: Updated after comparison of the original specification with the current Flutter application
-Application version reviewed: 1.0.0+8
-Primary language: Polish
-Platform: Flutter mobile application (Android and iOS)
-
-======================================================================
-1. PRODUCT SUMMARY
-======================================================================
-
-Moja Biblioteka is a local-first mobile application for cataloguing a
-personal book collection and tracking books lent to other people.
-
-The application allows the user to:
-
-- add a book manually;
-- scan an ISBN barcode or a QR code containing an ISBN;
-- retrieve title, author, and cover information from Open Library;
-- search and sort the local collection;
-- track whether a book is available, borrowed, or given away permanently;
-- record the borrower's name and an optional return date;
-- return a borrowed book;
-- review lending and collection history;
-- delete a book from the collection.
-
-Version 1 is designed as a personal, local-only bookshelf application.
-Accounts, cloud synchronization, and social functionality are outside the
-final Version 1 scope.
-
-======================================================================
-2. VERSION 1 GOALS
-======================================================================
-
-Primary goals:
-
-1. Provide a simple Polish interface for managing a personal library.
-2. Reduce manual data entry through ISBN scanning and Open Library lookup.
-3. Store the collection locally without requiring an account.
-4. Track basic lending, returns, and permanent transfers.
-5. Keep the data model ready for a future backend and synchronization.
-
-Version 1 success criteria:
-
-- A user can add, find, view, lend, return, give away, and delete a book.
-- The application works with locally stored data when offline.
-- ISBN lookup works when an internet connection is available.
-- Lending changes are written to a persistent history log.
-- Android release builds can be produced and published.
-
-======================================================================
-3. IMPLEMENTED FUNCTIONAL REQUIREMENTS
-======================================================================
-
-3.1 Library screen
-
-Status: IMPLEMENTED
-
-- Displays all books stored in SQLite.
-- Displays the total number of books.
-- Shows title, author, cover or placeholder, and current status.
-- Supports pull-to-refresh.
-- Supports search by title and author.
-- Supports sorting alphabetically from A to Z.
-- Supports sorting by recently added.
-- Supports filters for all, available, and borrowed books.
-- Opens the selected book's details screen.
-
-3.2 Add Book screen
-
-Status: IMPLEMENTED WITH LIMITATIONS
-
-- Supports manual title entry.
-- Supports manual author entry.
-- Supports optional ISBN or barcode entry.
-- Supports selection of book condition: new, good, or worn.
-- Supports opening the ISBN scanner.
-- Saves the book in the local database.
-- Creates an "added" history entry.
-
-Current limitations:
-
-- No manual description field.
-- No manual cover selection.
-- No category or directory selector.
-- A manually entered ISBN does not automatically trigger metadata lookup.
-- Duplicate ISBN database errors are not presented as a friendly message.
-
-3.3 ISBN scanning and metadata lookup
-
-Status: IMPLEMENTED
-
-- Uses the device camera through mobile_scanner.
-- Accepts EAN-13, EAN-8, and QR code formats.
-- Normalizes and validates ISBN-10 and ISBN-13 values.
-- Calls Open Library using an ISBN search.
-- Retrieves title, author, and cover identifier.
-- Builds an Open Library cover URL when a cover is available.
-- Shows a confirmation screen before transferring data to the Add Book form.
-- Provides retry messages for no result, timeout, and network failure.
-- Includes torch control.
-
-Notes:
-
-- QR codes are accepted only when their content normalizes to a valid ISBN.
-- Metadata and cover retrieval require an internet connection.
-
-3.4 Book details
-
-Status: IMPLEMENTED WITH LIMITATIONS
-
-- Displays cover or a generated placeholder.
-- Displays title and author.
-- Displays current status.
-- Displays condition, category, ISBN, and creation date.
-- Displays description when a description exists.
-- Provides lending, return, and deletion actions.
-
-Current limitations:
-
-- Existing books cannot be edited.
-- Description is normally empty because it is neither fetched nor entered.
-- The book's individual lending history is not shown on this screen.
-
-3.5 Lending and return flow
-
-Status: IMPLEMENTED
-
-- An available book can be lent to a person identified by free-text name.
-- An optional return date can be selected.
-- A book can be marked as given away permanently.
-- A borrowed book can be marked as returned.
-- Status, borrower, lending date, and return date are saved locally.
-- Borrow, return, and permanent-transfer events are added to history.
-
-Current limitations:
-
-- No notification is scheduled for the return date.
-- Lending and return cannot be initiated by scanning an existing book.
-- There is no reminder or "request return" action.
-
-3.6 History screen
-
-Status: IMPLEMENTED
-
-- Displays events ordered by most recent first.
-- Records books added, borrowed, returned, and given away.
-- Displays the book title, event detail, and event date.
-
-Current limitation:
-
-- Deleting a book also deletes its history because of the database foreign-key
-  cascade.
-
-3.7 Delete Book
-
-Status: IMPLEMENTED
-
-- Provides a delete action from the Book Details screen.
-- Requires confirmation.
-- Deletes the book and its linked history.
-- Refreshes the library after deletion.
-
-3.8 Polish localization
-
-Status: IMPLEMENTED
-
-- The Flutter application locale is fixed to Polish.
-- Material, widget, and Cupertino localization delegates are configured.
-- Primary user-facing application text is in Polish.
-
-Current limitation:
-
-- The iOS display name is still "My Library" instead of "Moja Biblioteka".
-
-======================================================================
-4. DATA AND TECHNICAL DESIGN
-======================================================================
-
-4.1 Technology stack
-
-- Flutter and Dart
-- Material 3 user interface
-- SQLite through sqflite
-- UUID identifiers
-- mobile_scanner for barcode and QR scanning
-- HTTP integration with Open Library
-- Local device storage as the source of truth
-
-4.2 Book model
-
-Implemented fields:
-
-- id
-- title
-- author
-- description
-- coverUrl
-- barcode / ISBN
-- condition
-- directory
-- status
-- borrowedBy
-- borrowedDate
-- returnDate
-- createdAt
-- updatedAt
-
-Implemented statuses:
-
-- available
-- borrowed
-- given
-
-4.3 History model
-
-Implemented fields:
-
-- id
-- bookId
-- bookTitle
-- action
-- detail
-- timestamp
-
-Implemented actions:
-
-- added
-- borrowed
-- returned
-- given
-
-4.4 Database behavior
-
-- Foreign keys are enabled.
-- Barcode values are unique when present.
-- Book and history changes use transactions where appropriate.
-- UUIDs are used for books and history records.
-- createdAt and updatedAt fields make the data model suitable for future sync.
-- Database schema version is currently 1.
-
-======================================================================
-5. SUCCESSFULLY COMPLETED VERSION 1 FEATURES
-======================================================================
-
-The following original requirements were completed successfully:
-
-- Flutter application foundation
-- Local SQLite database
-- UUID-based records
-- Backend-ready timestamps
-- Polish-only application interface
-- Book list
-- Manual basic book entry
-- ISBN barcode and QR scanning
-- ISBN validation
-- Open Library metadata lookup
-- Automatic title and author prefilling
-- Automatic cover display
-- Book status management
-- Free-text borrower name
-- Optional return date
-- Borrow flow
-- Return flow
-- Give-away-permanently flow
-- Search by title and author
-- Sort A-Z and recently added
-- Available and borrowed filters
-- Global history screen
-- Book deletion with confirmation
-- Android camera permission
-- Android and iOS launcher icon generation
-- Android release configuration
-- Basic model and ISBN unit tests
-
-Overall assessment:
-
-- Phase 1 local bookshelf scope: approximately 80 percent complete.
-- Original broad personal and social library vision: approximately 30 percent
-  complete, because social features were deferred.
-
-======================================================================
-6. PARTIALLY IMPLEMENTED FEATURES
-======================================================================
-
-6.1 Manual book entry
-
-The basic form exists, but it does not expose description, directory, or cover
-editing.
-
-6.2 Descriptions
-
-The database and details view support a description, but Open Library does not
-request one and the form cannot enter one.
-
-6.3 Covers
-
-Open Library covers are supported. The user cannot upload, replace, or remove a
-cover manually.
-
-6.4 Categories and directories
-
-The database contains a directory field. Seed books use categories, but a user
-cannot create, select, rename, filter, or manage directories.
-
-6.5 Filtering
-
-Available and borrowed filters exist. A filter for permanently given-away books
-is missing.
-
-6.6 Lending history
-
-A global history exists, but there is no per-book history section.
-
-6.7 Scan-based actions
-
-Scanning is available when adding a book. Lending and returning an existing
-book require selecting it from the library list.
-
-6.8 Automated testing
-
-Tests cover model serialization and ISBN validation. Database transactions,
-repository methods, Open Library responses, scanner behavior, and important UI
-flows are not covered.
-
-======================================================================
-7. SKIPPED OR FORGOTTEN VERSION 1 ITEMS
-======================================================================
-
-7.1 iOS camera usage description - CRITICAL
-
-The iOS Info.plist does not contain NSCameraUsageDescription. Add:
-
-<key>NSCameraUsageDescription</key>
-<string>Aparat służy do skanowania kodów ISBN książek.</string>
-
-Without this entry, camera access can fail on iOS and the application may be
-rejected during App Store review.
-
-7.2 Notifications and return reminders
-
-The return date is stored, but the application does not schedule local
-notifications or reminders.
-
-7.3 Edit Book functionality
-
-The original system modules included manual editing, but Version 1 does not
-allow an existing record to be corrected.
-
-7.4 Duplicate ISBN handling
-
-The database prevents duplicate barcodes, but the UI does not catch the error
-and explain it to the user.
-
-7.5 Given-away filter
-
-Given-away status exists, but it has no dedicated library filter.
-
-7.6 Per-book history
-
-The specification expected booking/lending history to be available when viewing
-a book. Only a global history is currently available.
-
-7.7 iOS product name
-
-CFBundleDisplayName remains "My Library" and should be changed to
-"Moja Biblioteka" for consistent Polish branding.
-
-7.8 Android advertising identifier permission
-
-The Android manifest declares AD_ID permission, but no advertising SDK is
-present in the reviewed project. Remove the permission if the published app
-does not contain advertising.
-
-======================================================================
-8. FEATURES DEFERRED TO VERSION 2 OR LATER
-======================================================================
-
-The following original ideas are explicitly outside the final Version 1 scope:
-
-- authentication;
-- user profiles;
-- friends and followers;
-- real borrower accounts;
-- social reviews;
-- social graph;
-- nearby discovery;
-- maps integration;
-- Discord integration;
-- cloud synchronization;
-- multiple-device synchronization;
-- resale marketplace;
-- user blacklist;
-- reservation workflow;
-- "view only, do not lend" mode;
-- remote borrower notifications;
-- backend service and public API.
-
-These features require a backend, account security, data synchronization,
-privacy controls, and potentially moderation. They should not be treated as
-Version 1 defects.
-
-======================================================================
-9. RECOMMENDED VERSION 1 COMPLETION PLAN
-======================================================================
-
-Priority 1 - Release blockers and correctness
-
-1. Add NSCameraUsageDescription to the iOS Info.plist.
-2. Change the iOS display name to "Moja Biblioteka".
-3. Handle duplicate ISBN errors with a clear Polish message.
-4. Remove Android AD_ID permission if advertising is not used.
-5. Test camera, scanning, lookup, saving, lending, returning, and deletion on a
-   physical device.
-
-Priority 2 - Complete the original Phase 1 experience
-
-6. Add Edit Book functionality.
-7. Add description and directory/category fields to Add and Edit Book forms.
-8. Add a category selector and basic directory management.
-9. Add a filter for permanently given-away books.
-10. Add per-book history to the Book Details screen.
-11. Allow metadata lookup after manually entering an ISBN.
-
-Priority 3 - Reliability and polish
-
-12. Add local return-date notifications.
-13. Add repository and SQLite integration tests.
-14. Add Open Library response and failure tests.
-15. Add widget tests for the critical user flows.
-16. Define the database migration strategy before schema version 2.
-17. Consider local cover caching or manual cover selection.
-
-======================================================================
-10. FINAL VERSION 1 ACCEPTANCE DEFINITION
-======================================================================
-
-Version 1 can be considered fully complete when:
-
-- Android and iOS camera permissions work correctly;
-- books can be added by scanning or manual entry;
-- users can edit incorrect book information;
-- duplicate ISBN values are handled safely;
-- title, author, description, condition, category, cover, and ISBN can be
-  maintained;
-- search, sorting, and all status filters work;
-- lending, return, permanent transfer, and per-book history work;
-- optional return reminders work;
-- critical database and user flows have automated tests;
-- release builds pass analysis and tests;
-- the final package has the correct Polish name, icon, version, and privacy
-  declarations.
-
-======================================================================
-11. CONCLUSION
-======================================================================
-
-The implemented application is a successful and useful Android-focused MVP.
-Its strongest areas are ISBN scanning, Open Library integration, local data
-storage, collection search, and basic lending management.
-
-The original specification was not fully implemented. The most important
-remaining Version 1 work is iOS camera configuration, book editing, directory
-management, duplicate handling, per-book history, and return reminders.
-
-Social networking, accounts, maps, resale, Discord, and cloud synchronization
-remain appropriate candidates for Version 2 and later releases.
+MOJA BIBLIOTEKA / MY LIBRARY
+CANONICAL ANDROID V1 SPECIFICATION
+
+1. OWNERSHIP, BASELINE AND STATUS LANGUAGE
+
+This is the current Android V1 product scope and implementation specification.
+docs/SPECIFICATION.txt is the HISTORICAL MVP baseline and retains its original
+requirements. This document replaces the previous implementation assessment,
+including its unsupported completion percentages and outdated completion plan.
+
+Source baseline: main at 97e320fcabbf5af0d9e47b495ed75390592dbbbd.
+Review: 2026-11-13. Application: 1.0.0+8. This is a source/document/history
+review, not a new Flutter test run, device QA result or publication record.
+Evidence paths below are repository-relative. PR numbers refer to
+https://github.com/kamilloo/my-library-app/pull/<number>.
+See docs/specification_gap_analysis.md for disagreements and verified history.
+
+Every substantive capability below has one of these statuses:
+- IMPLEMENTED: verified in source code on main; does not imply device QA.
+- PARTIALLY IMPLEMENTED: supporting behavior exists; missing behavior is stated.
+- PLANNED: accepted requirement, not implemented.
+- DEFERRED: excluded from current Android V1 scope.
+- RELEASE VALIDATION PENDING: implemented/prepared, but device/distribution
+  validation remains open.
+- HISTORICAL: records an earlier requirement or verification snapshot only.
+
+Product status and release validation status are separate. An IMPLEMENTED flow
+can have RELEASE VALIDATION PENDING native/device checks. Automated verification,
+installed-device QA, signed-artifact review and Google Play publication must
+always be recorded separately, with commit and environment.
+
+2. PRODUCT AND PLATFORM SCOPE
+
+Status: IMPLEMENTED — Polish personal collection and lending tracker.
+Product name: Moja Biblioteka / My Library. The interface is Polish, with a
+fixed pl locale and Material localization delegates. Provider metadata may
+contain foreign-language text or fallback labels.
+Supported release target: Android. Flutter, Material 3, SQLite, local-first.
+Accounts are not required. Backend, Firebase accounts/database/FCM and cloud
+synchronization are not implemented; these capabilities are DEFERRED.
+iOS release is DEFERRED even though platform files and some plugin setup exist.
+This is a personal library product, not a social-network application.
+
+Independent Android devices can exchange selected borrowing information through
+QR codes and manually sent SMS messages. Each keeps its own SQLite database.
+They do not automatically synchronize dates, returns, deletions or ownership.
+The owner's local loan is authoritative for the lending relationship; a borrower
+copy can remain outdated indefinitely until the user imports a newer code.
+
+Evidence: lib/main.dart (MyLibraryApp, LibraryShell), lib/data/,
+lib/screens/offline_loans.dart, lib/screens/loan_messaging.dart.
+
+3. PERSONAL COLLECTION
+
+3.1 Manual addition and metadata editing
+Status: IMPLEMENTED.
+Purpose/workflow: use Add Book, enter title and author, optional ISBN/barcode,
+condition and cover, then explicitly save. Book Details -> Edytuj książkę opens
+the prefilled shared form. Required title/author are nonblank in the UI; editing
+also enforces them in the repository. Conditions: Nowa, Dobry, Zużyta.
+Data: add creates books plus one added history event atomically. Edit changes
+title, author, barcode, condition and optionally cover for the same ID; preserves
+createdAt, description, directory, loan fields and previous history. Real changes
+update updatedAt; unchanged edits are no-ops and metadata edits add no loan event.
+Constraints: valid ISBNs normalize; blank codes become NULL. ISBN-10 and its
+equivalent 978 ISBN-13 share a duplicate-comparison identity. Existing legacy
+duplicates are preserved, not merged. The exact-text unique index is a backstop;
+repository rechecks under the transaction lock. DuplicateIsbnException produces
+"Książka z tym numerem ISBN już istnieje." and permits correcting/retrying.
+Limitation: manual storage intentionally also accepts non-ISBN barcodes. ISBN
+checksum validation for scanning/lookup is not an ISBN-only save restriction.
+Offline: all manual add/edit operations and managed local covers work offline.
+Evidence: lib/main.dart (AddBookScreen, BookDetailsScreen.edit),
+lib/data/library_repository.dart (addBook, updateBook, _assertUniqueBarcode),
+lib/models/isbn.dart; test/add_book_screen_test.dart,
+test/edit_book_screen_test.dart, test/library_repository_test.dart,
+test/sqlite_repository_audit_test.dart. Merged PRs #1, #3, #12.
+
+3.2 ISBN scanning and manual ISBN lookup
+Status: IMPLEMENTED; physical scanner/camera checks: RELEASE VALIDATION PENDING.
+Purpose/workflow: Add Book -> scanner, scan and validate, query Open Library,
+review result and confirm prefilling; alternatively type ISBN and explicitly
+choose Pobierz dane z ISBN. Lookup itself never saves a book.
+Screens/actions: camera preview, torch, loading, result confirmation and Polish
+no-match/network/timeout/retry feedback. Scanner formats are EAN-13, EAN-8 and
+QR; content must normalize to a checksum-valid ISBN-10 or ISBN-13. Not every
+EAN-8 is an ISBN. The ISBN scanner is distinct from loan-invitation QR import.
+Manual lookup fills empty title/author/cover fields and preserves user input;
+responses for a changed ISBN are ignored. Save remains explicit.
+Data: draft metadata only until save; no loan/history writes from lookup.
+Network: Open Library metadata needs internet; failure leaves manual entry
+available. No complete offline metadata catalog is included.
+Evidence: lib/screens/scan_book_screen.dart, lib/main.dart (lookupIsbn),
+lib/models/isbn.dart, lib/services/open_library_service.dart;
+test/isbn_test.dart, test/manual_isbn_lookup_test.dart,
+test/open_library_service_test.dart. Merged PR #5.
+
+3.3 Open Library title/author search and result selection
+Status: IMPLEMENTED; live/device experience: RELEASE VALIDATION PENDING.
+Purpose/workflow: Add Book -> Szukaj książki po tytule lub autorze; enter title,
+author or both; press Szukaj, select a result and explicitly save the form.
+Actions: metadata/cover/year results, Pokaż więcej; 20 results per page,
+maximum five pages/100 results. Empty queries are rejected. Requests are explicit,
+bounded and have timeout/error feedback; stale results cannot replace newer ones.
+Data: selection fills empty fields; conflicting populated fields require choosing
+replace, fill only empty fields, or cancel. Local cover replacement is explicit.
+Work-level results do not invent the physical edition's ISBN. Only an explicit
+edition with an unambiguous valid ISBN can supply it. No details-fetch enrichment
+or description lookup exists. Results are provider-dependent, not guaranteed.
+Network: HTTPS Open Library Search API and remote cover loading.
+Evidence: lib/screens/search_books_screen.dart, lib/models/open_library_search.dart,
+lib/services/open_library_service.dart, lib/main.dart (searchBooks);
+test/open_library_search_service_test.dart, test/search_books_widget_test.dart,
+test/search_books_persistence_test.dart; README.md. Merged PR #11.
+
+3.4 Covers
+Status: IMPLEMENTED; native picker/cropper/recovery QA: RELEASE VALIDATION PENDING.
+Purpose/workflow: Add/Edit -> choose photo, take photo, crop/adjust, replace or
+remove cover, then save. Cancel preserves the saved image.
+Data: remote URLs remain URL references. Selected local images are copied to
+application-support covers/<uuid>.jpg; SQLite stores a managed relative reference,
+not image bytes. Managed covers persist across restarts and display offline.
+Cleanup checks references, never deletes user-owned originals, and is best effort
+after commit. Failed saves preserve prior data and clean eligible staged copies.
+Android lost-picker-result recovery can reopen Add Book at startup; unsaved
+cropper drafts are not guaranteed durable. Process interruption can leave orphans.
+Network/limits: remote images require connectivity and are not a complete managed
+offline cache; missing files/network images show a placeholder. Camera requires
+permission; system photo picker/fallback avoids broad storage permission.
+Evidence: lib/services/cover_picker.dart, lib/services/cover_storage.dart,
+lib/screens/book_cover.dart, lib/main.dart; test/cover_form_test.dart,
+test/cover_persistence_test.dart, test/cover_picker_cleanup_test.dart,
+test/book_cover_test.dart. Merged PR #4.
+
+3.5 Browse, search, sort, details and deletion
+Status: IMPLEMENTED.
+Purpose/workflow: Moje książki shows total owned-record count, title, author,
+cover/status and due information. Pull to refresh; case-insensitive title/author
+substring search; sort by recently added or title A–Z. Combine search/sort with
+Wszystkie, Dostępne, Wypożyczone or Oddane na stałe filters.
+Details show metadata, condition, category value, ISBN, creation date, description
+when present, history and status-appropriate actions.
+Delete requires confirmation and permanently removes the owned book and cascading
+history; associated owner messages/contacts/transfers are explicitly cleaned.
+Reminder cancellation and unused managed-cover cleanup follow commit.
+Data: books/history and associated loan data; browsing itself writes no events.
+Offline: local browse/search/sort/details/delete work offline; remote images may
+use placeholders. No archive/undo/recovery feature exists. Global list/history
+and semantic barcode scans are not evidence of large-library performance.
+Evidence: lib/main.dart (LibraryScreen, BookDetailsScreen, HistoryScreen),
+lib/data/library_repository.dart (books, deleteBook), test/library_filters_test.dart,
+test/loan_deletion_privacy_test.dart. Merged PRs #7, #15.
+
+4. DESCRIPTIONS AND CATEGORIES
+
+4.1 Descriptions
+Status: PARTIALLY IMPLEMENTED.
+Purpose/workflow: stored descriptions display in Book Details when nonempty.
+Data: Book.description / books.description; addBook accepts a description.
+Missing: Add/Edit has no description input; updateBook does not edit description;
+Open Library integration does not request descriptions. User-editable descriptions
+are PLANNED. Stored support alone is not a complete user-facing feature.
+Offline: stored display works offline; future manual editing must work offline.
+Evidence: lib/models/book.dart, lib/data/library_database.dart,
+lib/data/library_repository.dart (addBook, updateBook), lib/main.dart.
+
+4.2 Categories/directories
+Status: PARTIALLY IMPLEMENTED.
+Purpose/workflow: details display the stored directory as Kategoria; new ordinary
+form saves use Bez kategorii and existing legacy values survive edits/migrations.
+Data: Book.directory / books.directory, not a category entity/table.
+Missing: user-editable directory/category selection, creation, renaming, deletion
+and filtering are PLANNED. No category management screen exists. Future behavior
+must define reassignment on deletion and preserve historical metadata.
+Offline: stored display works offline; planned management must stay local.
+Evidence: same files as 4.1; test/history_migration_test.dart.
+Do not infer complete category management from a database column.
+
+5. OWNER LENDING, DATES, HISTORY AND REMINDERS
+
+5.1 Lending, return and permanent giveaway
+Status: IMPLEMENTED.
+Purpose/workflow: available book -> Wypożycz książkę -> borrower name -> explicitly
+select date or Bez terminu zwrotu -> review book/person/date -> confirm. Only then
+does lending commit; QR opens afterward. Canceling QR/SMS never cancels a saved loan.
+The same sheet offers Oddaj na stałe with separate giveaway confirmation.
+Return uses Oznacz jako zwróconą and clears borrower/loan/due fields.
+Data: book status available/borrowed/given and loan fields, one appropriate
+borrowed/returned/given history event per successful transition, active loan mapping,
+reminder opt-in reset. New lending starts reminders off.
+Constraints: nonblank borrower/recipient; repository reads current row and rejects
+invalid or stale transitions without overwriting metadata. UI starts giveaway from
+an available book; repository also supports a matching borrowed-to-given transition.
+That broader repository capability is not a separate borrowed-book giveaway UI.
+Offline: fully local. No scan-to-return/lend shortcut or remote return notification.
+Evidence: lib/main.dart (LendSheet, BookDetailsScreen.lend/returnBook),
+lib/data/library_repository.dart (_transitionLoan);
+test/library_repository_test.dart, test/sqlite_repository_audit_test.dart,
+test/offline_loans_test.dart.
+
+5.2 Global and per-book history
+Status: IMPLEMENTED.
+Purpose/workflow: Historia lists newest events with book-title snapshot, detail
+and date; Historia książki in details shows newest 50 events for that ID, ordered
+timestamp DESC then id DESC, with loading/empty/retry handling.
+Data: history actions added, borrowed, returned, given, return_date_changed,
+loan_extended. Opening details/QR creates no extra history. Deleting a book removes
+its history; edits preserve historical titles and earlier events.
+Constraints: exactly one appropriate event for each successful state/date change;
+no-op/failed operations create none. Metadata editing is not a lending event.
+Mixed legacy timestamp offsets/device clocks limit guaranteed global chronology.
+Offline: fully local.
+Evidence: lib/screens/book_history_section.dart, lib/main.dart (HistoryScreen),
+lib/data/library_repository.dart (history, historyForBook, bookHistoryLimit),
+test/book_history_test.dart. Merged PR #6.
+
+5.3 Return-date change and extension
+Status: IMPLEMENTED.
+Purpose/workflow: borrowed details -> Zmień termin zwrotu or confirmed clear;
+Przedłuż wypożyczenie -> +7/+14/+30 days or custom -> preview -> confirmation.
+Data: return_date and updated_at plus exactly one history event in one transaction.
+Ordinary changes/clearing use return_date_changed. Extensions use loan_extended,
+never an extra borrowed or return_date_changed event. Borrower, original lending
+date, status, metadata and prior history remain unchanged.
+Constraints: changed ordinary dates are today/future; unchanged overdue dates
+are no-ops. Extensions must be later than both prior term and today. Presets add
+calendar days to the saved term, not today. No saved term requires custom date;
+an overdue preset still in the past cannot be confirmed. Repeated targets cannot
+create another successful event. Existing export revisions advance on date change.
+Offline: local. Reminders reconcile after commit, retaining opt-in even when
+clearing the date temporarily makes a reminder ineligible.
+Evidence: lib/screens/return_date_section.dart, lib/screens/loan_extension_dialog.dart,
+lib/models/return_date.dart, lib/data/library_repository.dart (_updateReturnDate);
+test/change_return_date_test.dart, test/change_return_date_widget_test.dart,
+test/loan_extension_test.dart, test/loan_extension_widget_test.dart. PRs #9, #10.
+
+5.4 Local return reminders
+Status: IMPLEMENTED; OS delivery/reboot/device QA: RELEASE VALIDATION PENDING.
+Purpose/workflow: on an owned borrowed book with borrower and a future local
+09:00 due instant, explicitly enable Przypomnij o zwrocie. No launch/onboarding
+permission prompt. Android 13+ notification permission, denial/rationale/settings
+and channel state are handled.
+Data: return_reminders stores opt-in and stable AUTOINCREMENT notification ID.
+One-shot timezone-aware 09:00 reminders use inexactAllowWhileIdle, private
+lock-screen visibility and title only, not borrower. Nearest 60 eligible dates
+are queued; refill on startup/resume. Fingerprints avoid duplicate replacements.
+Clear/return/give/delete/disable cancels; due changes reschedule. Reboot/update
+receivers restore plugin schedules. OS failures cannot undo loan/history writes;
+saved intent retries on resume. Disabled deletion tombstones retain cancellation IDs.
+Offline: local notifications need no server, FCM or internet.
+Limits: Doze/OEM policies, force-stop, permission/channel blocking can delay/prevent
+delivery. No exact-time guarantee. Closed app timezone changes reconcile on resume.
+Borrower-side imported loans have no equivalent reminder UI in this implementation.
+Evidence: lib/services/return_reminders.dart,
+lib/services/local_reminder_notifications.dart, lib/screens/return_reminder_settings.dart,
+lib/main.dart (lifecycle), AndroidManifest.xml under android/app/src/main/;
+test/return_reminders_test.dart, test/return_reminder_settings_test.dart;
+docs/return_reminders.md. Merged PR #8.
+
+6. OFFLINE QR LOAN SHARING — TASK 19
+
+Status: IMPLEMENTED; two-physical-device workflow: RELEASE VALIDATION PENDING.
+Purpose/workflow: confirm owner lending first, display invitation QR, or reopen
+Pokaż kod QR for the active loan without lending again. Recipient opens Pożyczone
+od innych, scans QR or pastes standalone code, reviews unverified metadata and
+explicitly confirms import. Share/copy fallback and local deletion are available.
+Data: owner_loan_instances, loan_transfers, borrowed_loans; no transfer of ownership,
+no owned-book insertion and no authority to lend/give a borrowed record.
+Protocol: moja-biblioteka: + bounded Base64URL UTF-8 JSON; version 1,
+loan_invitation. Carries stable transfer/loan/book IDs, bounded title/author,
+optional ISBN/owner, original borrowing date, optional due date, issuance/revision.
+Current owner generator omits owner display name. Codes exclude borrower names,
+covers, descriptions, private paths, notification IDs and full history.
+Constraints: exact duplicate import is a no-op. Higher revisions must preserve
+transfer/book/original borrowing/owner identity and nondecreasing issuance.
+Stale, same-revision conflicting or transfer-collision imports fail transactionally.
+New lending periods receive new instance IDs; unchanged QR reopening preserves
+bytes. Legacy active loans receive a persisted ID once. Local status is preserved
+on revision import; its column is not a complete borrower return-management UI.
+Offline: QR and manual-code operations need no network. Devices remain independent.
+Limits: untrusted claims, no cryptographic identity/ownership proof; no automatic
+sync, verified installation URL or deferred deep-link installation guarantee.
+Retain the code and import manually after obtaining a trusted installer.
+Evidence: lib/models/loan_transfer.dart, lib/screens/offline_loans.dart,
+lib/data/library_repository.dart (loanInvitation, importLoan, deleteBorrowedLoan),
+test/offline_loans_test.dart, test/offline_sharing_test.dart;
+docs/offline-loan-protocol.md. Merged PR #14.
+
+7. SMS INVITATIONS AND EXTENSION REQUESTS — TASK 20
+
+Status: IMPLEMENTED; native composer/carrier/two-device QA:
+RELEASE VALIDATION PENDING.
+Purpose: exchange explicit invitations, requests and decisions between independent
+local stores, without accounts/backend or automatic synchronization.
+
+Workflow/screens:
+1. Owner confirms loan, then Wyślij informacje SMS prepares readable Polish text
+   plus the same v1 invitation code used for QR.
+2. Owner opens native SMS composer, reviews recipient/body and presses Send.
+   Recipient copies only the code into Pożyczone od innych and confirms import.
+3. Borrower opens the imported loan, chooses Poproś o przedłużenie and a later
+   future date. Preparing a request stores it locally without extending the loan.
+4. Borrower explicitly sends through the SMS app. Composer launch does not mark
+   sent/pending. A separate confirmed Zapisz, że wysłano prośbę declaration records
+   local waiting status, with delivery explicitly unverified.
+5. Owner manually pastes request, previews book/borrower/current/requested date
+   and request ID with identity warning, then explicitly approves or rejects.
+6. Approval rechecks active instance/book/date/revision under the SQLite lock.
+   It updates the authoritative owner loan, revision, one loan_extended event and
+   decision atomically. Reminder opt-in survives; reconciliation follows commit.
+   Rejection records a decision without extending.
+7. Owner reviews and explicitly opens/sends decision SMS; saved decisions can be
+   reopened/resend without another extension. Canceled composer cannot undo approval.
+8. Borrower manually pastes approved confirmation, reviews old/new dates and
+   authenticity warning, then explicitly applies to their matching local loan.
+   Exact duplicate confirmation is a no-op; stale/conflicting/replayed messages
+   cannot regress a newer term. No local recorded request is required when the
+   confirmation's expected loan/date/revision match.
+
+Data/validation: loan_messages role/request/loan/state/request/decision; loan_contacts
+for optional explicitly saved recipient number. Prepared, pending, approved,
+rejected and imported are local states, not delivery receipts. Bounded v1 types:
+extension_request, extension_approved, extension_rejected. Invitation decoder stays
+invitation-only. Rejected decisions can be sent/read, but borrower confirmation
+import accepts extension_approved only; rejection import/status application is
+not implemented. No automatic rejection-state update on borrower device.
+Offline/network: prepare/import/store locally offline; SMS delivery may require
+carrier service and incur charges, including multipart Polish messages.
+Native Android ACTION_SENDTO + smsto: + sms_body only opens composer.
+No automatic SMS sending, SMS inbox reading, restricted SMS permissions, contacts
+access, Firebase/FCM, backend, delivery confirmation or cryptographic authentication.
+Share/copy fallbacks exist when composer unavailable. User confirms every imported
+update. Base64 is not encryption; SMS is not end-to-end encrypted.
+Phone: optional, max 40 characters, restricted phone syntax; stored only by explicit
+Zapisz numer tylko na tym urządzeniu, blank save removes. Never in QR/message body;
+only passed as recipient. Role/loan isolation applies even on one device.
+Deletion/privacy: explicit borrower-record deletion removes borrower-role messages
+and contact atomically; explicit owned-book deletion removes all associated owner
+messages, contacts and snapshots across historical/legacy instances. Normal
+return/re-lending retains decisions/contact history for replay protection. Another
+device's data and copies in SMS/clipboard/share destinations are unaffected.
+Evidence: lib/screens/loan_messaging.dart, lib/services/loan_sms.dart,
+lib/models/loan_message.dart, lib/data/library_repository.dart,
+android/app/src/main/kotlin/com/kamilloo/mylibrary/MainActivity.kt;
+test/loan_messaging_test.dart, test/loan_deletion_privacy_test.dart;
+docs/offline_loan_messaging.md. Merged PR #15.
+
+8. FIRST-LAUNCH TUTORIAL AND HELP — TASKS 18 AND 18.1
+
+Status: IMPLEMENTED — seven slides; Task 18.1 merged as PR #17, 97e320f.
+Device accessibility/Back/OEM display checks: RELEASE VALIDATION PENDING.
+Purpose/workflow: Android TutorialGate precedes LibraryShell on missing/false
+tutorial_completed_v1. Horizontal PageView, Polish explanations, bundled icons,
+counter/indicators and Back/Next navigation. Finish appears only on final page.
+Sequence:
+1. Witaj w Mojej Bibliotece!
+2. Dodawaj książki
+3. Zarządzaj wypożyczeniami
+4. Udostępniaj kod QR
+5. Proś o przedłużenie
+6. Pilnuj terminów zwrotu
+7. Twoja biblioteka, Twoje zasady
+Data: shared_preferences completion boolean, independent of SQLite and library.
+Finish persists before entering library. Existing completed users bypass; missing
+flag shows onboarding even if books exist. Do not infer grandfathering from books
+or install age. Read failure permits access for that launch; write failure retries.
+Pomoc reopens all pages from page one on a separate route; exits never reset
+completion or library data. Mandatory Back moves backward and cannot dismiss
+page one; Help Back can close. No permissions requested solely for onboarding.
+Offline: bundled content/icons only. No SMS, scanner or reminder activation.
+Evidence: lib/screens/tutorial_screen.dart, lib/services/tutorial_preferences.dart,
+lib/main.dart; test/tutorial_test.dart; docs/first_launch_tutorial.md; PRs #16, #17.
+
+9. ACTUAL ARCHITECTURE AND TECHNOLOGY
+
+Status: IMPLEMENTED.
+Flutter StatefulWidget/StatelessWidget screens with Navigator routes, Material 3,
+FutureBuilder and local setState; LibraryShell holds owned library, global history
+and borrower collection. LibraryRepository coordinates SQLite domain transactions,
+cover storage and post-commit reminders. LibraryDatabase owns creation/upgrades.
+Models represent books/history, ISBN/date validation, search results, invitations
+and extension messages. Services isolate HTTP, picker/storage, notifications,
+preferences and native SMS/share MethodChannel. This is not an implemented backend,
+cloud sync, Firebase, account system or a claimed MVVM/BLoC/DI framework.
+
+Version evidence (constraints, not invented resolved versions):
+- pubspec.yaml: my_library 1.0.0+8, Dart >=3.4.0 <4.0.0.
+- CI pins Flutter 3.47.5; README/release record identifies Dart 3.13.4.
+  pubspec.lock requires Dart >=3.13.0 <4.0.0 and Flutter >=3.47.0 and is
+  authoritative for resolved packages. The permissive pubspec range alone does
+  not establish older SDK support.
+- sqflite ^2.4.1; uuid ^4.5.1; mobile_scanner ^7.4.2; qr_flutter ^4.1.0.
+- http ^1.2.2; image_picker ^1.2.4; image_picker_android ^0.8.13+25;
+  image_picker_platform_interface ^2.11.2; image_cropper ^13.0.0;
+  path_provider ^2.1.6; path ^1.9.0.
+- flutter_local_notifications ^23.0.0; flutter_timezone ^5.1.1;
+  timezone ^0.11.0; shared_preferences ^2.5.3.
+- Tests: flutter_test SDK, sqflite_common_ffi ^2.4.5, flutter_lints ^5.0.0.
+- Android: AGP 9.1.1; Gradle wrapper 9.3.1; Kotlin plugin declaration 2.4.0
+  (app uses AGP built-in Kotlin); Java/Kotlin bytecode 17, CI Temurin JDK 17;
+  compileSdk 37.0; min/target/NDK delegated to Flutter. The recorded pinned-toolchain
+  build reports min API 24 / target API 36; verify final artifacts again.
+- Native SMS/share uses MainActivity and my_library/offline_loans, not an SMS SDK.
+Evidence: pubspec.yaml, pubspec.lock, android/app/build.gradle.kts,
+android/settings.gradle.kts, android/gradle/wrapper/gradle-wrapper.properties,
+.github/workflows/flutter-ci.yml, README.md, docs/android_release.md.
+
+10. SQLITE AND DATA PRESERVATION
+
+Status: IMPLEMENTED — my_library.db, schema version 5.
+Source: lib/data/library_database.dart and lib/data/library_repository.dart.
+Production location: join(await getDatabasesPath(), 'my_library.db').
+Dates/timestamps stored as TEXT; application identifiers normally UUID strings.
+Protocol version 1 is unrelated to SQLite schema version 5; loan transfer
+revisions advance independently within that protocol.
+
+Tables:
+- books: id TEXT primary key; title, author, description (default empty),
+  condition, directory, status, created_at, updated_at required; cover_url,
+  barcode, borrowed_by, borrowed_date, return_date nullable.
+  Partial unique idx_books_barcode applies to non-NULL barcode. Multiple NULLs
+  allowed; ISBN semantic equivalence is repository logic, not this index.
+- history: id primary key; required book_id, book_title, action, timestamp;
+  nullable detail. book_id FK to books(id) ON DELETE CASCADE.
+  idx_history_book_timestamp indexes book_id, timestamp DESC, id DESC.
+- return_reminders: AUTOINCREMENT integer id; unique required book_id; enabled
+  integer default 0. Intentionally no FK: disabled deletion tombstones support
+  retrying native cancellation without keeping title/borrower.
+- owner_loan_instances: book_id primary key and cascading FK to books;
+  loan_id required unique. One active instance per owned book.
+- loan_transfers: loan_id primary key; required encoded payload snapshot.
+- borrowed_loans: loan_id primary key; transfer_id required unique; payload,
+  revision required; local_status required default active. No ownership FK:
+  independent borrower copies never become owned books.
+- loan_messages: composite primary key (role, request_id); required loan_id,
+  request, state; nullable decision. No ownership FK; repository handles cleanup.
+- loan_contacts: composite primary key (role, loan_id); required phone.
+  No ownership FK; explicit deletion uses role-aware repository cleanup.
+
+Foreign keys enabled on configuration. No SQL CHECK validation for all domain
+statuses/date formats; supported APIs enforce invariants. Do not infer guarantees
+for arbitrary external SQL writes or corrupt/unsupported future schemas.
+Related loan/history/reminder-reset/instance writes are transactional. Approval
+also commits revision and decision atomically. Filesystem and OS notifications
+cannot join SQLite's transaction; copying/cleanup/reconciliation have separate
+failure boundaries. No destructive reset, reseeding or delete-and-recreate fallback.
+
+Forward migration:
+- v1 -> add history index (v2), reminders (v3), transfer tables (v4), messages/
+  contacts (v5).
+- v2 -> add v3/v4/v5 structures.
+- v3 -> add v4/v5 structures.
+- v4 -> add v5 message/contact tables.
+- v5 -> reopen without upgrade DDL.
+Sqflite upgrade callback is transactional. Existing books, timestamps, categories,
+descriptions, history, cover references, reminder opt-in/IDs and transfer/borrower
+rows must survive. Installed upgrade requires compatible app/signing identity.
+Snapshots keep stable transfer/loan IDs and monotonic revisions; date changes of
+exported loans advance revision inside the transaction, even when later reverted.
+Requests/confirmations validate expected loan, date and revision to resist stale
+or repeated updates. These checks do not authenticate a sender.
+
+Explicit deletion follows sections 3/7; normal return is not privacy erasure.
+Notification tombstones may remain; best-effort cover cleanup can leave orphans.
+Legacy formatted/duplicate barcodes and absolute covers are preserved rather than
+silently rewritten. Missing legacy images use placeholders. Corruption, storage
+exhaustion, root access and future-schema downgrade are not automatically repaired.
+Evidence/tests: test/history_migration_test.dart (v1/v2/v3 to v5 and reopen),
+test/fixtures/legacy_library_schema.dart, test/loan_messaging_test.dart (v4 to v5),
+test/sqlite_repository_audit_test.dart, test/loan_deletion_privacy_test.dart;
+docs/sqlite_regression_audit.md, docs/offline-loan-protocol.md,
+docs/offline_loan_messaging.md. Physical installed upgrades remain pending.
+
+11. PRIVACY, PERMISSIONS AND ADVERTISING
+
+11.1 Local data and external requests
+Status: IMPLEMENTED; final privacy/SDK disclosure review: RELEASE VALIDATION PENDING.
+Collection, borrower records, dates, history, optional phone numbers and messages
+are local app-private data. SQLite is not application-level encrypted. Android
+sandbox/device encryption does not protect against all unlocked/rooted compromise.
+No application-managed cloud database, Firebase/FCM or background device sync.
+No automatic SMS reading/sending or contacts lookup. User-triggered Open Library
+ISBN/title/author HTTPS queries expose those queries and normal HTTP metadata;
+rendered remote images contact their URL servers. Local-first is not a promise
+of zero network traffic. Scanner ML Kit/Google transport diagnostic disclosures
+must be reviewed for privacy policy/Data safety; do not assume the SDK is silent.
+External SMS, clipboard and share copies are outside application deletion control.
+
+11.2 Permissions and backup policy
+Status: IMPLEMENTED configuration; final packaged audit: RELEASE VALIDATION PENDING.
+Source manifest: CAMERA (optional hardware), INTERNET, POST_NOTIFICATIONS,
+RECEIVE_BOOT_COMPLETED and AD_ID prepared for planned ads. Notification receivers
+and crop activity are private; launcher is exported for launching. Plugins can
+merge other permissions/components: audit final APK/AAB, not just source.
+No restricted SMS/contacts permissions, broad media/storage permission or exact
+alarm access is required by these workflows. Camera is requested on feature use;
+notifications only on valid explicit opt-in, never solely for onboarding.
+Android cloud Auto Backup and device transfer are disabled: allowBackup=false,
+fullBackupContent=false and data_extraction_rules.xml excludes both transports.
+OEM behavior must still be checked. Installed compatible updates preserve data;
+uninstall/clear data/device loss or replacement can cause permanent loss.
+Evidence: android/app/src/main/AndroidManifest.xml,
+android/app/src/main/res/xml/data_extraction_rules.xml,
+lib/services/, docs/android_release.md (permissions/privacy/backup policy).
+
+11.3 Advertising
+Status: PLANNED — Google AdMob SDK integration, placements and consent management.
+No AdMob dependency, initialization or ad placement is implemented in current
+pubspec/source. AD_ID is preparation, not completed SDK integration, actual ID
+access or consent. Advertising remains on the intended product roadmap.
+Separate requirements: Google Play Contains ads declaration; Advertising ID
+permission and actual usage/purposes; SDK/mediation integration; applicable
+consent/age/region handling; privacy policy and Data safety disclosures.
+Historical developer reports of Play declarations are not independently verified
+Console evidence. Reconcile each with the final shipped build; never pass borrower,
+phone/library/history data as ad-targeting parameters.
+Evidence: pubspec.yaml, AndroidManifest.xml above, docs/android_release.md
+(Advertising readiness), docs/android_qa_checklist.md (AD01–AD06).
+Advertising-enabled release validation: RELEASE VALIDATION PENDING.
+
+12. LOCAL LIBRARY BACKUP AND RESTORE
+
+Status: PLANNED — high priority. No complete backup/export/import feature exists.
+Purpose: recover or move a full local library safely despite disabled Android
+Auto Backup and device transfer. No current manual backup is promised to users.
+Desired workflow: user exports a single versioned backup package; import validates
+structure/version/integrity, previews contents/conflicts and requires explicit
+confirmation. Interrupted/failed imports must not destroy current data.
+Data scope: books/metadata, managed local cover files, borrower-side loans, relevant
+lending/extension history and reminder preferences as applicable. Design must
+explicitly decide message/contact inclusion and conflict/replace/merge policy,
+protect personal information and preserve identity/revision/replay invariants.
+Requirements: compatible supported database versions; portable cover references;
+safe staging/atomic recovery strategy; no raw notification-ID collision; cancel/
+reschedule appropriate OS reminders only after successful import. Document private
+storage/sharing and protection of exported personal information.
+Offline: complete local export/restore must not require backend/accounts.
+Acceptance needs separate implementation/migration/failure tests and device QA.
+Evidence of absence/current loss risk: lib/main.dart, lib/screens/,
+lib/data/library_repository.dart, Android backup configuration; docs/android_release.md.
+A private developer copy of test DB/covers during QA is not this product feature.
+
+13. ROADMAP AND SCOPE DECISIONS
+
+Priority expresses proposed order, not a fabricated approved task number.
+Task-to-PR mappings are only used where verified. See gap analysis for detail.
+
+Group | Requirement | Status | Resolution / priority
+Implemented | Personal collection, editing, ISBN validation/duplicates/lookup/search, covers, all status filters | IMPLEMENTED | Sections 3–4; no feature rewrite needed
+Implemented | Owner loans, date changes/extensions, global/per-book history, opt-in reminders | IMPLEMENTED | Section 5; native QA pending
+Implemented | Offline QR and separate borrowed collection, manual SMS request/decision/import | IMPLEMENTED | Tasks 19/20, PRs #14/#15; sections 6–7
+Implemented | Seven-page tutorial and Help, including SMS page | IMPLEMENTED | Tasks 18/18.1, PRs #16/#17; section 8
+Prioritized | Android release/device/privacy/distribution gates | RELEASE VALIDATION PENDING | High; section 14
+Prioritized | Complete local backup/export/import | PLANNED | High; section 12
+Prioritized | Google AdMob and consent/disclosures | PLANNED | High before advertising-enabled release; section 11
+Prioritized | Manual descriptions | PLANNED | Complete partially implemented storage/display; section 4
+Prioritized | Directory/category selection and management/filtering | PLANNED | Define management/reassignment; section 4
+Outstanding | Scan existing book to initiate lending/return | PLANNED | Lower priority; existing selection workflow works; no approved task number verified
+Outstanding | Managed offline caching of remote covers | PLANNED | Lower priority; current local covers work offline, URLs do not guarantee it
+Outstanding | Archive/undo deletion | HISTORICAL | Original next-release suggestion; no approved Android V1 task verified; do not silently implement
+Deferred | iOS release | DEFERRED | No current Android release blocker from iOS naming/permissions
+Deferred | Accounts/profiles, friends/followers/social reviews/social graph | DEFERRED | Outside Android V1
+Deferred | Backend/cloud or automatic multi-device sync, Firebase messaging/FCM | DEFERRED | Manual QR/SMS does not revive these
+Deferred | Marketplace/resale, maps/nearby discovery, Discord | DEFERRED | Outside Android V1
+Deferred | Blacklist, reservations, view-only/do-not-lend mode, public API and remote push/return requests | DEFERRED | No approved V1 implementation established
+
+The historical term "backend-ready" describes IDs/timestamps only, not a working
+or guaranteed future synchronization design. Unverified task approvals/decisions
+must be flagged in future tasks, not reconstructed from percentages or schema fields.
+
+14. ANDROID V1 RELEASE ACCEPTANCE
+
+Overall release status: RELEASE VALIDATION PENDING. Functional implementation
+does not authorize distribution. Planned requirements in section 13 must either
+be completed and validated or have an explicit recorded scope decision before
+calling V1 complete; none are marked complete by this documentation task.
+
+14.1 Identity and build acceptance
+- Verify com.kamilloo.mylibrary, Moja Biblioteka launcher name and existing bookshelf
+  icon/adaptive masks on devices. Source version is 1.0.0+8; select an unused
+  increasing Play version code for actual submission.
+- Run committed CI quality checks and debug APK build; validate a correctly signed
+  release APK/AAB with the intended production/upload identity. Missing credentials
+  must fail, with no debug-signing fallback. Inspect final manifest/components,
+  SDK range, debuggable=false, signatures, checksums and exact source commit.
+- Preserve installed collection on same-identity compatible-signed upgrade without
+  uninstall/clear data. Validate v1–v4 to v5, current-v5 reopen, complete rows,
+  history, managed covers, reminders/IDs, borrowed records/messages/contacts.
+  Run SQLite integrity/foreign-key checks and interrupted/low-storage scenarios.
+- Verify native ELF plus APK alignment and actual 16 KB page-size runtime behavior
+  for scanner, cropper, SQLite and Flutter/native libraries; ZIP alignment alone
+  is insufficient.
+
+14.2 Device/product acceptance
+- Physical Android 13+ plus another supported API level: manual add/edit, duplicate
+  feedback, all filters/search/sort, history, confirmed deletion and offline use.
+- Physical camera ISBN/QR, denied/revoked permissions, picker/camera/crop/recovery,
+  live Open Library failure/retry and local/remote cover behavior.
+- Lending confirmation, date/no-date, return/give, change/clear and +7/+14/+30/
+  custom extension; exactly one correct event and preserved unrelated data.
+- Local reminder opt-in/denial/channel/settings, foreground/background/process
+  termination, reboot/update, Doze/OEM/force-stop, timezone/DST, nearest-60 refill.
+  Record actual delivery behavior; no precise alarm guarantee.
+- Two-device QR invitation/import/reopen in airplane mode; duplicates/conflicts/
+  stale revisions and new loan instances; borrower and owner data stay separate.
+- Two-device SMS invitation -> manual import -> request -> explicit native Send ->
+  owner paste/review/approve or reject -> decision SMS -> borrower confirmed
+  approval import. Test Google/OEM composer, full Unicode/multipart messages,
+  carrier conditions/charges, cancellation, missing SMS handler/copy/share,
+  restart, stale/replayed messages and deletion privacy. Sending/delivery are
+  never inferred from composer launch.
+- Seven-page onboarding/Help, completed-user bypass, Back/progress/Finish,
+  TalkBack, small/large font and rotation. No permission prompts just for tutorial.
+
+14.3 Privacy, advertising and publication acceptance
+- Review actual app/SDK traffic and local personal-data retention/deletion,
+  disabled backups/transfer and permanent loss warning. Prepare privacy policy
+  and Google Play Data safety from the final build, including scanner diagnostics,
+  Open Library and remote covers. Audit final permissions.
+- If ads ship: implement/verify AdMob, consent/age/region and error/offline behavior;
+  separately verify Contains ads, Advertising ID declaration/usage and SDK
+  disclosures. AD_ID alone satisfies none of those full gates.
+- Complete applicable Play listing/assets, audience/content rating, app access,
+  declarations, signing/account-specific testing requirements and current policy
+  review at submission. Existing policy notes are dated evidence, not a guarantee.
+- Produce final signed AAB, validate it and run Play internal testing/pre-launch
+  reports and installed upgrades. Resolve documented signature/toolchain warnings.
+- Record explicit release authorization before any publication. No automatic merge,
+  Play upload or public rollout is authorized by this specification.
+
+Detailed execution sources: docs/android_release.md, docs/android_qa_checklist.md,
+docs/return_reminders.md, docs/offline-loan-protocol.md,
+docs/offline_loan_messaging.md and docs/first_launch_tutorial.md.
+Each executed QA result needs device/API, app version, commit, signing identity,
+date/time, tester and evidence without exposing personal data.
+
+15. AUTOMATED EVIDENCE AND DOCUMENT MAINTENANCE
+
+Status: IMPLEMENTED — automated test infrastructure and broad regression suites.
+.github/workflows/flutter-ci.yml runs locked dependency resolution, formatting,
+analysis, all unit/widget tests, debug APK build and release credential guard.
+SQLite FFI fixtures, mocked HTTP/MethodChannel/notifications and temporary files
+exercise migrations, rollback, metadata/loan preservation, covers, reminders,
+QR/messages/replay/privacy and tutorial behavior. They do not prove native delivery.
+Source suites include test/history_migration_test.dart,
+test/sqlite_repository_audit_test.dart, test/loan_messaging_test.dart,
+test/offline_loans_test.dart, test/loan_deletion_privacy_test.dart and
+test/tutorial_test.dart, plus feature-specific suites referenced above.
+
+Historical verification snapshots (HISTORICAL, not rerun in Task 21):
+- Task 11/Android release preparation, PRs #12/#13: 194 tests plus recorded
+  analysis/build checks. Keep original dates/artifact warnings/checksums.
+- Task 19, PR #14: 225 tests.
+- Task 20, PR #15: 270 tests.
+- Task 18, PR #16: 280 tests; original six-slide tutorial.
+- Task 18.1, PR #17: 282 tests, including 12 tutorial tests; seven slides.
+  The merged PR reports quality-checks/android-build success.
+These counts identify historical runs, not a live current test total or physical
+QA. No device/Play pass or completion percentage is inferred.
+
+Future implementation tasks must cite this canonical document, inspect current
+source again and record their base commit. Update affected feature status and
+release evidence separately. Preserve historical audit results rather than
+rewriting them as new tests. Resolve scope decisions explicitly; do not revive
+deferred social/cloud/iOS work through an old completion checklist.
