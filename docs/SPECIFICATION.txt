@@ -1,3 +1,5 @@
+Historical MVP specification. This document records the original requirements and is not the current implementation specification. See docs/MyLibrary_Version_1_Updated_Specification.txt for the current Android V1 product scope and implementation status.
+
 MY LIBRARY - FINAL MVP SPECIFICATION
 Version: 1.0
 Platform: Flutter (Android and iOS)

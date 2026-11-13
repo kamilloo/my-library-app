@@ -1,5 +1,12 @@
 # Offline lending protocol v1
 
+Current scope: [canonical Android V1 specification](MyLibrary_Version_1_Updated_Specification.txt).
+This document describes Task 19 invitations and its historical v3 → v4 migration.
+The active database is **v5**. Task 20 has since implemented separate v1 extension
+message codecs and manual SMS workflows; see [offline loan messaging](offline_loan_messaging.md).
+The invitation decoder still accepts invitations only. Historical Task 19 test
+and migration statements below do not claim a new verification run.
+
 Android devices keep independent local databases. This protocol needs no network,
 accounts, Firebase, hosted endpoint or deferred deep links. Codes are untrusted
 claims, not proof of ownership or identity. Preview confirmation always precedes import.
@@ -47,10 +54,12 @@ unchanged invitation returns the same bytes. Existing v3 active loans receive a
 UUID once at first QR generation, persisted in owner_loan_instances. This avoids
 reconstructing identity from potentially tied history timestamps.
 
-Future message types (extension_request, extension_approved, extension_rejected)
-must use the same protocol/version/type envelope and stable loan reference, with
-their own explicitly validated model and dispatch. V1 currently accepts invitations
-only; extension transport and SMS automation are outside this task.
+Task 19 reserved extension_request, extension_approved and extension_rejected for
+separate validated models/dispatch using this envelope and stable loan reference.
+Task 20 now implements those codecs and manual SMS transport; see
+[offline loan messaging](offline_loan_messaging.md). This invitation decoder still
+accepts invitations only. Automatic SMS sending remains unimplemented and is not
+part of the manual transport design.
 
 ## SQLite v3 → v4
 
