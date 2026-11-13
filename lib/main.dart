@@ -14,6 +14,8 @@ import 'services/local_reminder_notifications.dart';
 import 'screens/return_reminder_settings.dart';
 import 'screens/return_date_section.dart';
 import 'models/book.dart';
+import 'models/genre.dart';
+import 'screens/genres.dart';
 import 'models/isbn.dart';
 import 'models/open_library_search.dart';
 import 'screens/search_books_screen.dart';
@@ -214,7 +216,31 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> {
   String query = '';
   BookStatus? filter;
+  String? genreFilter;
   bool alphabetical = false;
+
+  Future<void> openBook(Book book) async {
+    String? genreId;
+    if (genreFilter != null) {
+      final genres = await widget.repository.genres();
+      genreId = genres.where((g) => g.name == genreFilter).firstOrNull?.id;
+    }
+    if (!mounted) return;
+    await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+            builder: (_) =>
+                BookDetailsScreen(book: book, repository: widget.repository)));
+    if (!mounted) return;
+    if (genreFilter != null) {
+      final genres = await widget.repository.genres();
+      if (!mounted) return;
+      setState(() =>
+          genreFilter = genres.where((g) => g.id == genreId).firstOrNull?.name);
+    } else {
+      setState(() {});
+    }
+  }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Book>>(
@@ -226,7 +252,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
           var books = snapshot.data!.where((book) {
             final text = '${book.title} ${book.author}'.toLowerCase();
             return text.contains(query.toLowerCase()) &&
-                (filter == null || book.status == filter);
+                (filter == null || book.status == filter) &&
+                (genreFilter == null || book.genre == genreFilter);
           }).toList();
           if (alphabetical) books.sort((a, b) => a.title.compareTo(b.title));
           return RefreshIndicator(
@@ -287,6 +314,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
                             setState(() => filter = BookStatus.given)),
                   ],
                 ),
+                GenreSelector(
+                    repository: widget.repository,
+                    value: genreFilter,
+                    filter: true,
+                    onChanged: (value) => setState(() => genreFilter = value)),
+                TextButton(
+                    onPressed: () async {
+                      final before = await widget.repository.genres();
+                      final id = before
+                          .where((g) => g.name == genreFilter)
+                          .firstOrNull
+                          ?.id;
+                      if (!context.mounted) return;
+                      await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => ManageGenresScreen(
+                                  repository: widget.repository)));
+                      final after = await widget.repository.genres();
+                      if (mounted) {
+                        setState(() => genreFilter =
+                            after.where((g) => g.id == id).firstOrNull?.name);
+                      }
+                    },
+                    child: const Text('Zarządzaj gatunkami')),
                 const SizedBox(height: 18),
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -307,15 +359,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: BookCard(
                           book: book,
-                          onTap: () async {
-                            await Navigator.push<bool>(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => BookDetailsScreen(
-                                        book: book,
-                                        repository: widget.repository)));
-                            if (mounted) setState(() {});
-                          },
+                          onTap: () => openBook(book),
                         ),
                       )),
               ],
@@ -433,6 +477,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
   String? lookupMessage;
   late final isbnService = widget.isbnService ?? OpenLibraryService();
   String condition = 'Dobry';
+  late String genre = widget.book?.genre ?? defaultGenre;
   String? coverUrl;
   bool saving = false;
   bool selectingCover = false;
@@ -635,6 +680,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
           author: author.text,
           barcode: isbn.text,
           condition: condition,
+          genre: genre,
           coverUrl: coverUrl,
           updateCover: true,
         );
@@ -647,8 +693,14 @@ class _AddBookScreenState extends State<AddBookScreen> {
         coverUrl: coverUrl,
         barcode: isbn.text,
         condition: condition,
+        genre: genre,
       );
       if (mounted) Navigator.pop(context, true);
+    } on GenreException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } on DuplicateIsbnException {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -799,6 +851,12 @@ class _AddBookScreenState extends State<AddBookScreen> {
                           DropdownMenuItem(value: value, child: Text(value)))
                       .toList(),
                   onChanged: (value) => setState(() => condition = value!)),
+              GenreSelector(
+                  repository: widget.repository,
+                  value: genre,
+                  enabled: !saving && !selectingCover,
+                  onChanged: (value) =>
+                      setState(() => genre = value ?? defaultGenre)),
               const SizedBox(height: 22),
               SizedBox(
                   width: double.infinity,
@@ -838,7 +896,19 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             AddBookScreen(repository: widget.repository, book: book),
       ),
     );
-    if (updated != null && mounted) setState(() => book = updated);
+    if (updated != null && mounted) {
+      setState(() => book = updated);
+    } else if (mounted) {
+      // Registry edits commit independently of the book form.
+      try {
+        final saved = (await widget.repository.books())
+            .where((b) => b.id == book.id)
+            .firstOrNull;
+        if (saved != null && mounted) setState(() => book = saved);
+      } catch (_) {
+        // Keep the current details if reloading is temporarily unavailable.
+      }
+    }
   }
 
   Future<void> lend() async {
@@ -996,7 +1066,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           Row(children: [
             Expanded(child: _Detail(label: 'Stan', value: book.condition)),
             const SizedBox(width: 10),
-            Expanded(child: _Detail(label: 'Kategoria', value: book.directory))
+            Expanded(child: _Detail(label: 'Gatunek', value: book.genre))
           ]),
           const SizedBox(height: 10),
           Row(children: [

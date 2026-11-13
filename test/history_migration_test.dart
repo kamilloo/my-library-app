@@ -88,8 +88,13 @@ void main() {
         for (var pass = 0; pass < 2; pass++) {
           final database = LibraryDatabase.file(databaseFactoryFfi, path);
           db = await database.database;
-          expect(await db.getVersion(), 5);
-          expect(await db.query('books', orderBy: 'id'), books);
+          expect(await db.getVersion(), 6);
+          expect(
+              await db.query('books', orderBy: 'id'),
+              books
+                  .map((r) => {...r}..remove('directory'))
+                  .map((r) => {...r, 'genre': 'Bez gatunku'})
+                  .toList());
           expect(await db.query('history', orderBy: 'id'), history);
           expect(await db.query('return_reminders', orderBy: 'id'), reminders);
           expect(
@@ -114,7 +119,7 @@ void main() {
                 schema.where((entry) => entry['name'] == name), hasLength(1));
           }
           expect(
-              schema.where((entry) => entry['type'] == 'table'), hasLength(8));
+              schema.where((entry) => entry['type'] == 'table'), hasLength(9));
           final loaded = await LibraryRepository(database: database).books();
           expect(loaded, hasLength(3));
           final storage = CoverStorage(
@@ -185,7 +190,7 @@ void main() {
         'title': 'T',
         'author': 'A',
         'condition': 'Dobry',
-        'directory': 'Bez kategorii',
+        'genre': 'Bez gatunku',
         'status': 'available',
         'created_at': '2026-11-10T00:00:00.000',
         'updated_at': '2026-11-10T00:00:00.000',

@@ -11,6 +11,35 @@ for v1 QR compatibility, local contact storage, authenticity limits and device Q
 
 Local-first Flutter MVP for cataloging books and tracking lending.
 
+## Gatunki (SQLite v6)
+
+Add and Edit Book include **Gatunek** after condition. New books default to
+**Bez gatunku**. The selector supports creating a custom genre without losing
+the form. Book Details shows the saved genre.
+
+**Zarządzaj gatunkami** is available from the library and selector. It shows book
+counts, supports renaming, and confirms deletion. Removing a used genre assigns
+its books to **Bez gatunku** atomically; books and lending data are preserved.
+The reserved default cannot be renamed or removed. Names are trimmed, limited to
+60 Unicode characters, normalized to NFC, and unique regardless of case.
+**Bez kategorii** is retired and cannot be created.
+
+Starter definitions: Fantastyka, Science fiction, Kryminał, Thriller, Romans,
+Horror, Literatura obyczajowa, Literatura historyczna, Biografia i autobiografia,
+Literatura faktu, Przygodowa. These may be renamed or deleted and are seeded only
+on installation or upgrade, never on reopening. Fresh installs have no demo books.
+
+The **Gatunek** library selector combines with title/author search, status and
+both sorting modes; **Pożyczone od innych** is unchanged.
+
+SQLite v6 removes the unused `directory` column and introduces
+`genre TEXT NOT NULL DEFAULT 'Bez gatunku'`, plus the `genres` registry
+(`id`, `name`, unique `normalized_name`). All books upgrading from v1–v5
+receive **Bez gatunku**: old directory values are deliberately discarded,
+never converted or inferred. IDs, other metadata, timestamps, covers, history,
+reminders, QR transfers, borrowed loans and SMS data remain intact.
+See [genre migration and test evidence](docs/genres.md).
+
 ## Included
 
 - SQLite data model with UUIDs and timestamps
@@ -65,8 +94,8 @@ responses, and no results. Older responses cannot replace newer query results;
 identical pending query/page requests share a future. Requests are not auto-retried.
 Manual entry, local covers, and offline library access remain available. Existing
 network cover URLs need connectivity to display their images; missing images use
-placeholders. No schema, account, remote library writes, descriptions, or category
-management are added.
+placeholders. Open Library search does not create accounts, write to remote
+libraries or fetch descriptions.
 
 API: [Open Library Search documentation](https://openlibrary.org/dev/docs/api/search).
 

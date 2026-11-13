@@ -30,7 +30,7 @@ void main() {
         author: 'Author',
         barcode: '9780525559474',
         description: 'Description',
-        directory: 'Shelf',
+        genre: 'Fantastyka',
         coverUrl: 'https://example.com/cover.jpg');
     await repository.lendBook(book, 'Borrower', DateTime(2030));
     final before = (await db.query('books')).single;
@@ -55,7 +55,7 @@ void main() {
       'borrowed_date',
       'return_date',
       'description',
-      'directory',
+      'genre',
       'cover_url'
     ]) {
       expect(after[key], before[key], reason: key);
@@ -115,7 +115,7 @@ void main() {
       author: 'Author',
       barcode: '9780525559474',
       description: 'Keep description',
-      directory: 'Keep directory',
+      genre: 'Fantastyka',
       coverUrl: 'https://example.com/cover.jpg',
     );
     await repository.lendBook(book, 'Borrower', DateTime(2030, 6, 15));
@@ -138,7 +138,7 @@ void main() {
       'id',
       'created_at',
       'description',
-      'directory',
+      'genre',
       'cover_url',
       'status',
       'borrowed_by',
@@ -163,7 +163,7 @@ void main() {
       'barcode',
       'condition',
       'description',
-      'directory',
+      'genre',
       'cover_url',
     ]) {
       expect(returned[key], editedRow[key], reason: key);
@@ -218,7 +218,7 @@ void main() {
               'SELECT type, name, sql FROM sqlite_master ORDER BY type, name'),
           schemaBefore);
       expect(await db.getVersion(), versionBefore);
-      expect(versionBefore, 5);
+      expect(versionBefore, 6);
     });
   }
 
@@ -266,10 +266,10 @@ void main() {
       WHEN NEW.id != 'competing'
       BEGIN
         INSERT INTO books
-          (id, title, author, barcode, condition, directory, status,
+          (id, title, author, barcode, condition, genre, status,
            created_at, updated_at)
         VALUES ('competing', NEW.title, NEW.author, NEW.barcode, NEW.condition,
-                NEW.directory, NEW.status, NEW.created_at, NEW.updated_at);
+                NEW.genre, NEW.status, NEW.created_at, NEW.updated_at);
       END
     """);
     await expectLater(

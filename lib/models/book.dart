@@ -11,7 +11,7 @@ class Book {
     this.coverUrl,
     this.barcode,
     this.condition = 'Dobry',
-    this.directory = 'Bez kategorii',
+    this.genre = 'Bez gatunku',
     this.status = BookStatus.available,
     this.borrowedBy,
     this.borrowedDate,
@@ -25,7 +25,7 @@ class Book {
   final String? coverUrl;
   final String? barcode;
   final String condition;
-  final String directory;
+  final String genre;
   final BookStatus status;
   final String? borrowedBy;
   final DateTime? borrowedDate;
@@ -34,6 +34,7 @@ class Book {
   final DateTime updatedAt;
 
   Book copyWith({
+    String? genre,
     BookStatus? status,
     String? borrowedBy,
     DateTime? borrowedDate,
@@ -48,7 +49,7 @@ class Book {
         coverUrl: coverUrl,
         barcode: barcode,
         condition: condition,
-        directory: directory,
+        genre: genre ?? this.genre,
         status: status ?? this.status,
         borrowedBy: clearLoan ? null : borrowedBy ?? this.borrowedBy,
         borrowedDate: clearLoan ? null : borrowedDate ?? this.borrowedDate,
@@ -65,7 +66,7 @@ class Book {
         'cover_url': coverUrl,
         'barcode': barcode,
         'condition': condition,
-        'directory': directory,
+        'genre': genre,
         'status': status.name,
         'borrowed_by': borrowedBy,
         'borrowed_date': borrowedDate?.toIso8601String(),
@@ -82,7 +83,7 @@ class Book {
         coverUrl: map['cover_url'] as String?,
         barcode: map['barcode'] as String?,
         condition: (map['condition'] as String?) ?? 'Dobry',
-        directory: (map['directory'] as String?) ?? 'Bez kategorii',
+        genre: (map['genre'] as String?) ?? 'Bez gatunku',
         status: BookStatus.values.byName(map['status']! as String),
         borrowedBy: map['borrowed_by'] as String?,
         borrowedDate:

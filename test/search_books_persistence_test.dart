@@ -28,7 +28,7 @@ class SearchPersistenceRepository extends LibraryRepository {
     String? coverUrl,
     String? barcode,
     String condition = 'Dobry',
-    String directory = 'Bez kategorii',
+    String genre = 'Bez gatunku',
   }) async {
     inserts++;
     write = () => super.addBook(
@@ -38,7 +38,7 @@ class SearchPersistenceRepository extends LibraryRepository {
         coverUrl: coverUrl,
         barcode: barcode,
         condition: condition,
-        directory: directory);
+        genre: genre);
     return result.future;
   }
 }

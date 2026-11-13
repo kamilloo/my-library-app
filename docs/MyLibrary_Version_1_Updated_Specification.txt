@@ -1,7 +1,9 @@
 MY LIBRARY / MOJA BIBLIOTEKA
 UPDATED VERSION 1 SPECIFICATION AND IMPLEMENTATION SUMMARY
 
-Document status: Updated after comparison of the original specification with the current Flutter application
+Document status: Task 22 genre requirements updated; unrelated earlier audit sections retain their original review context.
+Task 22: Gatunek selection, management and filtering implemented; SQLite v6.
+See docs/genres.md for the current migration contract and starter definitions.
 Application version reviewed: 1.0.0+8
 Primary language: Polish
 Platform: Flutter mobile application (Android and iOS)
@@ -83,7 +85,7 @@ Current limitations:
 
 - No manual description field.
 - No manual cover selection.
-- No category or directory selector.
+- Gatunek selector supports existing and inline-created genres; default Bez gatunku.
 - A manually entered ISBN does not automatically trigger metadata lookup.
 - Duplicate ISBN database errors are not presented as a friendly message.
 
@@ -113,7 +115,7 @@ Status: IMPLEMENTED WITH LIMITATIONS
 - Displays cover or a generated placeholder.
 - Displays title and author.
 - Displays current status.
-- Displays condition, category, ISBN, and creation date.
+- Displays condition, Gatunek, ISBN, and creation date.
 - Displays description when a description exists.
 - Provides lending, return, and deletion actions.
 
@@ -199,7 +201,7 @@ Implemented fields:
 - coverUrl
 - barcode / ISBN
 - condition
-- directory
+- genre (default: Bez gatunku; legacy directory removed)
 - status
 - borrowedBy
 - borrowedDate
@@ -238,7 +240,9 @@ Implemented actions:
 - Book and history changes use transactions where appropriate.
 - UUIDs are used for books and history records.
 - createdAt and updatedAt fields make the data model suitable for future sync.
-- Database schema version is currently 1.
+- Database schema version is 6. Supported v1–v5 migrations preserve all books and loan information.
+- The unused directory column is removed; every existing book receives Bez gatunku.
+- No old classification values are imported. genres stores stable IDs, names and unique NFC/lowercase normalized_name keys.
 
 ======================================================================
 5. SUCCESSFULLY COMPLETED VERSION 1 FEATURES
@@ -286,8 +290,8 @@ Overall assessment:
 
 6.1 Manual book entry
 
-The basic form exists, but it does not expose description, directory, or cover
-editing.
+Add and Edit Book include Gatunek after condition. Users may create a genre
+without resetting the form. Manual description editing remains outside Task 22.
 
 6.2 Descriptions
 
@@ -299,10 +303,18 @@ request one and the form cannot enter one.
 Open Library covers are supported. The user cannot upload, replace, or remove a
 cover manually.
 
-6.4 Categories and directories
+6.4 Gatunki — implemented in Task 22
 
-The database contains a directory field. Seed books use categories, but a user
-cannot create, select, rename, filter, or manage directories.
+Users select one primary genre per book and see it in Book Details.
+Zarządzaj gatunkami shows counts and supports create, rename and safe delete.
+Renaming updates definitions and book values atomically. Deleting a used genre
+reassigns its books to Bez gatunku after confirmation, without deleting books.
+Bez gatunku is immutable. Bez kategorii is retired and reserved.
+Names use NFC normalization, case-insensitive uniqueness and a 60-character limit.
+Starter definitions are listed in docs/genres.md and are never reinserted on reopen.
+The genre filter combines with title/author search, status and both sorting modes.
+Pożyczone od innych and Task 19/20 protocols remain unchanged.
+No categories, nested directories, audience classifications or subgenres are added.
 
 6.5 Filtering
 
@@ -417,8 +429,8 @@ Priority 1 - Release blockers and correctness
 Priority 2 - Complete the original Phase 1 experience
 
 6. Add Edit Book functionality.
-7. Add description and directory/category fields to Add and Edit Book forms.
-8. Add a category selector and basic directory management.
+7. Consider manual description editing separately.
+8. COMPLETED (Task 22): genre selection, management and filtering.
 9. Add a filter for permanently given-away books.
 10. Add per-book history to the Book Details screen.
 11. Allow metadata lookup after manually entering an ISBN.
@@ -442,7 +454,7 @@ Version 1 can be considered fully complete when:
 - books can be added by scanning or manual entry;
 - users can edit incorrect book information;
 - duplicate ISBN values are handled safely;
-- title, author, description, condition, category, cover, and ISBN can be
+- title, author, description, condition, genre, cover, and ISBN can be
   maintained;
 - search, sorting, and all status filters work;
 - lending, return, permanent transfer, and per-book history work;
@@ -461,8 +473,9 @@ Its strongest areas are ISBN scanning, Open Library integration, local data
 storage, collection search, and basic lending management.
 
 The original specification was not fully implemented. The most important
-remaining Version 1 work is iOS camera configuration, book editing, directory
-management, duplicate handling, per-book history, and return reminders.
+items in this earlier review are iOS camera configuration, book editing,
+duplicate handling, per-book history, and return reminders. Task 22 genre
+management is complete; see current feature documentation for later task updates.
 
 Social networking, accounts, maps, resale, Discord, and cloud synchronization
 remain appropriate candidates for Version 2 and later releases.

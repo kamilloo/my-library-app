@@ -41,7 +41,7 @@ void main() {
       barcode: isbn,
       coverUrl: 'https://example.com/cover.jpg',
       condition: 'Nowa',
-      directory: 'Istniejąca półka');
+      genre: 'Fantastyka');
   Future<Book> current(String id) async => Book.fromMap(
       (await db.query('books', where: 'id = ?', whereArgs: [id])).single);
   Future<List<Map<String, Object?>>> history() =>
