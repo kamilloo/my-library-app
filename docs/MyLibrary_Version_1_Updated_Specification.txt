@@ -151,7 +151,7 @@ Evidence: lib/main.dart (LibraryScreen, BookDetailsScreen, HistoryScreen),
 lib/data/library_repository.dart (books, deleteBook), test/library_filters_test.dart,
 test/loan_deletion_privacy_test.dart. Merged PRs #7, #15.
 
-4. DESCRIPTIONS AND CATEGORIES
+4. DESCRIPTIONS, LEGACY DIRECTORIES AND PLANNED GENRES
 
 4.1 Descriptions
 Status: PARTIALLY IMPLEMENTED.
@@ -164,17 +164,34 @@ Offline: stored display works offline; future manual editing must work offline.
 Evidence: lib/models/book.dart, lib/data/library_database.dart,
 lib/data/library_repository.dart (addBook, updateBook), lib/main.dart.
 
-4.2 Categories/directories
+4.2 Legacy categories/directories — current implementation
 Status: PARTIALLY IMPLEMENTED.
 Purpose/workflow: details display the stored directory as Kategoria; new ordinary
 form saves use Bez kategorii and existing legacy values survive edits/migrations.
-Data: Book.directory / books.directory, not a category entity/table.
-Missing: user-editable directory/category selection, creation, renaming, deletion
-and filtering are PLANNED. No category management screen exists. Future behavior
-must define reassignment on deletion and preserve historical metadata.
-Offline: stored display works offline; planned management must stay local.
+Data: Book.directory / books.directory in current SQLite v5, not a category
+entity/table. No directory/category selector, creation, renaming, deletion or
+filtering UI exists. Do not infer complete management from a database column.
+Offline: stored display works offline.
 Evidence: same files as 4.1; test/history_migration_test.dart.
-Do not infer complete category management from a database column.
+The approved next feature is separately defined below as genres, not management
+of legacy directory values. Current v5 behavior remains unchanged until it merges.
+
+4.3 Genre (Gatunek) Selection and Management — Task 22
+Status: PLANNED — approved Task 22 scope; not current implementation.
+Purpose/workflow: select a genre in Add/Edit Book; create, rename and delete
+genres; filter owned books by genre.
+Planned data changes: introduce SQLite schema v6, add books.genre, remove
+books.directory and introduce a persistent genres registry.
+Migration/constraints: assign Bez gatunku to all existing books. Do not convert
+or infer genres from historical directory values; those values are not migrated
+into genres. Preserve all book records and other metadata, loan history, covers,
+reminders, QR transfers and SMS messages.
+Offline: genre selection, management and filtering must remain local.
+Remaining work: implement and validate the v6 migration, registry and UI in
+Task 22. SQLite v6 is planned only; the authoritative current schema remains v5
+until Task 22 actually merges.
+Requirement source: approved Task 22 decision supplied for this documentation
+amendment; current-code references in 4.2 establish the legacy baseline only.
 
 5. OWNER LENDING, DATES, HISTORY AND REMINDERS
 
@@ -554,7 +571,7 @@ Prioritized | Android release/device/privacy/distribution gates | RELEASE VALIDA
 Prioritized | Complete local backup/export/import | PLANNED | High; section 12
 Prioritized | Google AdMob and consent/disclosures | PLANNED | High before advertising-enabled release; section 11
 Prioritized | Manual descriptions | PLANNED | Complete partially implemented storage/display; section 4
-Prioritized | Directory/category selection and management/filtering | PLANNED | Define management/reassignment; section 4
+Prioritized | Genre selection and management — Task 22 (PLANNED) | PLANNED | Approved genre UI/registry and v6 migration; section 4.3. Current schema remains v5 until merge
 Outstanding | Scan existing book to initiate lending/return | PLANNED | Lower priority; existing selection workflow works; no approved task number verified
 Outstanding | Managed offline caching of remote covers | PLANNED | Lower priority; current local covers work offline, URLs do not guarantee it
 Outstanding | Archive/undo deletion | HISTORICAL | Original next-release suggestion; no approved Android V1 task verified; do not silently implement
