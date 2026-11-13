@@ -47,10 +47,13 @@ Widget app(TutorialPreferences preferences) => MaterialApp(
     );
 
 Future<void> lastPage(WidgetTester tester) async {
-  for (var i = 0; i < 5; i++) {
+  for (var i = 0; i < tutorialSlides.length - 1; i++) {
+    expect(find.text('Zakończ'), findsNothing);
     await tester.tap(find.text('Dalej'));
     await tester.pumpAndSettle();
+    expect(find.text(tutorialSlides[i + 1].title), findsOneWidget);
   }
+  expect(find.text('Zakończ'), findsOneWidget);
 }
 
 void main() {
@@ -92,20 +95,32 @@ void main() {
         'preserved');
   });
 
-  test('six slides in feature order with exact Polish copy', () {
+  test('seven slides in feature order with exact Polish copy and icons', () {
     expect(tutorialSlides.map((s) => s.title), [
       'Witaj w Mojej Bibliotece!',
       'Dodawaj książki',
       'Zarządzaj wypożyczeniami',
       'Udostępniaj kod QR',
+      'Proś o przedłużenie',
       'Pilnuj terminów zwrotu',
       'Twoja biblioteka, Twoje zasady',
     ]);
+    expect(tutorialSlides.map((s) => s.icon), [
+      Icons.menu_book_rounded,
+      Icons.document_scanner_outlined,
+      Icons.people_alt_outlined,
+      Icons.qr_code_2_rounded,
+      Icons.sms_outlined,
+      Icons.event_available_outlined,
+      Icons.phonelink_lock_outlined,
+    ]);
+    expect(tutorialSlides[4].title, 'Proś o przedłużenie');
     expect(tutorialSlides.map((s) => s.description), [
       'Twoje książki zawsze pod ręką. Zarządzaj swoją kolekcją i wypożyczeniami w jednym miejscu.',
       'Skanuj kod ISBN, wyszukuj po tytule lub autorze albo dodawaj książki ręcznie. Ustaw własną okładkę.',
       'Zapisuj, komu pożyczasz książki, ustalaj terminy zwrotu i przeglądaj historię.',
       'Po wypożyczeniu pokaż kod QR. Druga osoba może go zeskanować i dodać książkę do listy „Pożyczone od innych”.',
+      'Wyślij prośbę o przedłużenie wypożyczenia przez SMS. Właściciel zatwierdza nowy termin, a Ty wklejasz potwierdzenie w aplikacji.',
       'Włącz przypomnienia o zwrocie książek, zmieniaj terminy i przedłużaj wypożyczenia.',
       'Książki i historia są przechowywane na Twoim urządzeniu. Możesz korzystać z biblioteki także bez internetu.',
     ]);
@@ -122,7 +137,7 @@ void main() {
     expect(find.text('Zakończ'), findsNothing);
     await tester.tap(find.text('Dalej'));
     await tester.pumpAndSettle();
-    expect(find.text('2 / 6'), findsOneWidget);
+    expect(find.text('2 / 7'), findsOneWidget);
     await tester.tap(find.text('Wstecz'));
     await tester.pumpAndSettle();
     await lastPage(tester);
@@ -144,14 +159,68 @@ void main() {
     await tester.pumpAndSettle();
     await tester.drag(find.byType(PageView), const Offset(-600, 0));
     await tester.pumpAndSettle();
-    expect(find.text('2 / 6'), findsOneWidget);
+    expect(find.text('2 / 7'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
-    expect(find.text('1 / 6'), findsOneWidget);
+    expect(find.text('1 / 7'), findsOneWidget);
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.byType(TutorialScreen), findsOneWidget);
     expect(preferences.completed, isFalse);
+  });
+
+  testWidgets('seven pages swipe with SMS fifth and accessible progress',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(app(MemoryPreferences()));
+      await tester.pumpAndSettle();
+      for (var page = 0; page < tutorialSlides.length; page++) {
+        expect(find.text('${page + 1} / ${tutorialSlides.length}'),
+            findsOneWidget);
+        expect(
+            find.bySemanticsLabel(
+                'Strona ${page + 1} z ${tutorialSlides.length}'),
+            findsOneWidget);
+        expect(find.text(tutorialSlides[page].title), findsOneWidget);
+        final dots = find.byWidgetPredicate((widget) =>
+            widget is Container && widget.constraints?.maxHeight == 8);
+        expect(dots, findsNWidgets(tutorialSlides.length));
+        expect(find.text('Zakończ'),
+            page == tutorialSlides.length - 1 ? findsOneWidget : findsNothing);
+        expect(find.byTooltip('Zamknij pomoc'), findsNothing);
+        if (page == 4) {
+          expect(find.byIcon(Icons.sms_outlined), findsOneWidget);
+          expect(find.text(tutorialSlides[4].description), findsOneWidget);
+          await tester.tap(find.text('Wstecz'));
+          await tester.pumpAndSettle();
+          expect(find.text(tutorialSlides[3].title), findsOneWidget);
+          await tester.tap(find.text('Dalej'));
+          await tester.pumpAndSettle();
+          await tester.binding.handlePopRoute();
+          await tester.pumpAndSettle();
+          expect(find.text(tutorialSlides[3].title), findsOneWidget);
+          await tester.tap(find.text('Dalej'));
+          await tester.pumpAndSettle();
+        }
+        if (page < tutorialSlides.length - 1) {
+          await tester.drag(find.byType(PageView), const Offset(-600, 0));
+          await tester.pumpAndSettle();
+        }
+      }
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('existing v1 completion bypasses seven-slide onboarding',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'tutorial_completed_v1': true});
+    expect(LocalTutorialPreferences.completionKey, 'tutorial_completed_v1');
+    await tester.pumpWidget(app(LocalTutorialPreferences()));
+    await tester.pumpAndSettle();
+    expect(find.text('Biblioteka'), findsOneWidget);
+    expect(find.byType(TutorialScreen), findsNothing);
   });
 
   testWidgets('read failure opens library without a launch loop',
@@ -194,7 +263,7 @@ void main() {
     for (final close in ['Zamknij pomoc', 'back', 'finish']) {
       await tester.tap(find.text('Pomoc'));
       await tester.pumpAndSettle();
-      expect(find.text('1 / 6'), findsOneWidget);
+      expect(find.text('1 / 7'), findsOneWidget);
       if (close == 'finish') {
         await lastPage(tester);
         await tester.tap(find.text('Zakończ'));
@@ -223,14 +292,14 @@ void main() {
           child: child!),
       home: TutorialScreen(onFinish: () async {}),
     ));
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < tutorialSlides.length - 1; i++) {
       await tester.tap(find.text('Dalej'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     }
     await tester.binding.setSurfaceSize(const Size(480, 320));
     await tester.pumpAndSettle();
-    expect(find.text('6 / 6'), findsOneWidget);
+    expect(find.text('7 / 7'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -241,6 +310,7 @@ void main() {
       'flutter.baseflow.com/permissions/methods',
       'dexterous.com/flutter/local_notifications',
       'my_library/reminders',
+      'plugins.flutter.io/url_launcher',
       'dev.steenbakker.mobile_scanner/scanner/method'
     ]) {
       tester.binding.defaultBinaryMessenger
