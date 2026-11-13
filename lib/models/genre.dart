@@ -41,6 +41,12 @@ String validateGenreName(String input) {
   return name;
 }
 
+class GenreChange {
+  const GenreChange(this.before, this.after);
+  final String? before;
+  final String? after;
+}
+
 class Genre {
   const Genre(this.id, this.name, this.bookCount);
   final String id;

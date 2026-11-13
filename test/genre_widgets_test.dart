@@ -30,14 +30,17 @@ class GenreWidgetRepository extends LibraryRepository {
       throw const GenreException('Ten gatunek już istnieje.');
     }
     final g = Genre(id ?? name, name, 0);
+    String? previous;
     if (id != null) {
       final old = registry.singleWhere((g) => g.id == id);
+      previous = old.name;
       registry.remove(old);
       collection = collection
           .map((b) => b.genre == old.name ? b.copyWith(genre: name) : b)
           .toList();
     }
     registry.add(g);
+    genreChanges.value = GenreChange(previous, name);
     return g;
   }
 
@@ -48,6 +51,7 @@ class GenreWidgetRepository extends LibraryRepository {
     collection = collection
         .map((b) => b.genre == g.name ? b.copyWith(genre: defaultGenre) : b)
         .toList();
+    genreChanges.value = GenreChange(g.name, null);
   }
 
   @override
@@ -311,6 +315,60 @@ void main() {
     await tapVisible(tester, find.text('Biografia i autobiografia'));
     expect(find.text('Biografia i autobiografia'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'library behind Add Book follows registry changes after canceled form and preserves search sort',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repo = GenreWidgetRepository()
+      ..registry = [
+        const Genre('', defaultGenre, 0),
+        const Genre('h', 'Horror', 0)
+      ]
+      ..collection = [
+        makeBook('Zebra', genre: 'Horror'),
+        makeBook('Atlas', genre: 'Horror')
+      ];
+    await tester.pumpWidget(MaterialApp(
+        home: Builder(
+            builder: (context) => Scaffold(
+                  body: LibraryScreen(repository: repo),
+                  floatingActionButton: FloatingActionButton(
+                      onPressed: () => Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => AddBookScreen(repository: repo))),
+                      child: const Icon(Icons.add)),
+                ))));
+    await tester.pumpAndSettle();
+    await tapVisible(tester, find.byType(GenreSelector));
+    await tapVisible(tester, find.text('Horror'));
+    await tester.enterText(find.byType(TextField), 'a');
+    await tapVisible(tester, find.byTooltip('Sortuj A–Z'));
+    await tapVisible(tester, find.byType(FloatingActionButton));
+    await tapVisible(tester, find.byType(GenreSelector));
+    await tapVisible(tester, find.text('Zarządzaj gatunkami'));
+    await tapVisible(tester, find.text('Edytuj gatunek'));
+    await tester.enterText(find.byType(TextFormField).last, 'Groza');
+    await tapVisible(tester, find.widgetWithText(FilledButton, 'Zapisz'));
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Groza'), findsOneWidget);
+    expect(
+        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+        'a');
+    expect(
+        tester
+            .widgetList<BookCard>(find.byType(BookCard))
+            .map((c) => c.book.title),
+        ['Atlas', 'Zebra']);
+    await repo.deleteGenre('h');
+    await tester.pumpAndSettle();
+    expect(find.text('Wszystkie gatunki'), findsOneWidget);
   });
 
   testWidgets('small screen large text management and dialogs do not overflow',

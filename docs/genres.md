@@ -64,7 +64,7 @@ starter names receive Bez gatunku rather than inferred assignments.
 ## Validation (2026-11-13)
 
 flutter pub get, formatting and format verification, flutter analyze, all
-317 automated tests (35 focused genre tests), flutter build apk --debug and
+318 automated tests (36 focused genre tests), flutter build apk --debug and
 git diff --check passed locally. The debug APK is generated at
 build/app/outputs/flutter-apk/app-debug.apk.
 
@@ -78,7 +78,8 @@ build/app/outputs/flutter-apk/app-debug.apk.
   in all three states, transactional rename/delete rollback and persistence.
 - genre_widgets_test.dart: defaults/starters, inline creation retaining text,
   genre-only edit, Polish validation, used/unused delete confirmation,
-  combined filtering/sorting/counts, rename/delete filter refresh, and
+  combined filtering/sorting/counts, rename/delete filter refresh (including
+  changes made behind a canceled Add Book form without losing search/sort), and
   320×640 screen at 200% text.
 - Existing tests retain loan, QR, SMS, history, reminders, covers and ISBN checks.
 

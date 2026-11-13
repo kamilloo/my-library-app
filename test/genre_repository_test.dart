@@ -181,6 +181,9 @@ void main() {
       await repository.addBook(title: 'T', author: 'A', genre: g.name);
       final books = await db.query('books');
       final genres = await db.query('genres');
+      final notification = repository.genreChanges.value;
+      addTearDown(
+          () => expect(repository.genreChanges.value, same(notification)));
       if (operation == 'rename') {
         await db.execute(
             "CREATE TRIGGER fail BEFORE UPDATE OF genre ON books BEGIN SELECT RAISE(ABORT, 'failure'); END");

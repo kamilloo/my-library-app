@@ -39,6 +39,8 @@ class LibraryRepository {
 
   final LibraryDatabase _database;
   final _uuid = const Uuid();
+  // Emitted only after a successful registry transaction.
+  final genreChanges = ValueNotifier<GenreChange?>(null);
 
   Future<List<Genre>> genres() async {
     final db = await _database.database;
@@ -73,6 +75,7 @@ class LibraryRepository {
     final key = normalizedGenre(name);
     final db = await _database.database;
     final genreId = id ?? _uuid.v4();
+    String? previousName;
     try {
       await db.transaction((txn) async {
         final duplicates = await txn.query('genres',
@@ -90,6 +93,7 @@ class LibraryRepository {
           if (old.isEmpty) {
             throw const GenreException('Wybrany gatunek już nie istnieje.');
           }
+          previousName = old.single['name']! as String;
           await txn.update('genres', {'name': name, 'normalized_name': key},
               where: 'id = ?', whereArgs: [id]);
           await txn.update('books', {'genre': name},
@@ -102,6 +106,7 @@ class LibraryRepository {
       }
       throw const GenreException('Nie udało się zapisać gatunku.');
     }
+    genreChanges.value = GenreChange(previousName, name);
     return Genre(genreId, name, 0);
   }
 
@@ -110,15 +115,18 @@ class LibraryRepository {
       throw const GenreException('Nie można zmienić gatunku „Bez gatunku”.');
     }
     final db = await _database.database;
+    late String previousName;
     await db.transaction((txn) async {
       final rows = await txn.query('genres', where: 'id = ?', whereArgs: [id]);
       if (rows.isEmpty) {
         throw const GenreException('Wybrany gatunek już nie istnieje.');
       }
+      previousName = rows.single['name']! as String;
       await txn.update('books', {'genre': defaultGenre},
           where: 'genre = ?', whereArgs: [rows.single['name']]);
       await txn.delete('genres', where: 'id = ?', whereArgs: [id]);
     });
+    genreChanges.value = GenreChange(previousName, null);
   }
 
   Future<LoanTransfer> loanInvitation(String bookId) async {

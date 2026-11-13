@@ -219,6 +219,36 @@ class _LibraryScreenState extends State<LibraryScreen> {
   String? genreFilter;
   bool alphabetical = false;
 
+  @override
+  void initState() {
+    super.initState();
+    widget.repository.genreChanges.addListener(registryChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      oldWidget.repository.genreChanges.removeListener(registryChanged);
+      widget.repository.genreChanges.addListener(registryChanged);
+    }
+  }
+
+  void registryChanged() {
+    final change = widget.repository.genreChanges.value;
+    setState(() {
+      if (genreFilter != null && genreFilter == change?.before) {
+        genreFilter = change?.after;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.repository.genreChanges.removeListener(registryChanged);
+    super.dispose();
+  }
+
   Future<void> openBook(Book book) async {
     String? genreId;
     if (genreFilter != null) {
