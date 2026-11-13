@@ -1,10 +1,10 @@
 # Android V1 QA checklist
 
 See the [canonical Android V1 specification](MyLibrary_Version_1_Updated_Specification.txt)
-for current scope, schema v5 and seven-slide tutorial. The **2026-11-10 execution
+for current scope, PR #19 schema v6 and seven-slide tutorial. The **2026-11-10 execution
 record below is the Task 12 / PR #13 historical snapshot**, including its 194-test
 result; it is not a new/current suite run. Later PR test snapshots are recorded in
-the canonical specification. Unexecuted upgrade cases below now target v5.
+the canonical specification. Unexecuted upgrade cases below now target v6.
 All physical tutorial/QR/SMS/reminder/upgrade checks remain pending until recorded.
 
 ## Task 20: SMS and offline extension QA
@@ -14,9 +14,10 @@ composer cancellation, missing SMS handler, Unicode/multipart SMS, offline/resta
 stale/replayed codes and APK permission checks listed in
 [offline loan messaging](offline_loan_messaging.md#verification-and-physical-device-qa).
 Record device model/API, commit, signing identity, tester, evidence and outcome.
-Automated tests use mocked composers and never send real SMS. Schema is now v5;
-installed upgrades from v1–v4 must preserve owned books, history, opt-in and v4
-borrower records. Explicitly review the authenticity and delivery warnings.
+Automated tests use mocked composers and never send real SMS. PR #19 schema is v6;
+installed upgrades from v1–v5 must preserve owned books, history, opt-in, borrower
+records, messages and contacts. Legacy directory values intentionally become
+Bez gatunku; no genre is inferred. Explicitly review the authenticity and delivery warnings.
 
 
 
@@ -56,8 +57,8 @@ for native compatibility, labeled separately from physical delivery tests.
 | ID | Procedure and expected result | Status |
 | --- | --- | --- |
 | A01 | Fresh install intended com.kamilloo.mylibrary identity; launcher label Moja Biblioteka, icon/adaptive masks, launch without demo data or unsolicited permission prompts | Pending |
-| A02 | Install compatible-signed update over v1 fixture without clearing data; compare all books, metadata, covers, borrowers, original/due dates and history; schema becomes 5 | Pending |
-| A03 | Repeat over v2, v3 and v4 including reminder opt-in/disabled rows/IDs and v4 borrowed/transfer rows; schema becomes 5 with no duplicate indexes, records or notifications | Pending |
+| A02 | Install compatible-signed update over v1 fixture without clearing data; compare all books, metadata, covers, borrowers, original/due dates and history; schema becomes 6 with every book assigned Bez gatunku and directory removed | Pending |
+| A03 | Repeat over v2–v5 including reminder opt-in/disabled rows/IDs, borrowed/transfer rows and v5 messages/contacts; schema becomes 6 with no duplicate indexes, records or notifications | Pending |
 | A04 | Restart, process death, background/foreground and reboot; saved collection immediately available; run integrity/FK checks on private copied DB | Pending |
 | A05 | Verify offline launch/list/search/sort/filter/manual save; remote image placeholders; no dependence on Open Library connectivity | Pending |
 | A06 | Small display, rotation during forms/dialogs/scanner, large font/display scale, keyboard; controls remain reachable and drafts do not corrupt saved records | Pending |

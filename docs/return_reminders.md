@@ -1,7 +1,7 @@
 # Local return reminders
 
 Current Android V1 scope: [canonical specification](MyLibrary_Version_1_Updated_Specification.txt).
-Active SQLite schema is **v5**; the reminder table was introduced in v3 and is
+Active SQLite schema in PR #19 is **v6**; the reminder table was introduced in v3 and is
 preserved by later migrations. iOS setup/limits below are retained as technical
 reference for a deferred platform, not a current supported release or device-QA
 claim. Android physical delivery and reboot verification remain pending.
@@ -21,7 +21,7 @@ but not the borrower. Android lock-screen visibility is private; iOS previews
 follow the user's system settings.
 
 The reminder table, introduced in SQLite schema version 3 and retained in current
-schema version 5, stores per-book opt-in and an AUTOINCREMENT notification ID.
+schema version 6, stores per-book opt-in and an AUTOINCREMENT notification ID.
 The plugin persists native schedules. The same ID is reused, so repeated
 requests and restarts do not create duplicates. Returning, giving away, deleting,
 or explicitly disabling cancels the notification. Changing/removing a return date

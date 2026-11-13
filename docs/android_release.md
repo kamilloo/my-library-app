@@ -5,7 +5,9 @@ Current product scope and implementation status are owned by the
 The validation record below is the **Task 12 / PR #13 historical release-preparation
 snapshot** (194 tests), not a fresh run against today's source. Later merged QR,
 SMS and tutorial changes require a new release candidate and device QA. Active
-schema is v5; later test-count snapshots are listed in the canonical specification.
+schema in PR #19 is v6; later test-count snapshots are listed in the canonical
+specification. The v6 genre migration intentionally discards legacy directory
+values, assigns Bez gatunku to existing books and preserves other data.
 Original build/signature/checksum evidence and dates are preserved.
 
 ## Task 20: offline SMS messaging
@@ -276,14 +278,17 @@ a separate reviewed design and tests. OEM transfer behavior still needs device Q
 
 ## SQLite, covers and reminders
 
-Production path stays `getDatabasesPath()/my_library.db`; active schema is **5**.
-Additive upgrades support **1/2/3/4→5** and current-v5 reopen: v2 adds the history
-index, v3 reminders, v4 loan transfers/borrower records, v5 messages/contacts.
-The original Task 11/12 evidence below concerned v3; current source and migration
-suites extend preservation checks to v5. Preserve complete books/history, cover
-references, opt-in/IDs, v4 borrower rows and v5 messages/contacts. Installed-device
-upgrades remain pending. Empty reads never seed demo books; no destructive
-migration is added. See the [historical SQLite audit](sqlite_regression_audit.md),
+Production path stays `getDatabasesPath()/my_library.db`; PR #19 schema is **6**.
+Upgrades support **1/2/3/4/5→6** and current-v6 reopen: v2 adds the history index,
+v3 reminders, v4 transfers/borrower records, v5 messages/contacts; v6 rebuilds
+books to replace directory with genre and creates the persistent genres registry.
+Every existing book receives Bez gatunku; historical directory values are
+intentionally discarded, never converted into genres. The rebuild checks foreign
+keys and rolls back on failure. Preserve every book/nonclassification field,
+history, cover reference/file, opt-in/ID, borrowed row, QR snapshot, message and
+contact. See [Task 22 migration details](genres.md). The Task 11/12 evidence below
+remains a v3 historical snapshot. Installed-device upgrades remain pending.
+Empty reads never seed demo books; current-v6 reopen never reseeds genres. See the [historical SQLite audit](sqlite_regression_audit.md),
 [QR protocol](offline-loan-protocol.md), [message migration](offline_loan_messaging.md)
 and [canonical schema](MyLibrary_Version_1_Updated_Specification.txt).
 

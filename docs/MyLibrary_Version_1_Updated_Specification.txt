@@ -8,7 +8,11 @@ docs/SPECIFICATION.txt is the HISTORICAL MVP baseline and retains its original
 requirements. This document replaces the previous implementation assessment,
 including its unsupported completion percentages and outdated completion plan.
 
-Source baseline: main at 97e320fcabbf5af0d9e47b495ed75390592dbbbd.
+Source baseline: main at 8027a8fb92643b9ffdd811dbb5d93b43ee905c15 (PR #18).
+Task 22 integration: PR #19, feat/book-genre-management, reviewed feature source
+822395a3367b1e5ead24ef8a65046acb3d797b8a plus its integration follow-up.
+This document describes the resulting PR #19 implementation, including schema v6;
+PR #19 remains unmerged until explicitly approved.
 Review: 2026-11-13. Application: 1.0.0+8. This is a source/document/history
 review, not a new Flutter test run, device QA result or publication record.
 Evidence paths below are repository-relative. PR numbers refer to
@@ -16,7 +20,8 @@ https://github.com/kamilloo/my-library-app/pull/<number>.
 See docs/specification_gap_analysis.md for disagreements and verified history.
 
 Every substantive capability below has one of these statuses:
-- IMPLEMENTED: verified in source code on main; does not imply device QA.
+- IMPLEMENTED: verified in the source baseline or explicitly identified PR #19
+  integration source above; does not imply merge, device QA or release.
 - PARTIALLY IMPLEMENTED: supporting behavior exists; missing behavior is stated.
 - PLANNED: accepted requirement, not implemented.
 - DEFERRED: excluded from current Android V1 scope.
@@ -59,8 +64,8 @@ condition and cover, then explicitly save. Book Details -> Edytuj książkę ope
 the prefilled shared form. Required title/author are nonblank in the UI; editing
 also enforces them in the repository. Conditions: Nowa, Dobry, Zużyta.
 Data: add creates books plus one added history event atomically. Edit changes
-title, author, barcode, condition and optionally cover for the same ID; preserves
-createdAt, description, directory, loan fields and previous history. Real changes
+title, author, barcode, condition, genre and optionally cover for the same ID;
+preserves createdAt, description, loan fields and previous history. Real changes
 update updatedAt; unchanged edits are no-ops and metadata edits add no loan event.
 Constraints: valid ISBNs normalize; blank codes become NULL. ISBN-10 and its
 equivalent 978 ISBN-13 share a duplicate-comparison identity. Existing legacy
@@ -137,8 +142,9 @@ Status: IMPLEMENTED.
 Purpose/workflow: Moje książki shows total owned-record count, title, author,
 cover/status and due information. Pull to refresh; case-insensitive title/author
 substring search; sort by recently added or title A–Z. Combine search/sort with
-Wszystkie, Dostępne, Wypożyczone or Oddane na stałe filters.
-Details show metadata, condition, category value, ISBN, creation date, description
+Wszystkie, Dostępne, Wypożyczone or Oddane na stałe filters and the owned-book
+Gatunek selector (Wszystkie gatunki, Bez gatunku or a saved genre).
+Details show metadata, condition, genre, ISBN, creation date, description
 when present, history and status-appropriate actions.
 Delete requires confirmation and permanently removes the owned book and cascading
 history; associated owner messages/contacts/transfers are explicitly cleaned.
@@ -151,7 +157,7 @@ Evidence: lib/main.dart (LibraryScreen, BookDetailsScreen, HistoryScreen),
 lib/data/library_repository.dart (books, deleteBook), test/library_filters_test.dart,
 test/loan_deletion_privacy_test.dart. Merged PRs #7, #15.
 
-4. DESCRIPTIONS, LEGACY DIRECTORIES AND PLANNED GENRES
+4. DESCRIPTIONS, HISTORICAL DIRECTORIES AND GENRES
 
 4.1 Descriptions
 Status: PARTIALLY IMPLEMENTED.
@@ -164,34 +170,51 @@ Offline: stored display works offline; future manual editing must work offline.
 Evidence: lib/models/book.dart, lib/data/library_database.dart,
 lib/data/library_repository.dart (addBook, updateBook), lib/main.dart.
 
-4.2 Legacy categories/directories — current implementation
-Status: PARTIALLY IMPLEMENTED.
-Purpose/workflow: details display the stored directory as Kategoria; new ordinary
-form saves use Bez kategorii and existing legacy values survive edits/migrations.
-Data: Book.directory / books.directory in current SQLite v5, not a category
-entity/table. No directory/category selector, creation, renaming, deletion or
-filtering UI exists. Do not infer complete management from a database column.
-Offline: stored display works offline.
-Evidence: same files as 4.1; test/history_migration_test.dart.
-The approved next feature is separately defined below as genres, not management
-of legacy directory values. Current v5 behavior remains unchanged until it merges.
+4.2 Legacy categories/directories — historical v5 behavior
+Status: HISTORICAL.
+Before Task 22, Book.directory / books.directory held classification text;
+details displayed Kategoria and ordinary saves defaulted to Bez kategorii.
+No complete category management UI existed. Task 22 intentionally removes this
+field and replaces the planned category feature with separate genre management.
+Historical values are discarded, never converted or inferred as genres.
+Evidence: original baseline retained in Git; test/fixtures/legacy_library_schema.dart,
+test/genre_migration_test.dart and docs/genres.md.
 
 4.3 Genre (Gatunek) Selection and Management — Task 22
-Status: PLANNED — approved Task 22 scope; not current implementation.
-Purpose/workflow: select a genre in Add/Edit Book; create, rename and delete
-genres; filter owned books by genre.
-Planned data changes: introduce SQLite schema v6, add books.genre, remove
-books.directory and introduce a persistent genres registry.
-Migration/constraints: assign Bez gatunku to all existing books. Do not convert
-or infer genres from historical directory values; those values are not migrated
-into genres. Preserve all book records and other metadata, loan history, covers,
-reminders, QR transfers and SMS messages.
-Offline: genre selection, management and filtering must remain local.
-Remaining work: implement and validate the v6 migration, registry and UI in
-Task 22. SQLite v6 is planned only; the authoritative current schema remains v5
-until Task 22 actually merges.
-Requirement source: approved Task 22 decision supplied for this documentation
-amendment; current-code references in 4.2 establish the legacy baseline only.
+Status: IMPLEMENTED in PR #19; physical migration/accessibility QA:
+RELEASE VALIDATION PENDING.
+Purpose/workflow: Add/Edit Book selects one genre after condition, defaulting
+to Bez gatunku. Inline creation preserves the draft and selects the new genre.
+Details displays Gatunek. Zarządzaj gatunkami, accessible from the library and
+selector, shows assignment counts, creates/renames genres and confirms deletion.
+Deleting a used genre atomically reassigns its books to Bez gatunku; it never
+deletes books. Registry changes commit independently of a book form: canceling
+the form does not undo them. Counts use Polish forms (1 książka, 2 książki,
+5 książek, with the 12–14 exception).
+Owned-book genre filtering combines with title/author search, status and both
+sort modes. Renamed filters follow the stable registry ID; deleting the selected
+genre clears the filter. Registry changes behind a canceled form refresh the
+library/details. Pożyczone od innych remains separate and unchanged.
+Data: SQLite v6 adds books.genre, removes books.directory and persists the genres
+registry. Bez gatunku is a virtual reserved system entry, not a genres row;
+it cannot be renamed/deleted. Bez kategorii is also reserved.
+Validation: trim and NFC-normalize names, reject controls/newlines and names over
+60 Unicode scalars; normalized_name enforces case-insensitive NFC uniqueness.
+Starter definitions (seeded only on install/upgrade, never reopen): Fantastyka,
+Science fiction, Kryminał, Thriller, Romans, Horror, Literatura obyczajowa,
+Literatura historyczna, Biografia i autobiografia, Literatura faktu, Przygodowa.
+All starters can be renamed/deleted; no sample books are seeded.
+Migration: every existing book receives Bez gatunku, even when its old directory
+equals a starter name. No historical directory value becomes a genre. All book
+records and nonclassification metadata, timestamps, loan history, covers, reminder
+preferences/IDs, QR transfers, borrower-side loans, SMS messages and contacts are
+preserved. Genre rename/delete changes only registry/genre assignments, without
+changing loan state, timestamps, history or QR/SMS revisions.
+Offline: selection, creation, renaming, deletion and filtering are local.
+Evidence: lib/models/genre.dart, lib/screens/genres.dart, lib/main.dart,
+lib/data/library_database.dart, lib/data/library_repository.dart (genres,
+saveGenre, deleteGenre), test/genre_migration_test.dart,
+test/genre_repository_test.dart, test/genre_widgets_test.dart; docs/genres.md.
 
 5. OWNER LENDING, DATES, HISTORY AND REMINDERS
 
@@ -412,6 +435,7 @@ Version evidence (constraints, not invented resolved versions):
   path_provider ^2.1.6; path ^1.9.0.
 - flutter_local_notifications ^23.0.0; flutter_timezone ^5.1.1;
   timezone ^0.11.0; shared_preferences ^2.5.3.
+- unorm_dart ^0.3.0 for genre-name NFC normalization.
 - Tests: flutter_test SDK, sqflite_common_ffi ^2.4.5, flutter_lints ^5.0.0.
 - Android: AGP 9.1.1; Gradle wrapper 9.3.1; Kotlin plugin declaration 2.4.0
   (app uses AGP built-in Kotlin); Java/Kotlin bytecode 17, CI Temurin JDK 17;
@@ -424,19 +448,24 @@ android/settings.gradle.kts, android/gradle/wrapper/gradle-wrapper.properties,
 
 10. SQLITE AND DATA PRESERVATION
 
-Status: IMPLEMENTED — my_library.db, schema version 5.
+Status: IMPLEMENTED in PR #19 — my_library.db, schema version 6, nine tables.
 Source: lib/data/library_database.dart and lib/data/library_repository.dart.
 Production location: join(await getDatabasesPath(), 'my_library.db').
 Dates/timestamps stored as TEXT; application identifiers normally UUID strings.
-Protocol version 1 is unrelated to SQLite schema version 5; loan transfer
+Protocol version 1 is unrelated to SQLite schema version 6; loan transfer
 revisions advance independently within that protocol.
 
 Tables:
 - books: id TEXT primary key; title, author, description (default empty),
-  condition, directory, status, created_at, updated_at required; cover_url,
+  condition, genre (TEXT NOT NULL DEFAULT 'Bez gatunku'), status, created_at,
+  updated_at required; cover_url,
   barcode, borrowed_by, borrowed_date, return_date nullable.
   Partial unique idx_books_barcode applies to non-NULL barcode. Multiple NULLs
   allowed; ISBN semantic equivalence is repository logic, not this index.
+- genres: id TEXT primary key; name TEXT NOT NULL; normalized_name TEXT NOT NULL
+  UNIQUE. Books reference a validated genre name by application logic, not an SQL
+  genre FK. Bez gatunku is virtual and absent from this registry. directory is
+  absent from the active books table/model/API.
 - history: id primary key; required book_id, book_title, action, timestamp;
   nullable detail. book_id FK to books(id) ON DELETE CASCADE.
   idx_history_book_timestamp indexes book_id, timestamp DESC, id DESC.
@@ -454,7 +483,10 @@ Tables:
 - loan_contacts: composite primary key (role, loan_id); required phone.
   No ownership FK; explicit deletion uses role-aware repository cleanup.
 
-Foreign keys enabled on configuration. No SQL CHECK validation for all domain
+Foreign keys are disabled on configuration only for legacy v1–v5 upgrades,
+before sqflite begins its upgrade transaction, to avoid cascading child deletion
+during the books rebuild. PRAGMA foreign_key_check runs before migration commit;
+onOpen enables foreign keys. Fresh/current-v6 connections configure them enabled. No SQL CHECK validation for all domain
 statuses/date formats; supported APIs enforce invariants. Do not infer guarantees
 for arbitrary external SQL writes or corrupt/unsupported future schemas.
 Related loan/history/reminder-reset/instance writes are transactional. Approval
@@ -464,14 +496,21 @@ failure boundaries. No destructive reset, reseeding or delete-and-recreate fallb
 
 Forward migration:
 - v1 -> add history index (v2), reminders (v3), transfer tables (v4), messages/
-  contacts (v5).
-- v2 -> add v3/v4/v5 structures.
-- v3 -> add v4/v5 structures.
-- v4 -> add v5 message/contact tables.
-- v5 -> reopen without upgrade DDL.
-Sqflite upgrade callback is transactional. Existing books, timestamps, categories,
-descriptions, history, cover references, reminder opt-in/IDs and transfer/borrower
-rows must survive. Installed upgrade requires compatible app/signing identity.
+  contacts (v5), then genre registry/books rebuild (v6).
+- v2 -> add remaining v3/v4/v5 structures, then v6.
+- v3 -> add v4/v5 structures, then v6.
+- v4 -> add v5 message/contact tables, then v6.
+- v5 -> v6 genre registry/books rebuild.
+- v6 -> reopen without upgrade DDL or reseeding.
+Sqflite upgrade callback is transactional. Because API 24 SQLite cannot reliably
+DROP COLUMN, v6 creates books_v6, copies nonclassification columns unchanged and
+sets genre to Bez gatunku for every book. It drops/replaces the parent with
+cascades disabled, restores explicit indexes/triggers and checks foreign keys.
+directory values are intentionally discarded, including values matching starters.
+Failures roll back schema, data and user_version. All books, timestamps,
+descriptions, history, cover references, reminder opt-in/IDs, transfer/borrower
+rows and message/contact data must survive. Installed upgrade requires compatible
+app/signing identity.
 Snapshots keep stable transfer/loan IDs and monotonic revisions; date changes of
 exported loans advance revision inside the transaction, even when later reverted.
 Requests/confirmations validate expected loan, date and revision to resist stale
@@ -482,8 +521,9 @@ Notification tombstones may remain; best-effort cover cleanup can leave orphans.
 Legacy formatted/duplicate barcodes and absolute covers are preserved rather than
 silently rewritten. Missing legacy images use placeholders. Corruption, storage
 exhaustion, root access and future-schema downgrade are not automatically repaired.
-Evidence/tests: test/history_migration_test.dart (v1/v2/v3 to v5 and reopen),
-test/fixtures/legacy_library_schema.dart, test/loan_messaging_test.dart (v4 to v5),
+Evidence/tests: test/genre_migration_test.dart (populated v1–v5 to v6, reopen and
+rollback), test/history_migration_test.dart (v1/v2/v3 to v6 and reopen),
+test/fixtures/legacy_library_schema.dart, test/loan_messaging_test.dart (v4 to v6),
 test/sqlite_repository_audit_test.dart, test/loan_deletion_privacy_test.dart;
 docs/sqlite_regression_audit.md, docs/offline-loan-protocol.md,
 docs/offline_loan_messaging.md. Physical installed upgrades remain pending.
@@ -571,7 +611,7 @@ Prioritized | Android release/device/privacy/distribution gates | RELEASE VALIDA
 Prioritized | Complete local backup/export/import | PLANNED | High; section 12
 Prioritized | Google AdMob and consent/disclosures | PLANNED | High before advertising-enabled release; section 11
 Prioritized | Manual descriptions | PLANNED | Complete partially implemented storage/display; section 4
-Prioritized | Genre selection and management — Task 22 (PLANNED) | PLANNED | Approved genre UI/registry and v6 migration; section 4.3. Current schema remains v5 until merge
+Implemented | Genre selection, creation, renaming, deletion and filtering — Task 22 | IMPLEMENTED in PR #19 | SQLite v6 and persistent registry; section 4.3. Physical upgrade/accessibility QA pending
 Outstanding | Scan existing book to initiate lending/return | PLANNED | Lower priority; existing selection workflow works; no approved task number verified
 Outstanding | Managed offline caching of remote covers | PLANNED | Lower priority; current local covers work offline, URLs do not guarantee it
 Outstanding | Archive/undo deletion | HISTORICAL | Original next-release suggestion; no approved Android V1 task verified; do not silently implement
@@ -601,8 +641,10 @@ calling V1 complete; none are marked complete by this documentation task.
   must fail, with no debug-signing fallback. Inspect final manifest/components,
   SDK range, debuggable=false, signatures, checksums and exact source commit.
 - Preserve installed collection on same-identity compatible-signed upgrade without
-  uninstall/clear data. Validate v1–v4 to v5, current-v5 reopen, complete rows,
+  uninstall/clear data. Validate v1–v5 to v6, current-v6 reopen, complete rows,
   history, managed covers, reminders/IDs, borrowed records/messages/contacts.
+  Verify directory removal, universal Bez gatunku migration, registry integrity,
+  no inferred genres and no starter reseeding on reopen.
   Run SQLite integrity/foreign-key checks and interrupted/low-storage scenarios.
 - Verify native ELF plus APK alignment and actual 16 KB page-size runtime behavior
   for scanner, cropper, SQLite and Flutter/native libraries; ZIP alignment alone
@@ -662,7 +704,8 @@ QR/messages/replay/privacy and tutorial behavior. They do not prove native deliv
 Source suites include test/history_migration_test.dart,
 test/sqlite_repository_audit_test.dart, test/loan_messaging_test.dart,
 test/offline_loans_test.dart, test/loan_deletion_privacy_test.dart and
-test/tutorial_test.dart, plus feature-specific suites referenced above.
+test/tutorial_test.dart, plus test/genre_migration_test.dart,
+test/genre_repository_test.dart and test/genre_widgets_test.dart.
 
 Historical verification snapshots (HISTORICAL, not rerun in Task 21):
 - Task 11/Android release preparation, PRs #12/#13: 194 tests plus recorded
@@ -672,6 +715,9 @@ Historical verification snapshots (HISTORICAL, not rerun in Task 21):
 - Task 18, PR #16: 280 tests; original six-slide tutorial.
 - Task 18.1, PR #17: 282 tests, including 12 tutorial tests; seven slides.
   The merged PR reports quality-checks/android-build success.
+- Task 22 initial PR #19 source 822395a: 318 tests including 36 genre tests,
+  with analysis/debug-build checks recorded in docs/genres.md. Integration reruns
+  are recorded separately in the PR; the initial run is not rewritten.
 These counts identify historical runs, not a live current test total or physical
 QA. No device/Play pass or completion percentage is inferred.
 

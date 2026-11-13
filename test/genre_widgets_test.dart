@@ -110,6 +110,47 @@ Future<void> tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 void main() {
+  test('Polish genre counts handle singular, few and teen exceptions', () {
+    const expected = {
+      0: '0 książek',
+      1: '1 książka',
+      2: '2 książki',
+      4: '4 książki',
+      5: '5 książek',
+      11: '11 książek',
+      12: '12 książek',
+      14: '14 książek',
+      21: '21 książek',
+      22: '22 książki',
+      25: '25 książek',
+      101: '101 książek',
+      112: '112 książek',
+    };
+    for (final entry in expected.entries) {
+      expect(genreBookCount(entry.key), entry.value);
+    }
+  });
+
+  testWidgets('management list and delete preview use Polish book counts',
+      (tester) async {
+    for (final count in [1, 2, 5]) {
+      final repo = GenreWidgetRepository()
+        ..registry = [const Genre('p', 'Poezja', 0)]
+        ..collection =
+            List.generate(count, (i) => makeBook('book-$i', genre: 'Poezja'));
+      await tester.pumpWidget(MaterialApp(
+          key: ValueKey(count), home: ManageGenresScreen(repository: repo)));
+      await tester.pumpAndSettle();
+      expect(find.text(genreBookCount(count)), findsOneWidget);
+      await tapVisible(tester, find.text('Usuń gatunek'));
+      expect(
+          find.textContaining('Przypisane książki: ${genreBookCount(count)}.'),
+          findsOneWidget);
+      await tapVisible(tester, find.text('Anuluj'));
+      expect(repo.collection, hasLength(count));
+    }
+  });
+
   testWidgets(
       'Add defaults to Bez gatunku; inline custom creation selects without resetting form',
       (tester) async {
@@ -167,7 +208,7 @@ void main() {
     await tester
         .pumpWidget(MaterialApp(home: ManageGenresScreen(repository: repo)));
     await tester.pumpAndSettle();
-    expect(find.text('1 książek'), findsOneWidget);
+    expect(find.text('1 książka'), findsOneWidget);
     await tapVisible(tester, find.text('Dodaj gatunek'));
     await tapVisible(tester, find.widgetWithText(FilledButton, 'Zapisz'));
     expect(find.text('Wpisz nazwę gatunku.'), findsOneWidget);

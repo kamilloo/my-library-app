@@ -68,6 +68,17 @@ Future<Genre?> editGenre(BuildContext context, LibraryRepository repository,
   return result;
 }
 
+String genreBookCount(int count) {
+  final lastTwo = count % 100;
+  final last = count % 10;
+  final noun = count == 1
+      ? 'książka'
+      : last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)
+          ? 'książki'
+          : 'książek';
+  return '$count $noun';
+}
+
 enum _GenreAction { all, create, manage }
 
 class GenreSelector extends StatefulWidget {
@@ -169,7 +180,7 @@ class _ManageGenresScreenState extends State<ManageGenresScreen> {
               title: const Text('Usuń gatunek'),
               content: Text(genre.bookCount == 0
                   ? 'Usunąć gatunek „${genre.name}”?'
-                  : 'Ten gatunek jest przypisany do ${genre.bookCount} książek. Po jego usunięciu książki zostaną oznaczone jako „Bez gatunku”.'),
+                  : 'Przypisane książki: ${genreBookCount(genre.bookCount)}. Po jego usunięciu książki zostaną oznaczone jako „Bez gatunku”.'),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -219,7 +230,7 @@ class _ManageGenresScreenState extends State<ManageGenresScreen> {
                       ListTile(
                           contentPadding: EdgeInsets.zero,
                           title: Text(genre.name),
-                          subtitle: Text('${genre.bookCount} książek')),
+                          subtitle: Text(genreBookCount(genre.bookCount))),
                       if (genre.id.isNotEmpty)
                         Wrap(children: [
                           TextButton(

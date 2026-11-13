@@ -4,6 +4,8 @@ The Add/Edit Book selector appears after Stan and before Save. It defaults to
 Bez gatunku, preserves the form during inline genre creation and selects the new
 name. Details displays Gatunek. Zarządzaj gatunkami is reachable from the library
 and selector, shows assignment counts, and requires explicit save/confirmation.
+Counts use Polish forms: 1 książka, 2 książki, 5 książek; 12–14 and repeated
+hundreds/tens follow Polish plural rules in both the list and deletion preview.
 Rename/delete commit independently of the book form. Canceling that form does
 not undo an already confirmed registry operation.
 
@@ -61,12 +63,27 @@ schema and migration fixtures retain directory to test the actual old format.
 The migration tests also include a legacy Fantastyka value to prove even matching
 starter names receive Bez gatunku rather than inferred assignments.
 
-## Validation (2026-11-13)
+## Initial Task 22 validation (2026-11-13, historical snapshot)
 
 flutter pub get, formatting and format verification, flutter analyze, all
 318 automated tests (36 focused genre tests), flutter build apk --debug and
 git diff --check passed locally. The debug APK is generated at
 build/app/outputs/flutter-apk/app-debug.apk.
+
+## PR #18 integration follow-up (2026-11-13)
+
+PR #19 incorporates main at 8027a8fb92643b9ffdd811dbb5d93b43ee905c15,
+including the canonical specification and preserved historical MVP/QA evidence.
+Genre selection, creation, renaming, deletion and filtering are documented as
+IMPLEMENTED in this PR; physical-device upgrade/accessibility QA remains pending.
+
+After integration and the count-label fix, flutter pub get, strict formatting,
+flutter analyze and the complete flutter test suite passed locally: **320 tests**.
+Two new regression tests check singular/few/many/teen forms and the management
+list/delete preview for 1, 2 and 5 books. The 318-test record above remains the
+original feature snapshot. Final commit and rerun Android CI links are recorded
+in PR #19. No protocol, loan-state, reminder or permission behavior was changed
+by this follow-up.
 
 ## Automated evidence
 
