@@ -234,7 +234,6 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
     }
     await compose(withInstallationLink(
         'Moja Biblioteka — prośba o przedłużenie\n\nKsiążka: ${loan.title}\n'
-        'Właściciel: ${loan.owner ?? 'Nie podano'}\n'
         'Obecny termin zwrotu: ${returnDateHistoryValue(loan.returnDate)}\n'
         'Proponowany termin zwrotu: ${formatReturnDate(date)}'));
   }
@@ -274,7 +273,10 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
   }
 
   Future<void> sendInvitation() async {
-    final controller = TextEditingController(text: loan.owner ?? '');
+    final preferred = await widget.repository.preferredOwnerName();
+    if (!mounted) return;
+    final controller =
+        TextEditingController(text: preferred ?? loan.owner ?? '');
     final owner = await showDialog<String>(
         context: context,
         builder: (c) => AlertDialog(
@@ -283,7 +285,10 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
                     controller: controller,
                     maxLength: 120,
                     decoration: const InputDecoration(
-                        labelText: 'Imię i nazwisko właściciela')),
+                        labelText: 'Właściciel (opcjonalnie w tej wiadomości)',
+                        helperText:
+                            'Dalej dołączy tę nazwę do SMS. Możesz ją usunąć.',
+                        helperMaxLines: 2)),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(c),
@@ -295,7 +300,9 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     controller.dispose();
     if (owner == null) return;
-    final name = ReadableLoan.field(owner, 'Właściciel', 120);
+    final name = owner.trim().isEmpty
+        ? 'Nie podano'
+        : ReadableLoan.field(owner, 'Właściciel', 120);
     loan = await widget.repository.loanInvitation(loan.bookId);
     await compose(readableInvitation(LoanTransfer(
         transferId: loan.transferId,

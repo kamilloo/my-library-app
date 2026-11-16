@@ -29,8 +29,11 @@ Termin zwrotu: 14.12.2026
 ```
 
 An optional ISBN line contains a valid ISBN-10 or ISBN-13. Title, author and owner
-are required (240, 160, 120 characters respectively). The owner enters their name
-when preparing the outgoing invitation; this does not change QR identity data.
+are required in the readable template (240, 160, 120 characters respectively).
+The optional outgoing name dialog offers the locally saved QR display name for
+explicit inclusion in that message. Clearing it uses Nie podano; sending needs
+no configured name. The QR preference is edited separately on the QR screen.
+Extension requests do not automatically insert that QR owner name.
 Old QR invitations without an owner display **Właściciel: Nie podano**.
 
 The parser requires the exact Polish header and known labels, allows LF/CRLF
@@ -53,7 +56,6 @@ The borrower selects **Poproś o przedłużenie** and a proposed date:
 Moja Biblioteka — prośba o przedłużenie
 
 Książka: Wiedźmin
-Właściciel: Jan Kowalski
 Obecny termin zwrotu: 14.12.2026
 Proponowany termin zwrotu: 21.12.2026
 ```

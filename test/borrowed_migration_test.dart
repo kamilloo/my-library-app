@@ -73,7 +73,7 @@ void main() {
         await db.close();
       }
       db = await database.database;
-      expect(await db.getVersion(), 7);
+      expect(await db.getVersion(), 8);
       for (final table in before.keys) {
         expect(await db.query(table), before[table]);
       }

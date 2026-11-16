@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../models/book.dart';
 import '../models/genre.dart';
 import '../models/loan_transfer.dart';
+import '../models/owner_name.dart';
 import '../models/readable_loan.dart';
 import '../models/loan_message.dart';
 import '../models/isbn.dart';
@@ -130,6 +131,30 @@ class LibraryRepository {
     genreChanges.value = GenreChange(previousName, null);
   }
 
+  Future<String?> preferredOwnerName() async {
+    final db = await _database.database;
+    return _preferredOwnerName(db);
+  }
+
+  Future<String?> _preferredOwnerName(DatabaseExecutor db) async {
+    final rows = await db.query('local_preferences',
+        where: 'key = ?', whereArgs: ['qr_owner_name']);
+    return rows.isEmpty ? null : rows.single['value']! as String;
+  }
+
+  Future<void> savePreferredOwnerName(String input) async {
+    final name = validateOwnerName(input);
+    final db = await _database.database;
+    if (name == null) {
+      await db.delete('local_preferences',
+          where: 'key = ?', whereArgs: ['qr_owner_name']);
+    } else {
+      await db.insert(
+          'local_preferences', {'key': 'qr_owner_name', 'value': name},
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    }
+  }
+
   Future<LoanTransfer> loanInvitation(String bookId) async {
     final db = await _database.database;
     return db.transaction((txn) => _loanInvitation(txn, bookId));
@@ -157,12 +182,14 @@ class LibraryRepository {
     final old = saved.isEmpty
         ? null
         : LoanTransfer.decode(saved.single['payload']! as String);
+    final owner = dateOnly ? old?.owner : await _preferredOwnerName(txn);
     final isbn = normalizeIsbn(book.barcode);
     if (old != null &&
         (dateOnly ||
             (old.title == book.title &&
                 old.author == book.author &&
-                old.isbn == isbn)) &&
+                old.isbn == isbn &&
+                old.owner == owner)) &&
         old.returnDate == book.returnDate) {
       return old;
     }
@@ -173,7 +200,8 @@ class LibraryRepository {
         title: dateOnly && old != null ? old.title : book.title,
         author: dateOnly && old != null ? old.author : book.author,
         isbn: dateOnly && old != null ? old.isbn : isbn,
-        borrowedAt: book.borrowedDate!,
+        owner: owner,
+        borrowedAt: old?.borrowedAt ?? book.borrowedDate!,
         returnDate: book.returnDate,
         issuedAt: _now(),
         revision: (old?.revision ?? 0) + 1);
@@ -311,7 +339,6 @@ class LibraryRepository {
         if (incoming.transferId != old.transferId ||
             incoming.bookId != old.bookId ||
             incoming.borrowedAt != old.borrowedAt ||
-            incoming.owner != old.owner ||
             incoming.revision <= old.revision ||
             incoming.issuedAt.isBefore(old.issuedAt)) {
           throw const FormatException(

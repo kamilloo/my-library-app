@@ -11,7 +11,7 @@ including its unsupported completion percentages and outdated completion plan.
 Source baseline: main at 8027a8fb92643b9ffdd811dbb5d93b43ee905c15 (PR #18).
 Task 22 integration: PR #19, feat/book-genre-management, reviewed feature source
 822395a3367b1e5ead24ef8a65046acb3d797b8a plus its integration follow-up.
-Current scope includes Task 24 on main cc1209e (Task 23 merged), schema v7.
+Current scope includes Task 25 owner display names after Task 24, schema v8.
 Task 24 replaces the encoded SMS workflow; QR v1 remains compatible.
 Review: 2026-11-13. Application: 1.0.0+8. This is a source/document/history
 review, not a new Flutter test run, device QA result or publication record.
@@ -308,10 +308,11 @@ no owned-book insertion and no authority to lend/give a borrowed record.
 Protocol: moja-biblioteka: + bounded Base64URL UTF-8 JSON; version 1,
 loan_invitation. Carries stable transfer/loan/book IDs, bounded title/author,
 optional ISBN/owner, original borrowing date, optional due date, issuance/revision.
-Current owner generator omits owner display name. Codes exclude borrower names,
+Owner generator includes the optional locally saved display name (Task 25). Codes exclude borrower names,
 covers, descriptions, private paths, notification IDs and full history.
 Constraints: exact duplicate import is a no-op. Higher revisions must preserve
-transfer/book/original borrowing/owner identity and nondecreasing issuance.
+transfer/book/original borrowing identity and nondecreasing issuance.
+Owner display names may change in newer revisions and are never identity proof.
 Stale, same-revision conflicting or transfer-collision imports fail transactionally.
 New lending periods receive new instance IDs; unchanged QR reopening preserves
 bytes. Legacy active loans receive a persisted ID once. Local status is preserved
@@ -345,8 +346,18 @@ the complete supported templates, length bounds and validation rules.
 
 Outgoing invitations, extension requests, approvals and rejections contain
 readable information only, without encoded codes or internal protocol IDs.
-Owner display name is entered when composing an invitation; QR generation remains
-unchanged pending Task 25. A single optional VERIFIED_GOOGLE_PLAY_URL is empty by
+Owner display name can be explicitly chosen in the SMS invitation dialog;
+empty input uses Nie podano. QR preference is saved offline in local_preferences,
+key qr_owner_name. QR screen label Właściciel, example Jan Kowalski; editable and
+optional, reused across books and restarts. Trim input, reject C0/C1 controls,
+DEL and line/paragraph separators before trimming; maximum 120 UTF-16 code units,
+Polish characters allowed. No device/account/contact identity is read.
+Changing or clearing a name advances the next generated QR snapshot revision,
+preserving loan/transfer/book IDs and original borrowing time. Unchanged normalized
+names preserve exact invitation bytes. Date-only changes retain snapshot owner
+until QR generation. Preview, Pożyczone list and details use Właściciel: Nie podano
+for old unnamed invitations. New imports retain the name; borrowers must explicitly
+import updates. QR owner is not automatically included in extension SMS. A single optional VERIFIED_GOOGLE_PLAY_URL is empty by
 default and must only be configured after verifying a real public listing.
 A valid configured URL is appended consistently. Independently of receiving build
 configuration, the parser accepts one trailing standalone HTTPS play.google.com
@@ -446,14 +457,15 @@ android/settings.gradle.kts, android/gradle/wrapper/gradle-wrapper.properties,
 
 10. SQLITE AND DATA PRESERVATION
 
-Status: IMPLEMENTED — my_library.db, schema version 7, eleven application tables.
+Status: IMPLEMENTED — my_library.db, schema version 8, twelve application tables.
 Source: lib/data/library_database.dart and lib/data/library_repository.dart.
 Production location: join(await getDatabasesPath(), 'my_library.db').
 Dates/timestamps stored as TEXT; application identifiers normally UUID strings.
-Protocol version 1 is unrelated to SQLite schema version 7; loan transfer
+Protocol version 1 is unrelated to SQLite schema version 8; loan transfer
 revisions advance independently within that protocol.
 
 Tables:
+- local_preferences: key TEXT primary key, value TEXT NOT NULL; optional qr_owner_name.
 - books: id TEXT primary key; title, author, description (default empty),
   condition, genre (TEXT NOT NULL DEFAULT 'Bez gatunku'), status, created_at,
   updated_at required; cover_url,
@@ -488,7 +500,7 @@ Tables:
 Foreign keys are disabled on configuration only for legacy v1–v5 upgrades,
 before sqflite begins its upgrade transaction, to avoid cascading child deletion
 during the books rebuild. PRAGMA foreign_key_check runs before migration commit;
-onOpen enables foreign keys. Fresh/current-v7 connections configure them enabled. No SQL CHECK validation for all domain
+onOpen enables foreign keys. Fresh/current-v8 connections configure them enabled. No SQL CHECK validation for all domain
 statuses/date formats; supported APIs enforce invariants. Do not infer guarantees
 for arbitrary external SQL writes or corrupt/unsupported future schemas.
 Related loan/history/reminder-reset/instance writes are transactional. Approval
@@ -504,7 +516,8 @@ Forward migration:
 - v4 -> add v5 message/contact tables, then v6.
 - v5 -> v6 genre registry/books rebuild.
 - v6 -> v7 adds local_borrowed_entries and borrowed_due_overrides only.
-- v7 -> reopen without upgrade DDL or reseeding.
+- v7 -> v8 adds local_preferences only; all old rows remain unchanged.
+- v8 -> reopen without upgrade DDL or reseeding.
 Sqflite upgrade callback is transactional. Because API 24 SQLite cannot reliably
 DROP COLUMN, v6 creates books_v6, copies nonclassification columns unchanged and
 sets genre to Bez gatunku for every book. It drops/replaces the parent with

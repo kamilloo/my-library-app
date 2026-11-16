@@ -31,6 +31,7 @@ const loanHelpSections = <TutorialSlide>[
     'Wypożyczenia i synchronizacja danych',
     'Każde urządzenie przechowuje własną kopię informacji o wypożyczeniu. Zapis właściciela jest rozstrzygający dla rzeczywistego wypożyczenia. Osoba pożyczająca ma oddzielną lokalną kopię na liście „Pożyczone”, poza kolekcją własnych książek.\n\n'
         'Daty i statusy nie synchronizują się automatycznie. Skanowanie QR importuje kopię informacji, a SMS służy do komunikacji między stronami. Czytelną wiadomość dodasz przez „Dodaj z SMS”, a książkę od dowolnej osoby przez „Dodaj ręcznie”. Po uzgodnieniu zmian może być konieczna aktualizacja własnych lokalnych zapisów.\n\n'
+        'W ekranie kodu QR wybierz „Edytuj nazwę właściciela”. Opcjonalna nazwa (np. Jan Kowalski, do 120 znaków) jest zapisywana lokalnie i używana w kolejnych zaproszeniach. Możesz ją zmienić lub wyczyścić. Po zmianie pokaż nowy kod do ponownego importu. Bez nazwy zobaczysz „Właściciel: Nie podano”. Nazwa nie potwierdza tożsamości ani własności. SMS zawiera nazwę tylko po świadomym uzupełnieniu wiadomości.\n\n'
         'Usunięcie lokalnego zapisu z listy „Pożyczone” nie usuwa zapisu właściciela. Kod QR nie potwierdza tożsamości ani własności książki.',
     Icons.sync_disabled_outlined,
   ),

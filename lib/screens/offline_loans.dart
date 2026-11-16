@@ -7,16 +7,86 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../data/library_repository.dart';
 import '../models/loan_transfer.dart';
+import '../models/owner_name.dart';
 import '../models/return_date.dart';
 import 'loan_messaging.dart';
 import 'borrowed_entry.dart';
 
 String loanDate(DateTime? date) => returnDateHistoryValue(date);
 
-class LoanQrScreen extends StatelessWidget {
-  const LoanQrScreen({required this.loan, this.borrower, super.key});
+class LoanQrScreen extends StatefulWidget {
+  const LoanQrScreen(
+      {required this.loan, this.borrower, this.repository, super.key});
   final LoanTransfer loan;
   final String? borrower;
+  final LibraryRepository? repository;
+
+  @override
+  State<LoanQrScreen> createState() => _LoanQrScreenState();
+}
+
+class _LoanQrScreenState extends State<LoanQrScreen> {
+  late LoanTransfer loan = widget.loan;
+  bool busy = false;
+
+  Future<void> editOwner() async {
+    setState(() => busy = true);
+    TextEditingController? controller;
+    try {
+      final preferred = await widget.repository!.preferredOwnerName();
+      if (!mounted) return;
+      controller = TextEditingController(text: preferred ?? '');
+      final form = GlobalKey<FormState>();
+      final input = await showDialog<String>(
+          context: context,
+          builder: (context) => AlertDialog(
+                  title: const Text('Właściciel'),
+                  content: Form(
+                      key: form,
+                      child: TextFormField(
+                          controller: controller,
+                          maxLength: ownerNameMaxLength,
+                          decoration: const InputDecoration(
+                              labelText: 'Właściciel',
+                              hintText: 'Jan Kowalski',
+                              helperText:
+                                  'Opcjonalnie. Zapis tylko na tym urządzeniu.',
+                              helperMaxLines: 2),
+                          validator: (value) {
+                            try {
+                              validateOwnerName(value ?? '');
+                              return null;
+                            } on FormatException catch (e) {
+                              return e.message;
+                            }
+                          })),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Anuluj')),
+                    FilledButton(
+                        onPressed: () {
+                          if (form.currentState!.validate()) {
+                            Navigator.pop(context, controller!.text);
+                          }
+                        },
+                        child: const Text('Zapisz i odśwież QR')),
+                  ]));
+      if (input == null) return;
+      await widget.repository!.savePreferredOwnerName(input);
+      final updated = await widget.repository!.loanInvitation(loan.bookId);
+      if (mounted) setState(() => loan = updated);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Nie udało się odświeżyć kodu. Spróbuj ponownie.')));
+      }
+    } finally {
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      controller?.dispose();
+      if (mounted) setState(() => busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -24,7 +94,15 @@ class LoanQrScreen extends StatelessWidget {
         body: ListView(padding: const EdgeInsets.all(20), children: [
           Text(loan.title, style: Theme.of(context).textTheme.headlineSmall),
           Text(loan.author),
-          if (borrower != null) Text('Wypożyczono: $borrower'),
+          if (widget.borrower != null) Text('Wypożyczono: ${widget.borrower}'),
+          Text('Właściciel: ${loan.owner ?? 'Nie podano'}'),
+          if (widget.repository != null)
+            OutlinedButton(
+                onPressed: busy ? null : editOwner,
+                child: const Text('Edytuj nazwę właściciela')),
+          const Text(
+              'Nazwa jest opcjonalna i będzie używana w kolejnych kodach QR. '
+              'To informacja podana przez użytkownika, bez weryfikacji tożsamości lub własności.'),
           Text('Data wypożyczenia: ${loanDate(loan.borrowedAt)}'),
           Text('Termin zwrotu: ${loanDate(loan.returnDate)}'),
           const SizedBox(height: 16),
@@ -85,7 +163,9 @@ class BorrowedLoansScreen extends StatefulWidget {
 class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
   late Future<List<LoanTransfer>> loans = widget.repository.borrowedLoans();
   bool busy = false;
-  void reload() => setState(() => loans = widget.repository.borrowedLoans());
+  void reload() => setState(() {
+        loans = widget.repository.borrowedLoans();
+      });
 
   Future<void> importCode(String code) async {
     if (busy) return;

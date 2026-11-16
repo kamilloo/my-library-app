@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'isbn.dart';
+import 'owner_name.dart';
 
 /// Offline protocol v1. No identity or ownership verification is implied.
 class LoanTransfer {
@@ -144,13 +145,15 @@ class LoanTransfer {
               DateTime.utc(borrowed.year, borrowed.month, borrowed.day))) {
         throw const FormatException();
       }
+      final owner = optional('owner', ownerNameMaxLength);
+      if (owner != null) validateOwnerName(owner);
       return LoanTransfer(
         transferId: field('id', 80),
         loanId: field('loan', 80),
         bookId: field('book', 80),
         title: field('title', 240),
         author: field('author', 160),
-        owner: optional('owner', 120),
+        owner: owner,
         isbn: isbn,
         borrowedAt: borrowed,
         issuedAt: date('issued'),

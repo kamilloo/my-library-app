@@ -130,6 +130,21 @@ QR trust warnings and actionable errors.
 
 See [Task 23 validation and before/after screenshots](docs/loan_ui_help_cleanup.md).
 
+## Owner name in QR invitations
+
+In **Pokaż kod QR**, choose **Edytuj nazwę właściciela** and enter an optional
+**Właściciel**, e.g. Jan Kowalski. It is saved locally and reused for future QR
+invitations; edit or clear it at any time. Names are trimmed, limited to 120
+characters (UTF-16 units), support Polish letters and reject controls/newlines.
+No account, internet connection or contact information is needed.
+
+After import, the preview, **Pożyczone** list and details show the saved name;
+older unnamed invitations show **Właściciel: Nie podano**. A changed name advances
+the QR revision while preserving IDs and the original borrowing date. Borrowers
+must import the new QR explicitly. The name is unverified user-provided information.
+SMS inclusion is chosen explicitly in its editable invitation dialog and remains
+optional. See [QR protocol and schema v8](docs/offline-loan-protocol.md).
+
 ## Change return date
 
 For a borrowed book, Book Details shows the saved return date or

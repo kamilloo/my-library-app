@@ -2,7 +2,8 @@
 
 Current scope: [canonical Android V1 specification](MyLibrary_Version_1_Updated_Specification.txt).
 This document describes Task 19 invitations and its historical v3 → v4 migration.
-The active database is **v7**: Task 24 adds separate SMS/manual entries and local
+The active database is **v8**: Task 25 adds local_preferences for the optional QR
+owner name. Task 24 adds separate SMS/manual entries and local
 QR date overrides without changing the invitation wire format or old QR rows.
 Task 20 extension codecs remain for stored history compatibility; outgoing SMS is
 now readable text only. See [offline loan messaging](offline_loan_messaging.md)
@@ -52,7 +53,7 @@ The existing UUID lending history event supplies the stable loan-instance ID.
 Returning and relending a physical book creates another event and another loan ID.
 Opening the QR screen creates no book or history changes. A separate owner-side
 snapshot stores the transfer ID, revision and issuance time. A changed title,
-author, ISBN or due date creates a new revision upon QR generation. Reopening an
+author, ISBN, owner display name or due date creates a new revision upon QR generation. Reopening an
 unchanged invitation returns the same bytes. Existing v3 active loans receive a
 UUID once at first QR generation, persisted in owner_loan_instances. This avoids
 reconstructing identity from potentially tied history timestamps.
@@ -79,11 +80,34 @@ rewritten. All import, delete and snapshot writes use transactions. Borrowed row
 have no ownership foreign key and cannot be passed to owned-book operations.
 
 Exact duplicate imports are no-ops. Higher revisions require the same transfer ID,
-book reference, original borrowing time and owner; issuance must not decrease.
+book reference and original borrowing time; issuance must not decrease.
+The optional owner display name may change in a higher revision; it is metadata,
+not an identity check. Old app versions can read v1 named invitations, but versions
+before Task 25 may reject a name-changing update to an already imported loan.
 Same-revision conflicts and stale codes are rejected. Unique transfer collisions
 roll back. New loan instances remain separate even for the same physical book.
 Deleting an imported row only deletes that device's row. Local status survives
 updates. Deleted invitations may be imported again after explicit confirmation.
+
+## Preferred owner name (Task 25)
+
+On the QR screen, **Edytuj nazwę właściciela** opens the optional **Właściciel**
+field (example: Jan Kowalski). Save trims surrounding whitespace; empty clears it.
+The limit is 120 UTF-16 code units, matching v1. Polish characters are supported.
+C0/C1 controls, DEL and Unicode line/paragraph separators are rejected, including
+at the edges before trimming. No device/account/contact identity is read.
+
+SQLite v7 → v8 only adds local_preferences(key primary key, value not null).
+The qr_owner_name setting survives restart and is reused by future QR generation.
+No old rows are rewritten at migration. Existing active snapshots refresh lazily
+when generated, with stable IDs and original borrowing date, and revision +1 when
+the name differs. Unchanged normalized names preserve the complete encoded bytes.
+Date-only extension snapshots preserve their existing owner until QR generation.
+Borrowers see the name after explicit import, or Właściciel: Nie podano if absent.
+Names remain unverified claims. Phone contacts, SMS codecs, history and reminders
+are unaffected. The SMS invitation dialog lets the user explicitly choose a name
+for that message; leaving it empty uses Nie podano. Extension SMS does not
+automatically include the QR owner name.
 
 ## Sharing and QA
 
