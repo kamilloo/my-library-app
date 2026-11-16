@@ -7,15 +7,10 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../data/library_repository.dart';
 import '../models/loan_transfer.dart';
+import '../models/return_date.dart';
 import 'loan_messaging.dart';
 
-const offlineExplanation =
-    'Dane wypożyczenia są zapisywane tylko na tym urządzeniu.\n'
-    'Zmiany terminu nie synchronizują się automatycznie.\n'
-    'Aby zaktualizować wypożyczenie, użyj nowego kodu lub potwierdzenia od właściciela.';
-String loanDate(DateTime? date) => date == null
-    ? 'Nie ustawiono terminu zwrotu'
-    : '${date.day}.${date.month}.${date.year}';
+String loanDate(DateTime? date) => returnDateHistoryValue(date);
 
 class LoanQrScreen extends StatelessWidget {
   const LoanQrScreen({required this.loan, this.borrower, super.key});
@@ -44,7 +39,6 @@ class LoanQrScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(24),
                     errorCorrectionLevel: QrErrorCorrectLevel.M)),
           )),
-          const Text(offlineExplanation),
           FilledButton(
               onPressed: () async {
                 try {
@@ -52,7 +46,7 @@ class LoanQrScreen extends StatelessWidget {
                       .invokeMethod<void>('share', {
                     'text': 'Informacje o wypożyczeniu książki „${loan.title}”. Potrzebujesz aplikacji Moja Biblioteka. '
                         'Jeśli jej nie masz, poproś właściciela o zaufane źródło instalacji. '
-                        'Po instalacji otwórz „Pożyczone od innych” i „Wklej kod wypożyczenia”. '
+                        'Po instalacji otwórz „Pożyczone” i „Wklej kod wypożyczenia”. '
                         'Skopiuj sam kod poniżej:\n\n${loan.encode()}',
                   });
                 } catch (_) {
@@ -109,13 +103,12 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
                         Text(loan.title),
                         Text(loan.author),
                         Text('Właściciel: ${loan.owner ?? 'Nie podano'}'),
-                        Text('Pożyczono: ${loanDate(loan.borrowedAt)}'),
+                        Text('Data wypożyczenia: ${loanDate(loan.borrowedAt)}'),
                         Text('Termin zwrotu: ${loanDate(loan.returnDate)}'),
                         const SizedBox(height: 12),
                         const Text(
                             'Informacje pochodzą z innego urządzenia i nie można ich niezależnie zweryfikować. '
                             'Kod nie jest dowodem własności ani tożsamości.'),
-                        const Text(offlineExplanation),
                       ])),
                   actions: [
                     TextButton(
@@ -175,9 +168,7 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
   @override
   Widget build(BuildContext context) =>
       ListView(padding: const EdgeInsets.fromLTRB(20, 22, 20, 110), children: [
-        Text('Pożyczone od innych',
-            style: Theme.of(context).textTheme.headlineSmall),
-        const Text(offlineExplanation),
+        Text('Pożyczone', style: Theme.of(context).textTheme.headlineSmall),
         FilledButton.icon(
             onPressed: busy ? null : scan,
             icon: const Icon(Icons.qr_code_scanner),
@@ -194,7 +185,7 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
               }
               if (!snapshot.hasData) return const LinearProgressIndicator();
               if (snapshot.data!.isEmpty) {
-                return const Text('Brak książek pożyczonych od innych.');
+                return const Text('Brak pożyczonych książek.');
               }
               return Column(
                   children: snapshot.data!
@@ -215,7 +206,7 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
                             title: Text(loan.title),
                             subtitle: Text(
                                 '${loan.author}\nWłaściciel: ${loan.owner ?? 'Nie podano'}\n'
-                                'Pożyczono: ${loanDate(loan.borrowedAt)}\nTermin: ${loanDate(loan.returnDate)}'),
+                                'Data wypożyczenia: ${loanDate(loan.borrowedAt)}\nTermin zwrotu: ${loanDate(loan.returnDate)}'),
                             trailing: IconButton(
                                 tooltip: 'Usuń lokalny zapis',
                                 icon: const Icon(Icons.delete_outline),

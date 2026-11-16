@@ -334,6 +334,11 @@ void main() {
 
     await preview();
     expect(find.text('Podgląd wypożyczenia'), findsOneWidget);
+    expect(
+        find.textContaining('Kod nie jest dowodem własności ani tożsamości.'),
+        findsOneWidget);
+    expect(
+        find.textContaining('Dane wypożyczenia są zapisywane'), findsNothing);
     expect(await repository.borrowedLoans(), isEmpty);
     await tester.tap(find.text('Anuluj'));
     await tester.pumpAndSettle();

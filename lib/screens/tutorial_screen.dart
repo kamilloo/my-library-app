@@ -12,11 +12,66 @@ class TutorialHelpButton extends StatelessWidget {
         onPressed: () => Navigator.push<void>(
             context,
             MaterialPageRoute(
-              builder: (helpContext) => TutorialScreen(
-                manual: true,
-                onFinish: () async => Navigator.pop(helpContext),
-              ),
+              builder: (_) => const LoanHelpScreen(),
             )),
+      );
+}
+
+const loanHelpSections = <TutorialSlide>[
+  TutorialSlide(
+    'SMS i komunikacja o wypożyczeniu',
+    'SMS może wiązać się z opłatami operatora. Długie wiadomości i polskie znaki mogą powodować podział na wiele SMS-ów i dodatkowe opłaty.\n\n'
+        'Wysyłasz SMS ręcznie w swojej aplikacji do wiadomości. Otwarcie edytora SMS nie potwierdza wysłania ani dostarczenia wiadomości.\n\n'
+        'Treść SMS może być widoczna dla operatora lub innych usług. SMS nie zapewnia szyfrowania od końca do końca ani niezależnego potwierdzenia tożsamości nadawcy.\n\n'
+        'Moja Biblioteka nie odczytuje SMS-ów automatycznie i nie synchronizuje urządzeń. Ważne zmiany potwierdzajcie bezpośrednio ze sobą.\n\n'
+        'Opcjonalny numer odbiorcy uzupełnia aplikację SMS. Zapisz go osobnym przyciskiem tylko na tym urządzeniu; zapisanie pustego numeru usuwa kontakt.',
+    Icons.sms_outlined,
+  ),
+  TutorialSlide(
+    'Wypożyczenia i synchronizacja danych',
+    'Każde urządzenie przechowuje własną kopię informacji o wypożyczeniu. Zapis właściciela jest rozstrzygający dla rzeczywistego wypożyczenia. Osoba pożyczająca ma oddzielną lokalną kopię na liście „Pożyczone”, poza kolekcją własnych książek.\n\n'
+        'Daty i statusy nie synchronizują się automatycznie. Skanowanie QR importuje kopię informacji, a SMS służy do komunikacji między stronami. Po uzgodnieniu zmian może być konieczna aktualizacja własnych lokalnych zapisów.\n\n'
+        'Usunięcie lokalnego zapisu z listy „Pożyczone” nie usuwa zapisu właściciela. Kod QR nie potwierdza tożsamości ani własności książki.',
+    Icons.sync_disabled_outlined,
+  ),
+];
+
+class LoanHelpScreen extends StatelessWidget {
+  const LoanHelpScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('Pomoc')),
+        body: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              OutlinedButton.icon(
+                icon: const Icon(Icons.slideshow_outlined),
+                label: const Text('Samouczek — 7 slajdów'),
+                onPressed: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (tutorialContext) => TutorialScreen(
+                      manual: true,
+                      onFinish: () async => Navigator.pop(tutorialContext),
+                    ),
+                  ),
+                ),
+              ),
+              for (final section in loanHelpSections) ...[
+                const SizedBox(height: 24),
+                Semantics(
+                  header: true,
+                  child: Text(section.title,
+                      style: Theme.of(context).textTheme.titleLarge),
+                ),
+                const SizedBox(height: 12),
+                Text(section.description),
+              ],
+            ],
+          ),
+        ),
       );
 }
 
@@ -43,11 +98,11 @@ const tutorialSlides = [
       Icons.people_alt_outlined),
   TutorialSlide(
       'Udostępniaj kod QR',
-      'Po wypożyczeniu pokaż kod QR. Druga osoba może go zeskanować i dodać książkę do listy „Pożyczone od innych”.',
+      'Po wypożyczeniu pokaż kod QR. Druga osoba może go zeskanować i dodać książkę do listy „Pożyczone”.',
       Icons.qr_code_2_rounded),
   TutorialSlide(
       'Proś o przedłużenie',
-      'Wyślij prośbę o przedłużenie wypożyczenia przez SMS. Właściciel zatwierdza nowy termin, a Ty wklejasz potwierdzenie w aplikacji.',
+      'Przygotuj prośbę o przedłużenie i wyślij ją ręcznie w aplikacji SMS. Po zatwierdzeniu przez właściciela wklej potwierdzenie w Mojej Bibliotece.',
       Icons.sms_outlined),
   TutorialSlide(
       'Pilnuj terminów zwrotu',

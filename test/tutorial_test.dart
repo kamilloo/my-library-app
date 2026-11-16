@@ -119,8 +119,8 @@ void main() {
       'Twoje książki zawsze pod ręką. Zarządzaj swoją kolekcją i wypożyczeniami w jednym miejscu.',
       'Skanuj kod ISBN, wyszukuj po tytule lub autorze albo dodawaj książki ręcznie. Ustaw własną okładkę.',
       'Zapisuj, komu pożyczasz książki, ustalaj terminy zwrotu i przeglądaj historię.',
-      'Po wypożyczeniu pokaż kod QR. Druga osoba może go zeskanować i dodać książkę do listy „Pożyczone od innych”.',
-      'Wyślij prośbę o przedłużenie wypożyczenia przez SMS. Właściciel zatwierdza nowy termin, a Ty wklejasz potwierdzenie w aplikacji.',
+      'Po wypożyczeniu pokaż kod QR. Druga osoba może go zeskanować i dodać książkę do listy „Pożyczone”.',
+      'Przygotuj prośbę o przedłużenie i wyślij ją ręcznie w aplikacji SMS. Po zatwierdzeniu przez właściciela wklej potwierdzenie w Mojej Bibliotece.',
       'Włącz przypomnienia o zwrocie książek, zmieniaj terminy i przedłużaj wypożyczenia.',
       'Książki i historia są przechowywane na Twoim urządzeniu. Możesz korzystać z biblioteki także bez internetu.',
     ]);
@@ -263,6 +263,9 @@ void main() {
     for (final close in ['Zamknij pomoc', 'back', 'finish']) {
       await tester.tap(find.text('Pomoc'));
       await tester.pumpAndSettle();
+      expect(find.byType(LoanHelpScreen), findsOneWidget);
+      await tester.tap(find.text('Samouczek — 7 slajdów'));
+      await tester.pumpAndSettle();
       expect(find.text('1 / 7'), findsOneWidget);
       if (close == 'finish') {
         await lastPage(tester);
@@ -272,6 +275,9 @@ void main() {
       } else {
         await tester.tap(find.byTooltip(close));
       }
+      await tester.pumpAndSettle();
+      expect(find.byType(LoanHelpScreen), findsOneWidget);
+      await tester.pageBack();
       await tester.pumpAndSettle();
       expect(find.text('Pomoc'), findsOneWidget);
       expect(find.text('Istniejąca książka'), findsOneWidget);

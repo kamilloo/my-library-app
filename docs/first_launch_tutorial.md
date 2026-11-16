@@ -12,8 +12,10 @@ accessible. Write failures show a Polish retry message and keep the last slide o
 
 Android Back moves to the preceding page and stays on page one during onboarding.
 There is no early dismissal. Existing users can reopen all seven pages through Pomoc.
-Help uses a separate route, starts on page one, and can close with Android Back,
-the close icon, or Zakończ. The Pomoc button sits beside the main books list heading.
+Pomoc opens a separate, scrollable guidance page with SMS and local borrowing sections.
+Its Samouczek — 7 slajdów button reopens the tutorial at page one. The manual tutorial
+closes back to Help with Android Back, the close icon or Zakończ. Help returns to the
+unchanged library with Android Back. No preference is read or written by these routes.
 
 ## Seven-slide sequence
 
@@ -26,9 +28,9 @@ the close icon, or Zakończ. The Pomoc button sits beside the main books list he
 7. Twoja biblioteka, Twoje zasady
 
 Content is the ordered tutorialSlides metadata list. Task 19 is represented by
-the offline QR export/import page. Task 20 is now represented by the SMS extension
-page, directly after QR, using Icons.sms_outlined. The original six slides retain
-their text and icons.
+the offline QR export/import page. Task 20 is represented by the SMS extension
+page, directly after QR, using Icons.sms_outlined. The QR copy now calls the separate
+borrowed collection Pożyczone; the SMS copy explicitly describes manual sending.
 
 The SMS workflow is local-first and manual: the borrower prepares an extension
 request, Android opens their SMS app, and they send it manually. The owner imports

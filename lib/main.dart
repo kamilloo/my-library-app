@@ -198,8 +198,7 @@ class _LibraryShellState extends State<LibraryShell>
                 selectedIcon: Icon(Icons.history),
                 label: 'Historia'),
             NavigationDestination(
-                icon: Icon(Icons.move_to_inbox_outlined),
-                label: 'Pożyczone od innych'),
+                icon: Icon(Icons.move_to_inbox_outlined), label: 'Pożyczone'),
           ],
         ),
       );
@@ -430,7 +429,7 @@ class BookCard extends StatelessWidget {
                     if (book.status == BookStatus.borrowed)
                       Text(
                           book.returnDate == null
-                              ? 'Nie ustawiono terminu zwrotu'
+                              ? 'Brak terminu zwrotu'
                               : 'Termin zwrotu: ${formatReturnDate(book.returnDate!)}',
                           style: Theme.of(context).textTheme.bodySmall),
                   ])),
@@ -1241,7 +1240,7 @@ class _LendSheetState extends State<LendSheet> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Termin zwrotu'),
                     subtitle: Text(returnDate == null
-                        ? 'Nie ustawiono terminu zwrotu — wybierz datę lub pozostaw bez terminu'
+                        ? 'Brak terminu zwrotu — wybierz datę lub pozostaw bez terminu'
                         : _date(returnDate!)),
                     trailing: const Icon(Icons.calendar_today),
                     onTap: () async {
@@ -1344,7 +1343,7 @@ class _EmptyState extends StatelessWidget {
       ]));
 }
 
-String _date(DateTime date) => '${date.day}.${date.month}.${date.year}';
+String _date(DateTime date) => formatReturnDate(date);
 
 IconData _historyIcon(String action) => switch (action) {
       'added' => Icons.bookmark_add_outlined,

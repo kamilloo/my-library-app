@@ -14,7 +14,7 @@ end-to-end encrypted. No real messages are sent by automated tests.
    opens the message workflow. Preparing/canceling SMS never undoes the loan.
    An optional recipient may be typed without accessing contacts.
 2. The invitation contains readable Polish text and the same v1 invitation code
-   as **Pokaż kod QR**. Borrower copies only the code into **Pożyczone od innych**
+   as **Pokaż kod QR**. Borrower copies only the code into **Pożyczone**
    → **Wklej kod wypożyczenia** and explicitly confirms import. No verified Play
    listing is configured, so no installation URL is included. Installation does
    not preserve an invitation automatically; retain the SMS and paste afterward.

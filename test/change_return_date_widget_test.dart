@@ -118,7 +118,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Usuń termin'));
     await tester.pumpAndSettle();
-    expect(find.text('Nie ustawiono terminu zwrotu'), findsOneWidget);
+    expect(find.text('Brak terminu zwrotu'), findsOneWidget);
     expect(find.text('Usuń termin zwrotu'), findsNothing);
     expect(repository.book.returnDate, isNull);
   });
@@ -127,7 +127,7 @@ void main() {
       (tester) async {
     final repository = DateRepository(borrowed(null));
     await open(tester, repository);
-    expect(find.text('Nie ustawiono terminu zwrotu'), findsOneWidget);
+    expect(find.text('Brak terminu zwrotu'), findsOneWidget);
     await edit(tester);
     final dialog =
         tester.widget<DatePickerDialog>(find.byType(DatePickerDialog));

@@ -34,7 +34,7 @@ Literatura faktu, Przygodowa. These may be renamed or deleted and are seeded onl
 on installation or upgrade, never on reopening. Fresh installs have no demo books.
 
 The **Gatunek** library selector combines with title/author search, status and
-both sorting modes; **Pożyczone od innych** is unchanged.
+both sorting modes; **Pożyczone** is unchanged.
 
 SQLite v6 removes the unused `directory` column and introduces
 `genre TEXT NOT NULL DEFAULT 'Bez gatunku'`, plus the `genres` registry
@@ -110,10 +110,22 @@ requested when using those features. Gallery selection uses the system picker,
 without broad storage permission. Notification authorization is requested only
 after reminder opt-in. See the [Android permission audit](docs/android_release.md#permissions-and-components).
 
+## Help and borrowing guidance
+
+Open **Pomoc** beside the library heading for **SMS i komunikacja o wypożyczeniu**
+and **Wypożyczenia i synchronizacja danych**. Help explains operator charges,
+manual SMS sending, unverified delivery and identity, and separate local loan
+copies. **Samouczek — 7 slajdów** remains available without changing onboarding
+completion. The separate **Pożyczone** collection contains borrowed copies,
+outside the user's owned books. Operational screens retain action confirmations,
+QR trust warnings and actionable errors.
+
+See [Task 23 validation and before/after screenshots](docs/loan_ui_help_cleanup.md).
+
 ## Change return date
 
 For a borrowed book, Book Details shows the saved return date or
-**Nie ustawiono terminu zwrotu**. Use **Zmień termin zwrotu** to select today or
+**Brak terminu zwrotu**. Use **Zmień termin zwrotu** to select today or
 a future date, or **Usuń termin zwrotu** to clear it explicitly. The picker
 initially selects the saved date, including an overdue date (saving that unchanged
 date is a no-op).

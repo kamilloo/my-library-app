@@ -9,10 +9,6 @@ import '../models/return_date.dart';
 import '../services/loan_sms.dart';
 import 'loan_extension_dialog.dart';
 
-const smsPrivacy =
-    'SMS może być płatny i nie jest szyfrowany od końca do końca. '
-    'Wysyłanie jest ręczne. Otwarcie aplikacji SMS nie potwierdza wysłania ani dostarczenia.';
-
 String messageState(String state) => switch (state) {
       'prepared' => 'Przygotowana',
       'pending' => 'Oczekuje na odpowiedź (dostarczenie niezweryfikowane)',
@@ -67,7 +63,6 @@ class _SmsMessageScreenState extends State<SmsMessageScreen> {
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('Przygotowana wiadomość')),
       body: ListView(padding: const EdgeInsets.all(20), children: [
-        const Text(smsPrivacy),
         TextField(
             controller: phone,
             keyboardType: TextInputType.phone,
@@ -86,8 +81,6 @@ class _SmsMessageScreenState extends State<SmsMessageScreen> {
                         }
                       }),
               child: const Text('Zapisz numer tylko na tym urządzeniu')),
-        const Text(
-            'Numer służy tylko do uzupełnienia odbiorcy SMS. Zapis wymaga osobnego przycisku.'),
         SelectableText(widget.text),
         FilledButton(
             onPressed: busy
@@ -293,8 +286,8 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
                 title: const Text('Niezweryfikowana prośba'),
                 content: SingleChildScrollView(
                     child: Text(
-                        '${book.title}\nWypożyczono: ${book.borrowedBy}\nObecny termin: ${returnDateHistoryValue(book.returnDate)}\n'
-                        'Żądany termin: ${formatReturnDate(request.newDate)}\nID: ${request.requestId}\n'
+                        '${book.title}\nWypożyczono: ${book.borrowedBy}\nObecny termin zwrotu: ${returnDateHistoryValue(book.returnDate)}\n'
+                        'Proponowany termin zwrotu: ${formatReturnDate(request.newDate)}\nID: ${request.requestId}\n'
                         'Kod nie dowodzi tożsamości nadawcy. Zweryfikuj prośbę we własnym zakresie.')),
                 actions: [
                   TextButton(
@@ -328,8 +321,8 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
         builder: (c) => AlertDialog(
                 title: const Text('Niezweryfikowane potwierdzenie'),
                 content: Text(
-                    '${old.title}\nObecny termin: ${returnDateHistoryValue(old.returnDate)}\n'
-                    'Zatwierdzony termin: ${formatReturnDate(message.newDate)}\nID: ${message.requestId}\n'
+                    '${old.title}\nObecny termin zwrotu: ${returnDateHistoryValue(old.returnDate)}\n'
+                    'Nowy termin zwrotu: ${formatReturnDate(message.newDate)}\nID: ${message.requestId}\n'
                     'Aplikacja nie może udowodnić, że kod pochodzi od właściciela. Brak automatycznej synchronizacji.'),
                 actions: [
                   TextButton(
@@ -350,9 +343,6 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
       appBar: AppBar(title: const Text('Wiadomości o wypożyczeniu')),
       body: ListView(padding: const EdgeInsets.all(20), children: [
         Text(loan.title, style: Theme.of(context).textTheme.headlineSmall),
-        const Text(smsPrivacy),
-        const Text(
-            'Dane są lokalne. Brak automatycznej synchronizacji. Kody nie potwierdzają tożsamości.'),
         if (widget.ownerSide) ...[
           FilledButton(
               onPressed: busy
@@ -367,7 +357,7 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
               onPressed: busy ? null : () => run(importRequest),
               child: const Text('Odczytaj prośbę o przedłużenie')),
         ] else ...[
-          Text('Zapisany termin: ${returnDateHistoryValue(loan.returnDate)}'),
+          Text('Termin zwrotu: ${returnDateHistoryValue(loan.returnDate)}'),
           FilledButton(
               onPressed: busy ? null : () => run(request),
               child: const Text('Poproś o przedłużenie')),
@@ -386,7 +376,7 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
                         Text(messageState(row['state']! as String)),
                         Text('ID: ${row['request_id']}'),
                         Text(
-                            'Żądany termin: ${formatReturnDate(LoanMessage.decode(row['request']! as String).newDate)}'),
+                            'Proponowany termin zwrotu: ${formatReturnDate(LoanMessage.decode(row['request']! as String).newDate)}'),
                         OutlinedButton(
                             onPressed: busy
                                 ? null

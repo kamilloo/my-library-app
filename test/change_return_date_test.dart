@@ -98,8 +98,8 @@ void main() {
     final events = await db.query('history',
         where: 'action = ?', whereArgs: ['return_date_changed']);
     expect(events.map((row) => row['detail']), [
-      'Zmieniono termin zwrotu: Nie ustawiono terminu zwrotu → 25.11.2026',
-      'Zmieniono termin zwrotu: 25.11.2026 → Nie ustawiono terminu zwrotu',
+      'Zmieniono termin zwrotu: Brak terminu zwrotu → 25.11.2026',
+      'Zmieniono termin zwrotu: 25.11.2026 → Brak terminu zwrotu',
     ]);
     expect((await db.query('books')).single['return_date'], isNull);
   });

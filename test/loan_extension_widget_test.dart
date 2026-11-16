@@ -93,8 +93,8 @@ void main() {
       expect(find.text('Wypożyczono: Anna'), findsOneWidget);
       expect(find.text('Data wypożyczenia: 03.02.2020'), findsOneWidget);
       await extend(tester);
-      expect(
-          find.text('Obecny termin: ${formatReturnDate(due)}'), findsOneWidget);
+      expect(find.text('Obecny termin zwrotu: ${formatReturnDate(due)}'),
+          findsOneWidget);
       expect(tester.widget<FilledButton>(confirm).onPressed, isNull);
       await tester.tap(find.widgetWithText(ChoiceChip, '+$days dni'));
       await tester.pumpAndSettle();
