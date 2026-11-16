@@ -5,9 +5,14 @@ import 'return_date.dart';
 /// Set only after verifying the public listing. Empty by default.
 const configuredPlayUrl = String.fromEnvironment('VERIFIED_GOOGLE_PLAY_URL');
 
+// Matches Android's applicationId; this identifies the app, not a published listing.
+const loanApplicationPackage = 'com.kamilloo.mylibrary';
+
 String? verifiedPlayUrl(String value) {
   final uri = Uri.tryParse(value);
+  // Uri normalizes an explicit default port away, so also check the raw authority.
   if (uri == null ||
+      !value.startsWith('https://play.google.com/') ||
       uri.scheme != 'https' ||
       uri.host != 'play.google.com' ||
       uri.path != '/store/apps/details' ||
@@ -16,8 +21,7 @@ String? verifiedPlayUrl(String value) {
       uri.fragment.isNotEmpty ||
       uri.queryParameters.length != 1 ||
       uri.queryParametersAll['id']?.length != 1 ||
-      !RegExp(r'^[a-zA-Z]\w*(?:\.\w+)+$')
-          .hasMatch(uri.queryParameters['id'] ?? '')) {
+      uri.queryParameters['id'] != loanApplicationPackage) {
     return null;
   }
   return value;
@@ -102,8 +106,7 @@ class ReadableLoan {
   static String canonicalSms(String input) =>
       input.replaceAll('\r\n', '\n').trim();
 
-  static ReadableLoan parse(String input,
-      {required DateTime today, String url = configuredPlayUrl}) {
+  static ReadableLoan parse(String input, {required DateTime today}) {
     if (input.length > maxLength) {
       throw const FormatException(
           'Wiadomość jest za długa (maksymalnie 3000 znaków).');
@@ -130,7 +133,7 @@ class ReadableLoan {
     var afterLink = false;
     for (final line in lines.skip(1)) {
       if (line.trim().isEmpty) continue;
-      if (verifiedPlayUrl(url) != null && line == url) {
+      if (verifiedPlayUrl(line) != null) {
         if (afterLink) {
           throw const FormatException('Powtórzony link instalacyjny.');
         }
@@ -145,7 +148,14 @@ class ReadableLoan {
       if (!labels.contains(key) || values.containsKey(key)) {
         throw const FormatException('Nieznane lub powtórzone pole wiadomości.');
       }
-      values[key] = line.substring(separator + 2).trim();
+      final value = line.substring(separator + 2).trim();
+      if (RegExp(r'(?:[a-z][a-z0-9+.-]*://|https?:|//|www\.)',
+              caseSensitive: false)
+          .hasMatch(value)) {
+        throw const FormatException(
+            'Link instalacyjny musi być osobnym ostatnim wierszem wiadomości.');
+      }
+      values[key] = value;
     }
     DateTime? date(String key) =>
         values.containsKey(key) ? parseDate(values[key]!) : null;

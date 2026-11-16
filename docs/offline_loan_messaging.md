@@ -39,8 +39,10 @@ dates outside 1900–2200, due dates before borrowing, control characters and in
 ISBN checksums. Input is limited to 3000 UTF-16 code units before parsing.
 Missing borrowing date defaults to the repository clock's calendar day.
 Missing due date stays unset. Missing title, author or owner is an error.
-A configured installation URL is accepted only as a standalone trailing line;
-other links or conversation text fail. This is one explicit template, not a
+A single Google Play installation URL for com.kamilloo.mylibrary is accepted
+only as a standalone trailing line, independently of the recipient build's URL
+configuration. Other packages, websites, lookalike hosts, duplicate links and URLs
+embedded in structured fields fail. This is one explicit template, not a
 general conversation extractor. All parsed fields can be edited before confirmation.
 
 ## Extensions
@@ -74,8 +76,10 @@ to QR, SMS and manual entries.
 All outgoing SMS use `withInstallationLink` and the single build configuration
 `VERIFIED_GOOGLE_PLAY_URL`. It is empty by default. Configure it only after a
 maintainer has verified the real public listing. Runtime validation allows only
-HTTPS play.google.com/store/apps/details with one package-id parameter.
-Shape validation cannot prove public availability. No URL has been invented or
+HTTPS, the exact play.google.com host, /store/apps/details and exactly one
+id=com.kamilloo.mylibrary parameter, without credentials, explicit port or fragment.
+The package identity matches android/app/build.gradle.kts; recognizing it does
+not assert that a public listing exists. URL validation cannot prove public availability. No URL has been invented or
 configured in this task. Tests use a clearly isolated example fixture.
 Missing/invalid configuration never blocks composition.
 

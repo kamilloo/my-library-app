@@ -9,7 +9,9 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 const text =
     '${ReadableLoan.header}\n\nKsiążka: Wiedźmin\nAutor: Andrzej Sapkowski\nWłaściciel: Jan Kowalski';
-const link = 'https://play.google.com/store/apps/details?id=example.fixture';
+// URL fixture only: no assertion that a public listing exists.
+const link =
+    'https://play.google.com/store/apps/details?id=com.kamilloo.mylibrary';
 final today = DateTime(2026, 11, 16);
 ReadableLoan parse(String s) => ReadableLoan.parse(s, today: today);
 ReadableLoan entry({String title = 'Wiedźmin'}) => ReadableLoan(
@@ -65,24 +67,61 @@ void main() {
       expect(() => parse(s), throwsFormatException);
     });
   }
-  test(
-      'configured installation URL is ignored only as trailing standalone line',
+  test('configured sender link imports without recipient URL configuration',
       () {
-    final message = withInstallationLink(text, url: link);
-    expect(
-        ReadableLoan.parse(message, today: today, url: link).title, 'Wiedźmin');
-    expect(() => parse(message), throwsFormatException);
-    expect(
-        () => ReadableLoan.parse('$message\nISBN: 9780306406157',
-            today: today, url: link),
-        throwsFormatException);
+    final message = readableInvitation(invitation(), url: link);
+    expect(message, endsWith(link));
+    for (final incoming in [message, message.replaceAll('\n', '\r\n')]) {
+      final parsed = parse(incoming);
+      expect(parsed.title, 'Wiedźmin');
+      expect(parsed.author, 'Andrzej Sapkowski');
+      expect(parsed.borrowedAt, today);
+      expect(parsed.returnDate, DateTime(2026, 12, 14));
+    }
     expect(withInstallationLink(text, url: ''), text);
-    expect(withInstallationLink(text, url: 'https://example.com/apk'), text);
     expect(
-        withInstallationLink(text,
-            url: 'https://play.google.com.evil/store/apps/details?id=a.b'),
-        text);
+        readableInvitation(invitation(), url: ''), isNot(contains('https:')));
   });
+  test('only one trailing standalone installation link is accepted', () {
+    expect(parse('$text\n\n$link').title, 'Wiedźmin');
+    for (final message in [
+      '$text\n$link\n$link',
+      '$text\n$link\nISBN: 9780306406157',
+      '$text\n$link\nDalsza rozmowa',
+      '$text\nZainstaluj: $link',
+    ]) {
+      expect(() => parse(message), throwsFormatException);
+    }
+  });
+  for (final invalidLink in [
+    link.replaceFirst('https:', 'http:'),
+    link.replaceFirst('play.google.com', 'play.google.com.evil'),
+    link.replaceFirst('play.google.com', 'evil.play.google.com'),
+    link.replaceFirst('play.google.com', 'play-google.com'),
+    link.replaceFirst('play.google.com', 'play.google.com@evil.example'),
+    link.replaceFirst('play.google.com', 'user@play.google.com'),
+    link.replaceFirst('play.google.com', 'play.google.com:443'),
+    link.replaceFirst('/store/apps/details', '/store/apps/other'),
+    link.replaceFirst(loanApplicationPackage, 'com.other.app'),
+    '$link&id=$loanApplicationPackage',
+    '$link&other=value',
+    '$link#fragment',
+    'https://example.com/apk',
+  ]) {
+    test('reject unrelated or malformed installation URL: $invalidLink', () {
+      expect(() => parse('$text\n$invalidLink'), throwsFormatException);
+      expect(withInstallationLink(text, url: invalidLink), text);
+    });
+  }
+  for (final field in ['Książka', 'Autor', 'Właściciel']) {
+    for (final embedded in [link, 'https://example.com/apk']) {
+      test('reject URL embedded in $field: $embedded', () {
+        final message = text.replaceFirst(
+            RegExp('$field: [^\n]+'), '$field: Tekst $embedded');
+        expect(() => parse(message), throwsFormatException);
+      });
+    }
+  }
   test('all outgoing SMS are readable without encoded IDs', () {
     final loan = invitation();
     final r = LoanMessage(

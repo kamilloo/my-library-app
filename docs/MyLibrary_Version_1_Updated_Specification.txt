@@ -348,8 +348,11 @@ readable information only, without encoded codes or internal protocol IDs.
 Owner display name is entered when composing an invitation; QR generation remains
 unchanged pending Task 25. A single optional VERIFIED_GOOGLE_PLAY_URL is empty by
 default and must only be configured after verifying a real public listing.
-A valid configured URL is appended consistently and ignored by the parser only
-as a trailing standalone line. No invented store or third-party APK URL.
+A valid configured URL is appended consistently. Independently of receiving build
+configuration, the parser accepts one trailing standalone HTTPS play.google.com
+/store/apps/details URL with exactly one id=com.kamilloo.mylibrary parameter.
+Other packages, lookalike domains, duplicate links and URLs in fields are rejected.
+No invented store or third-party APK URL.
 
 Borrower Poproś o przedłużenie chooses a proposed future date without changing the
 saved date. Owner reads the SMS and uses the matching book's existing management
