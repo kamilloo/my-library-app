@@ -643,7 +643,7 @@ void main() {
     var db = LibraryDatabase.file(databaseFactoryFfi, path);
     var repo = LibraryRepository(database: db, clock: () => now);
     final sqlite = await db.database;
-    expect(await sqlite.getVersion(), 7);
+    expect(await sqlite.getVersion(), 8);
     expect(
         await sqlite.query('books'),
         oldBooks

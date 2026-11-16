@@ -1020,8 +1020,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
       await Navigator.push<void>(
           context,
           MaterialPageRoute(
-              builder: (_) =>
-                  LoanQrScreen(loan: loan, borrower: book.borrowedBy)));
+              builder: (_) => LoanQrScreen(
+                  loan: loan,
+                  borrower: book.borrowedBy,
+                  repository: widget.repository)));
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

@@ -121,6 +121,9 @@ class LibraryDatabase {
         'CREATE TABLE borrowed_due_overrides (loan_id TEXT PRIMARY KEY REFERENCES borrowed_loans(loan_id) ON DELETE CASCADE, due TEXT NOT NULL)');
   }
 
+  static Future<void> _createPreferences(Database db) => db.execute(
+      'CREATE TABLE local_preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+
   Future<Database> _open() async {
     final factory = _factory ?? databaseFactory;
     final path = _path ??
@@ -130,7 +133,7 @@ class LibraryDatabase {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 7,
+        version: 8,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _createHistoryIndex(db);
           if (oldVersion < 3) await _createReminders(db);
@@ -138,6 +141,7 @@ class LibraryDatabase {
           if (oldVersion < 5) await _createMessages(db);
           if (oldVersion < 6) await _upgradeGenres(db);
           if (oldVersion < 7) await _createLocalBorrowed(db);
+          if (oldVersion < 8) await _createPreferences(db);
         },
         onConfigure: (db) async {
           final version =
@@ -186,6 +190,7 @@ class LibraryDatabase {
           await _createMessages(db);
           await _createGenres(db);
           await _createLocalBorrowed(db);
+          await _createPreferences(db);
         },
       ),
     );
