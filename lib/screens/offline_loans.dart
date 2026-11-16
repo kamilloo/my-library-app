@@ -9,6 +9,7 @@ import '../data/library_repository.dart';
 import '../models/loan_transfer.dart';
 import '../models/return_date.dart';
 import 'loan_messaging.dart';
+import 'borrowed_entry.dart';
 
 String loanDate(DateTime? date) => returnDateHistoryValue(date);
 
@@ -159,6 +160,15 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
     if (code != null && mounted) await importCode(code);
   }
 
+  Future<void> addEntry(bool sms) async {
+    await Navigator.push<void>(
+        context,
+        MaterialPageRoute(
+            builder: (_) => BorrowedEntryScreen(
+                repository: widget.repository, fromSms: sms)));
+    if (mounted) reload();
+  }
+
   Future<void> scan() async {
     final code = await Navigator.push<String>(
         context, MaterialPageRoute(builder: (_) => const LoanScannerScreen()));
@@ -172,7 +182,13 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
         FilledButton.icon(
             onPressed: busy ? null : scan,
             icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Skanuj kod wypożyczenia')),
+            label: const Text('Skanuj kod QR')),
+        FilledButton(
+            onPressed: busy ? null : () => addEntry(true),
+            child: const Text('Dodaj z SMS')),
+        FilledButton(
+            onPressed: busy ? null : () => addEntry(false),
+            child: const Text('Dodaj ręcznie')),
         OutlinedButton(
             onPressed: busy ? null : paste,
             child: const Text('Wklej kod wypożyczenia')),
@@ -238,7 +254,8 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
                                                     ]));
                                         if (confirmed != true) return;
                                         await widget.repository
-                                            .deleteBorrowedLoan(loan.loanId);
+                                            .deleteBorrowedLoan(loan.loanId,
+                                                origin: loan.origin);
                                         if (mounted) reload();
                                       }),
                           )))
@@ -297,7 +314,7 @@ class _LoanScannerScreenState extends State<LoanScannerScreen>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Skanuj kod wypożyczenia')),
+        appBar: AppBar(title: const Text('Skanuj kod QR')),
         body: Column(children: [
           Expanded(
               child: MobileScanner(

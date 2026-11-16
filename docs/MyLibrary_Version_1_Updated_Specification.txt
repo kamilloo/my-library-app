@@ -11,8 +11,8 @@ including its unsupported completion percentages and outdated completion plan.
 Source baseline: main at 8027a8fb92643b9ffdd811dbb5d93b43ee905c15 (PR #18).
 Task 22 integration: PR #19, feat/book-genre-management, reviewed feature source
 822395a3367b1e5ead24ef8a65046acb3d797b8a plus its integration follow-up.
-This document describes the resulting PR #19 implementation, including schema v6;
-PR #19 remains unmerged until explicitly approved.
+Current scope includes Task 24 on main cc1209e (Task 23 merged), schema v7.
+Task 24 replaces the encoded SMS workflow; QR v1 remains compatible.
 Review: 2026-11-13. Application: 1.0.0+8. This is a source/document/history
 review, not a new Flutter test run, device QA result or publication record.
 Evidence paths below are repository-relative. PR numbers refer to
@@ -301,8 +301,7 @@ docs/return_reminders.md. Merged PR #8.
 
 Status: IMPLEMENTED; two-physical-device workflow: RELEASE VALIDATION PENDING.
 Purpose/workflow: confirm owner lending first, display invitation QR, or reopen
-Pokaż kod QR for the active loan without lending again. Recipient opens Pożyczone
-od innych, scans QR or pastes standalone code, reviews unverified metadata and
+Pokaż kod QR for the active loan without lending again. Recipient opens Pożyczone, scans QR or pastes standalone code, reviews unverified metadata and
 explicitly confirms import. Share/copy fallback and local deletion are available.
 Data: owner_loan_instances, loan_transfers, borrowed_loans; no transfer of ownership,
 no owned-book insertion and no authority to lend/give a borrowed record.
@@ -326,64 +325,62 @@ lib/data/library_repository.dart (loanInvitation, importLoan, deleteBorrowedLoan
 test/offline_loans_test.dart, test/offline_sharing_test.dart;
 docs/offline-loan-protocol.md. Merged PR #14.
 
-7. SMS INVITATIONS AND EXTENSION REQUESTS — TASK 20
+7. READABLE SMS AND THREE BORROWED ENTRY METHODS — TASK 24
 
-Status: IMPLEMENTED; native composer/carrier/two-device QA:
-RELEASE VALIDATION PENDING.
-Purpose: exchange explicit invitations, requests and decisions between independent
-local stores, without accounts/backend or automatic synchronization.
+Status: IMPLEMENTED in Task 24 source; physical SMS/two-device QA:
+RELEASE VALIDATION PENDING. Replaces Task 20's encoded SMS workflow.
+Pożyczone offers Skanuj kod QR, Dodaj z SMS and Dodaj ręcznie above one list.
+Manual QR paste remains a separate fallback. SMS/manual entries are local and
+require no owner account, application, QR, SMS permission or internet access.
+All sources open the same details UI and support local deletion outside books.
 
-Workflow/screens:
-1. Owner confirms loan, then Wyślij informacje SMS prepares readable Polish text
-   plus the same v1 invitation code used for QR.
-2. Owner opens native SMS composer, reviews recipient/body and presses Send.
-   Recipient copies only the code into Pożyczone and confirms import.
-3. Borrower opens the imported loan, chooses Poproś o przedłużenie and a later
-   future date. Preparing a request stores it locally without extending the loan.
-4. Borrower explicitly sends through the SMS app. Composer launch does not mark
-   sent/pending. A separate confirmed Zapisz, że wysłano prośbę declaration records
-   local waiting status, with delivery explicitly unverified.
-5. Owner manually pastes request, previews book/borrower/current/requested date
-   and request ID with identity warning, then explicitly approves or rejects.
-6. Approval rechecks active instance/book/date/revision under the SQLite lock.
-   It updates the authoritative owner loan, revision, one loan_extended event and
-   decision atomically. Reminder opt-in survives; reconciliation follows commit.
-   Rejection records a decision without extending.
-7. Owner reviews and explicitly opens/sends decision SMS; saved decisions can be
-   reopened/resend without another extension. Canceled composer cannot undo approval.
-8. Borrower manually pastes approved confirmation, reviews old/new dates and
-   authenticity warning, then explicitly applies to their matching local loan.
-   Exact duplicate confirmation is a no-op; stale/conflicting/replayed messages
-   cannot regress a newer term. No local recorded request is required when the
-   confirmation's expected loan/date/revision match.
+SMS has the exact header "Moja Biblioteka — informacja o wypożyczeniu" and Polish
+Książka, Autor, Właściciel fields (required); Data wypożyczenia, Termin zwrotu
+and ISBN are optional. Borrowing defaults to today. Due date may remain unset.
+The parser is bounded to 3000 characters, accepts LF/CRLF and Polish Unicode,
+rejects unknown/duplicate fields, missing required values and malformed dates/ISBN.
+Dates use DD.MM.RRRR and Polish pickers. An editable preview precedes explicit save.
+No arbitrary conversations are inferred. See docs/offline_loan_messaging.md for
+the complete supported templates, length bounds and validation rules.
 
-Data/validation: loan_messages role/request/loan/state/request/decision; loan_contacts
-for optional explicitly saved recipient number. Prepared, pending, approved,
-rejected and imported are local states, not delivery receipts. Bounded v1 types:
-extension_request, extension_approved, extension_rejected. Invitation decoder stays
-invitation-only. Rejected decisions can be sent/read, but borrower confirmation
-import accepts extension_approved only; rejection import/status application is
-not implemented. No automatic rejection-state update on borrower device.
-Offline/network: prepare/import/store locally offline; SMS delivery may require
-carrier service and incur charges, including multipart Polish messages.
-Native Android ACTION_SENDTO + smsto: + sms_body only opens composer.
-No automatic SMS sending, SMS inbox reading, restricted SMS permissions, contacts
-access, Firebase/FCM, backend, delivery confirmation or cryptographic authentication.
-Share/copy fallbacks exist when composer unavailable. User confirms every imported
-update. Base64 is not encryption; SMS is not end-to-end encrypted.
-Phone: optional, max 40 characters, restricted phone syntax; stored only by explicit
-Zapisz numer tylko na tym urządzeniu, blank save removes. Never in QR/message body;
-only passed as recipient. Role/loan isolation applies even on one device.
-Deletion/privacy: explicit borrower-record deletion removes borrower-role messages
-and contact atomically; explicit owned-book deletion removes all associated owner
-messages, contacts and snapshots across historical/legacy instances. Normal
-return/re-lending retains decisions/contact history for replay protection. Another
-device's data and copies in SMS/clipboard/share destinations are unaffected.
-Evidence: lib/screens/loan_messaging.dart, lib/services/loan_sms.dart,
-lib/models/loan_message.dart, lib/data/library_repository.dart,
-android/app/src/main/kotlin/com/kamilloo/mylibrary/MainActivity.kt;
-test/loan_messaging_test.dart, test/loan_deletion_privacy_test.dart;
-docs/offline_loan_messaging.md. Merged PR #15.
+Outgoing invitations, extension requests, approvals and rejections contain
+readable information only, without encoded codes or internal protocol IDs.
+Owner display name is entered when composing an invitation; QR generation remains
+unchanged pending Task 25. A single optional VERIFIED_GOOGLE_PLAY_URL is empty by
+default and must only be configured after verifying a real public listing.
+A valid configured URL is appended consistently. Independently of receiving build
+configuration, the parser accepts one trailing standalone HTTPS play.google.com
+/store/apps/details URL with exactly one id=com.kamilloo.mylibrary parameter.
+Other packages, lookalike domains, duplicate links and URLs in fields are rejected.
+No invented store or third-party APK URL.
+
+Borrower Poproś o przedłużenie chooses a proposed future date without changing the
+saved date. Owner reads the SMS and uses the matching book's existing management
+actions: approval uses extendLoan's transaction/history/reminder logic, rejection
+composes an unchanged-date response. Borrower Zmień termin zwrotu explicitly
+confirms a local date agreed with the owner. No confirmation-paste UI, identity
+verification, automatic receipt or synchronization is implied.
+
+Database v7 preserves all old QR and message rows. QR revisions and identities
+remain original; local SMS/manual entries have explicit origins and independent
+local UUIDs, not fabricated owner revisions. A separate QR local-date override
+never rewrites the invitation. Exact SMS duplicates are blocked; independent
+same-title/ISBN manual loans remain valid. Newer QR revisions retain local overrides.
+All rows appear together and deletion selects origin plus identifier.
+
+Native transport still opens ACTION_SENDTO/smsto:/sms_body, with explicit Send in
+the user's SMS application and copy/share fallback. No inbox access or restricted
+SMS/contacts permissions. Carrier charges and plaintext SMS limitations remain.
+Optional explicitly saved phone numbers stay local. Existing message history and
+codecs remain for persistence compatibility; no new UI imports encoded messages.
+Owner-book and borrower-record deletion retain role-aware personal-data cleanup.
+
+Evidence: lib/models/readable_loan.dart, lib/screens/borrowed_entry.dart,
+lib/screens/offline_loans.dart, lib/screens/loan_messaging.dart,
+lib/data/library_database.dart, lib/data/library_repository.dart;
+test/readable_loan_test.dart, test/borrowed_entry_widget_test.dart,
+test/borrowed_migration_test.dart plus retained QR/history/reminder regressions.
+Migration and rollback: docs/borrowed_schema_v7.md.
 
 8. FIRST-LAUNCH TUTORIAL AND HELP — TASKS 18 AND 18.1
 
@@ -449,11 +446,11 @@ android/settings.gradle.kts, android/gradle/wrapper/gradle-wrapper.properties,
 
 10. SQLITE AND DATA PRESERVATION
 
-Status: IMPLEMENTED in PR #19 — my_library.db, schema version 6, nine tables.
+Status: IMPLEMENTED — my_library.db, schema version 7, eleven application tables.
 Source: lib/data/library_database.dart and lib/data/library_repository.dart.
 Production location: join(await getDatabasesPath(), 'my_library.db').
 Dates/timestamps stored as TEXT; application identifiers normally UUID strings.
-Protocol version 1 is unrelated to SQLite schema version 6; loan transfer
+Protocol version 1 is unrelated to SQLite schema version 7; loan transfer
 revisions advance independently within that protocol.
 
 Tables:
@@ -483,11 +480,15 @@ Tables:
   request, state; nullable decision. No ownership FK; repository handles cleanup.
 - loan_contacts: composite primary key (role, loan_id); required phone.
   No ownership FK; explicit deletion uses role-aware repository cleanup.
+- local_borrowed_entries: local id primary key, origin CHECK sms/manual, title,
+  author, owner, borrowed required; isbn, due, unique sms_source nullable.
+- borrowed_due_overrides: loan_id primary key cascading FK to borrowed_loans;
+  due required. Applies only to the local borrowed view.
 
 Foreign keys are disabled on configuration only for legacy v1–v5 upgrades,
 before sqflite begins its upgrade transaction, to avoid cascading child deletion
 during the books rebuild. PRAGMA foreign_key_check runs before migration commit;
-onOpen enables foreign keys. Fresh/current-v6 connections configure them enabled. No SQL CHECK validation for all domain
+onOpen enables foreign keys. Fresh/current-v7 connections configure them enabled. No SQL CHECK validation for all domain
 statuses/date formats; supported APIs enforce invariants. Do not infer guarantees
 for arbitrary external SQL writes or corrupt/unsupported future schemas.
 Related loan/history/reminder-reset/instance writes are transactional. Approval
@@ -502,7 +503,8 @@ Forward migration:
 - v3 -> add v4/v5 structures, then v6.
 - v4 -> add v5 message/contact tables, then v6.
 - v5 -> v6 genre registry/books rebuild.
-- v6 -> reopen without upgrade DDL or reseeding.
+- v6 -> v7 adds local_borrowed_entries and borrowed_due_overrides only.
+- v7 -> reopen without upgrade DDL or reseeding.
 Sqflite upgrade callback is transactional. Because API 24 SQLite cannot reliably
 DROP COLUMN, v6 creates books_v6, copies nonclassification columns unchanged and
 sets genre to Bez gatunku for every book. It drops/replaces the parent with
@@ -514,8 +516,9 @@ rows and message/contact data must survive. Installed upgrade requires compatibl
 app/signing identity.
 Snapshots keep stable transfer/loan IDs and monotonic revisions; date changes of
 exported loans advance revision inside the transaction, even when later reverted.
-Requests/confirmations validate expected loan, date and revision to resist stale
-or repeated updates. These checks do not authenticate a sender.
+Legacy stored requests/confirmations retain their expected-loan/date/revision
+checks for compatibility. New SMS has no protocol payload; local borrower date
+changes never advance owner-issued revisions or imply authentication.
 
 Explicit deletion follows sections 3/7; normal return is not privacy erasure.
 Notification tombstones may remain; best-effort cover cleanup can leave orphans.
@@ -606,7 +609,7 @@ Task-to-PR mappings are only used where verified. See gap analysis for detail.
 Group | Requirement | Status | Resolution / priority
 Implemented | Personal collection, editing, ISBN validation/duplicates/lookup/search, covers, all status filters | IMPLEMENTED | Sections 3–4; no feature rewrite needed
 Implemented | Owner loans, date changes/extensions, global/per-book history, opt-in reminders | IMPLEMENTED | Section 5; native QA pending
-Implemented | Offline QR and separate borrowed collection, manual SMS request/decision/import | IMPLEMENTED | Tasks 19/20, PRs #14/#15; sections 6–7
+Implemented | QR/SMS/manual borrowed entry, readable SMS and local date confirmation | IMPLEMENTED | Tasks 19/24; sections 6–7
 Implemented | Seven-page tutorial and Help, including SMS page | IMPLEMENTED | Tasks 18/18.1, PRs #16/#17; section 8
 Prioritized | Android release/device/privacy/distribution gates | RELEASE VALIDATION PENDING | High; section 14
 Prioritized | Complete local backup/export/import | PLANNED | High; section 12
@@ -663,12 +666,13 @@ calling V1 complete; none are marked complete by this documentation task.
   Record actual delivery behavior; no precise alarm guarantee.
 - Two-device QR invitation/import/reopen in airplane mode; duplicates/conflicts/
   stale revisions and new loan instances; borrower and owner data stay separate.
-- Two-device SMS invitation -> manual import -> request -> explicit native Send ->
-  owner paste/review/approve or reject -> decision SMS -> borrower confirmed
-  approval import. Test Google/OEM composer, full Unicode/multipart messages,
-  carrier conditions/charges, cancellation, missing SMS handler/copy/share,
-  restart, stale/replayed messages and deletion privacy. Sending/delivery are
-  never inferred from composer launch.
+- Two-device readable SMS -> editable preview -> explicit save; request ->
+  explicit native Send -> owner book action/approve or reject -> readable decision ->
+  borrower confirms an agreed local date. Verify manual entry without an owner app,
+  origin persistence, duplicate SMS, same-ISBN separate loans and local deletion.
+  Test Google/OEM composer, full Unicode/multipart messages, carrier conditions,
+  cancellation, missing SMS handler/copy/share and restart. Delivery is never
+  inferred from composer launch.
 - Seven-page onboarding/Help, completed-user bypass, Back/progress/Finish,
   TalkBack, small/large font and rotation. No permission prompts just for tutorial.
 

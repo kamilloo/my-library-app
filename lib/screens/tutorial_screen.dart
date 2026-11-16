@@ -30,7 +30,7 @@ const loanHelpSections = <TutorialSlide>[
   TutorialSlide(
     'Wypożyczenia i synchronizacja danych',
     'Każde urządzenie przechowuje własną kopię informacji o wypożyczeniu. Zapis właściciela jest rozstrzygający dla rzeczywistego wypożyczenia. Osoba pożyczająca ma oddzielną lokalną kopię na liście „Pożyczone”, poza kolekcją własnych książek.\n\n'
-        'Daty i statusy nie synchronizują się automatycznie. Skanowanie QR importuje kopię informacji, a SMS służy do komunikacji między stronami. Po uzgodnieniu zmian może być konieczna aktualizacja własnych lokalnych zapisów.\n\n'
+        'Daty i statusy nie synchronizują się automatycznie. Skanowanie QR importuje kopię informacji, a SMS służy do komunikacji między stronami. Czytelną wiadomość dodasz przez „Dodaj z SMS”, a książkę od dowolnej osoby przez „Dodaj ręcznie”. Po uzgodnieniu zmian może być konieczna aktualizacja własnych lokalnych zapisów.\n\n'
         'Usunięcie lokalnego zapisu z listy „Pożyczone” nie usuwa zapisu właściciela. Kod QR nie potwierdza tożsamości ani własności książki.',
     Icons.sync_disabled_outlined,
   ),
@@ -98,11 +98,11 @@ const tutorialSlides = [
       Icons.people_alt_outlined),
   TutorialSlide(
       'Udostępniaj kod QR',
-      'Po wypożyczeniu pokaż kod QR. Druga osoba może go zeskanować i dodać książkę do listy „Pożyczone”.',
+      'Po wypożyczeniu pokaż kod QR. W „Pożyczone” wybierz „Skanuj kod QR”, „Dodaj z SMS” lub „Dodaj ręcznie”. SMS wymaga odczytania wiadomości, sprawdzenia pól i potwierdzenia zapisu. Wpis ręczny działa bez internetu i bez aplikacji u właściciela.',
       Icons.qr_code_2_rounded),
   TutorialSlide(
       'Proś o przedłużenie',
-      'Przygotuj prośbę o przedłużenie i wyślij ją ręcznie w aplikacji SMS. Po zatwierdzeniu przez właściciela wklej potwierdzenie w Mojej Bibliotece.',
+      'Przygotuj prośbę o przedłużenie i wyślij ją ręcznie w aplikacji SMS. Po uzgodnieniu z właścicielem wybierz „Zmień termin zwrotu” i popraw lokalny zapis.',
       Icons.sms_outlined),
   TutorialSlide(
       'Pilnuj terminów zwrotu',

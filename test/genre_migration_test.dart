@@ -88,7 +88,7 @@ void main() {
         await db.close();
         for (var pass = 0; pass < 2; pass++) {
           db = await LibraryDatabase.file(databaseFactoryFfi, path).database;
-          expect(await db.getVersion(), 6);
+          expect(await db.getVersion(), 7);
           expect(
               await db.query('books', orderBy: 'id'),
               books
