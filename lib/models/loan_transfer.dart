@@ -16,14 +16,21 @@ class LoanTransfer {
     this.returnDate,
     this.isbn,
     this.owner,
+    this.origin = 'qr',
+    this.protocolSource,
   });
   final String transferId, loanId, bookId, title, author;
   final String? isbn, owner;
+  final String origin;
+  // Borrowed-side view may override the date; serialization retains the invitation.
+  final LoanTransfer? protocolSource;
   final DateTime borrowedAt, issuedAt;
   final DateTime? returnDate;
   final int revision;
 
-  Map<String, Object?> toJson() => {
+  Map<String, Object?> toJson() =>
+      protocolSource?.toJson() ??
+      {
         'p': 'moja-biblioteka',
         'v': 1,
         't': 'loan_invitation',
@@ -43,6 +50,10 @@ class LoanTransfer {
   static const prefix = 'moja-biblioteka:';
   static const maxLength = 2400;
   String encode() {
+    if (origin != 'qr') {
+      throw StateError('Lokalny wpis nie jest zaproszeniem QR.');
+    }
+    if (protocolSource != null) return protocolSource!.encode();
     final code = prefix +
         base64Url.encode(utf8.encode(jsonEncode(toJson()))).replaceAll('=', '');
     if (code.length > maxLength) {

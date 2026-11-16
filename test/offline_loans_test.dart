@@ -72,6 +72,10 @@ class CameraPlatform extends MobileScannerPlatform {
 }
 
 class WidgetRepository extends LibraryRepository {
+  @override
+  Future<List<Map<String, Object?>>> messages(String role,
+          {String? loanId}) async =>
+      [];
   final imported = <LoanTransfer>[];
   Book book = Book(
       id: 'b',
@@ -295,7 +299,7 @@ void main() {
     await legacy.close();
     final upgradedDatabase = LibraryDatabase.file(databaseFactoryFfi, path);
     final upgraded = await upgradedDatabase.database;
-    expect(await upgraded.getVersion(), 6);
+    expect(await upgraded.getVersion(), 7);
     expect(await upgraded.query('borrowed_loans'), isEmpty);
     expect(await upgraded.query('loan_transfers'), isEmpty);
     final owner = LibraryRepository(
@@ -375,7 +379,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(body: BorrowedLoansScreen(repository: repository))));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Skanuj kod wypożyczenia'));
+    await tester.tap(find.text('Skanuj kod QR'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Brak dostępu do aparatu'), findsOneWidget);
     await tester.tap(find.text('Wróć do ręcznego wklejania kodu'));
@@ -402,7 +406,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(body: BorrowedLoansScreen(repository: repository))));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Skanuj kod wypożyczenia'));
+    await tester.tap(find.text('Skanuj kod QR'));
     await tester.pumpAndSettle();
     final capture =
         BarcodeCapture(barcodes: [Barcode(rawValue: fixture().encode())]);
@@ -413,7 +417,7 @@ void main() {
     expect(repository.imported, isEmpty);
     await tester.tap(find.text('Anuluj'));
     await tester.pumpAndSettle();
-    expect(find.text('Skanuj kod wypożyczenia'), findsOneWidget);
+    expect(find.text('Skanuj kod QR'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets(

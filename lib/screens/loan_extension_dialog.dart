@@ -94,7 +94,7 @@ class _LoanExtensionDialogState extends State<LoanExtensionDialog> {
             children: [
               if (widget.requestLoanId != null)
                 const Text(
-                    'Prośba nie przedłuża wypożyczenia. Termin zmieni się dopiero po jawnym zaimportowaniu zatwierdzonego potwierdzenia.'),
+                    'Prośba nie przedłuża wypożyczenia. Po uzgodnieniu z właścicielem zmień termin ręcznie w lokalnym zapisie.'),
               Text(widget.book.returnDate == null
                   ? 'Brak terminu zwrotu'
                   : 'Obecny termin zwrotu: ${formatReturnDate(widget.book.returnDate!)}'),

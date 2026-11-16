@@ -6,10 +6,18 @@ See the [historical comparison](docs/specification_gap_analysis.md) for reconcil
 
 ## Offline SMS loan messages
 
-Android supports user-reviewed SMS invitations, extension requests and decisions,
-with explicit local approval import. No automatic SMS sending/reading or cloud
-synchronization is used. See [offline loan messaging](docs/offline_loan_messaging.md)
-for v1 QR compatibility, local contact storage, authenticity limits and device QA.
+**Pożyczone** offers **Skanuj kod QR**, **Dodaj z SMS** and **Dodaj ręcznie**
+above one borrowed-book list, separate from owned books. Readable Polish SMS
+imports have an editable preview and explicit save. Manual entry works offline
+without an owner account or app. SMS contains no encoded loan codes.
+
+Extensions use readable requests/responses; **Zmień termin zwrotu** changes only
+the borrower's local agreed date. QR protocol v1 and existing revisions remain
+compatible. SQLite v7 adds local SMS/manual entries and separate QR date overrides
+without rewriting existing data. No verified Google Play listing is configured;
+the centralized optional `VERIFIED_GOOGLE_PLAY_URL` remains empty.
+See [SMS and borrowed-book rules](docs/offline_loan_messaging.md) and
+[v7 migration and rollback checks](docs/borrowed_schema_v7.md).
 
 
 

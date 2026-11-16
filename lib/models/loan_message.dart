@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'loan_transfer.dart';
 import 'return_date.dart';
+import 'readable_loan.dart';
 
 /// Untrusted offline v1 messages, using the same envelope as QR invitations.
 class LoanMessage {
@@ -148,19 +149,16 @@ class LoanMessage {
           previousDate;
 }
 
-String invitationMessage(LoanTransfer loan) =>
-    'Pożyczyłem Ci książkę „${loan.title}”. Termin zwrotu: ${returnDateHistoryValue(loan.returnDate)}. '
-    'Dodaj wypożyczenie w aplikacji Moja Biblioteka: „Pożyczone” → „Wklej kod wypożyczenia”. '
-    'Jeśli nie masz aplikacji, poproś o zaufane źródło instalacji. Po instalacji wklej sam kod:\n\n${loan.encode()}';
+String invitationMessage(LoanTransfer loan) => readableInvitation(loan);
 
-String extensionMessage(LoanMessage message, String title) {
-  final text = switch (message.type) {
-    'extension_request' =>
-      'Proszę o przedłużenie wypożyczenia książki „$title” do ${formatReturnDate(message.newDate)}. Prośba nie zmienia terminu zwrotu.',
-    'extension_approved' =>
-      'Przedłużono wypożyczenie książki „$title”. Nowy termin zwrotu: ${formatReturnDate(message.newDate)}. Otwórz Moja Biblioteka i wklej kod potwierdzenia.',
-    _ =>
-      'Odrzucono prośbę o przedłużenie wypożyczenia książki „$title”. Termin pozostaje bez zmian.',
-  };
-  return '$text\nIdentyfikator prośby: ${message.requestId}\n\n${message.encode()}';
-}
+String extensionMessage(LoanMessage message, String title,
+        {String owner = 'Nie podano'}) =>
+    withInstallationLink(message.type == 'extension_request'
+        ? 'Moja Biblioteka — prośba o przedłużenie\n\nKsiążka: $title\nWłaściciel: $owner\n'
+            'Obecny termin zwrotu: ${returnDateHistoryValue(message.previousDate)}\n'
+            'Proponowany termin zwrotu: ${formatReturnDate(message.newDate)}'
+        : message.type == 'extension_approved'
+            ? 'Moja Biblioteka — zatwierdzenie przedłużenia\n\nKsiążka: $title\n'
+                'Nowy termin zwrotu: ${formatReturnDate(message.newDate)}'
+            : 'Moja Biblioteka — odmowa przedłużenia\n\nKsiążka: $title\n'
+                'Termin zwrotu pozostaje bez zmian: ${returnDateHistoryValue(message.previousDate)}');

@@ -97,15 +97,13 @@ void main() {
   Future<LoanMessage> request() =>
       borrower.prepareExtension(loan.loanId, DateTime(2026, 12, 27));
 
-  test('invitation preserves exact v1 QR code and readable Polish text', () {
+  test('invitation is readable Polish without QR code', () {
     final text = invitationMessage(loan);
     expect(text, contains('Wiedźmin: Żółć'));
     expect(text, contains('20.12.2026'));
-    expect(text, contains('Po instalacji wklej'));
+    expect(text, contains('Autor: Łukasz Ćma'));
+    expect(text, isNot(contains('moja-biblioteka:')));
     expect(text, isNot(contains('play.google.com')));
-    expect(
-        LoanTransfer.decode(text.split('\n\n').last).encode(), loan.encode());
-    expect(text, isNot(contains('Małgorzata')));
   });
 
   test('request roundtrip, decision types and compact bounded envelope',
@@ -118,7 +116,9 @@ void main() {
       expect(LoanMessage.decode(d.encode()).encode(), d.encode());
       expect(extensionMessage(d, loan.title), contains('Wiedźmin: Żółć'));
     }
-    expect(extensionMessage(r, loan.title), contains('nie zmienia terminu'));
+    expect(extensionMessage(r, loan.title),
+        contains('Proponowany termin zwrotu: 27.12.2026'));
+    expect(extensionMessage(r, loan.title), isNot(contains(r.encode())));
     expect((await borrower.borrowedLoans()).single.returnDate, loan.returnDate);
     expect((await borrower.messages('borrower')).single['state'], 'prepared');
     await borrower.markRequestSent(r.requestId);
@@ -553,86 +553,30 @@ void main() {
     });
   });
 
-  for (final approve in [true, false]) {
-    testWidgets(
-        'owner request preview cancellation is read-only then decision: $approve',
-        (tester) async {
-      final repo = MessageWidgetRepository(loan, book);
-      final r = LoanMessage(
-          type: 'extension_request',
-          requestId: 'ui-request',
-          loanId: loan.loanId,
-          bookId: loan.bookId,
-          previousDate: loan.returnDate,
-          newDate: DateTime(2026, 12, 27),
-          revision: 1,
-          timestamp: now);
-      await tester.pumpWidget(MaterialApp(
-          home: LoanMessagingScreen(
-              repository: repo, loan: loan, ownerSide: true)));
-      await tester.pumpAndSettle();
-      Future<void> preview() async {
-        await tester.tap(find.text('Odczytaj prośbę o przedłużenie'));
-        await tester.pumpAndSettle();
-        await tester.enterText(find.byType(TextField), r.encode());
-        await tester.tap(find.text('Dalej'));
-        await tester.pumpAndSettle();
-      }
-
-      await preview();
-      expect(find.text('Niezweryfikowana prośba'), findsOneWidget);
-      expect(repo.decisions, 0);
-      await tester.tap(find.text('Anuluj'));
-      await tester.pumpAndSettle();
-      expect(repo.decisions, 0);
-      await preview();
-      await tester
-          .tap(find.text(approve ? 'Zatwierdź przedłużenie' : 'Odrzuć prośbę'));
-      await tester.pumpAndSettle();
-      expect(repo.decisions, 1);
-      expect(find.text('Przygotowana wiadomość'), findsOneWidget);
-      // No native composer is launched until the explicit button is pressed.
-      await tester.pageBack();
-      await tester.pumpAndSettle();
-      expect(repo.decisions, 1);
-    });
-  }
-
-  testWidgets('borrower confirmation preview requires explicit apply',
+  testWidgets('legacy confirmation paste is replaced by local date action',
       (tester) async {
     final repo = MessageWidgetRepository(loan, book);
-    final message = LoanMessage(
-        type: 'extension_approved',
-        requestId: 'ui-confirmation',
-        loanId: loan.loanId,
-        bookId: loan.bookId,
-        previousDate: loan.returnDate,
-        newDate: DateTime(2026, 12, 27),
-        revision: 1,
-        newRevision: 2,
-        timestamp: now);
     await tester.pumpWidget(MaterialApp(
         home: LoanMessagingScreen(
             repository: repo, loan: loan, ownerSide: false)));
     await tester.pumpAndSettle();
-    Future<void> preview() async {
-      await tester.tap(find.text('Wklej potwierdzenie przedłużenia'));
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), message.encode());
-      await tester.tap(find.text('Dalej'));
-      await tester.pumpAndSettle();
-    }
+    expect(find.text('Wklej potwierdzenie przedłużenia'), findsNothing);
+    expect(find.text('Zmień termin zwrotu'), findsOneWidget);
+    expect(find.text('Poproś o przedłużenie'), findsOneWidget);
+    expect(repo.imports, 0);
+  });
 
-    await preview();
-    expect(find.text('Niezweryfikowane potwierdzenie'), findsOneWidget);
-    expect(repo.imports, 0);
-    await tester.tap(find.text('Anuluj'));
+  testWidgets('owner offers readable approval and rejection actions',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+        home: LoanMessagingScreen(
+            repository: MessageWidgetRepository(loan, book),
+            loan: loan,
+            ownerSide: true)));
     await tester.pumpAndSettle();
-    expect(repo.imports, 0);
-    await preview();
-    await tester.tap(find.text('Zastosuj nowy termin'));
-    await tester.pumpAndSettle();
-    expect(repo.imports, 1);
+    expect(find.text('Odczytaj prośbę o przedłużenie'), findsNothing);
+    expect(find.text('Zatwierdź przedłużenie'), findsOneWidget);
+    expect(find.text('Odmów przedłużenia SMS'), findsOneWidget);
   });
 
   test(
@@ -699,7 +643,7 @@ void main() {
     var db = LibraryDatabase.file(databaseFactoryFfi, path);
     var repo = LibraryRepository(database: db, clock: () => now);
     final sqlite = await db.database;
-    expect(await sqlite.getVersion(), 6);
+    expect(await sqlite.getVersion(), 7);
     expect(
         await sqlite.query('books'),
         oldBooks

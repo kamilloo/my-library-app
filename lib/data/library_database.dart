@@ -111,6 +111,16 @@ class LibraryDatabase {
     }
   }
 
+  static Future<void> _createLocalBorrowed(Database db) async {
+    await db.execute('''CREATE TABLE local_borrowed_entries (
+      id TEXT PRIMARY KEY, origin TEXT NOT NULL CHECK(origin IN ('sms', 'manual')),
+      title TEXT NOT NULL, author TEXT NOT NULL, owner TEXT NOT NULL,
+      isbn TEXT, borrowed TEXT NOT NULL, due TEXT, sms_source TEXT UNIQUE
+    )''');
+    await db.execute(
+        'CREATE TABLE borrowed_due_overrides (loan_id TEXT PRIMARY KEY REFERENCES borrowed_loans(loan_id) ON DELETE CASCADE, due TEXT NOT NULL)');
+  }
+
   Future<Database> _open() async {
     final factory = _factory ?? databaseFactory;
     final path = _path ??
@@ -120,13 +130,14 @@ class LibraryDatabase {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 6,
+        version: 7,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _createHistoryIndex(db);
           if (oldVersion < 3) await _createReminders(db);
           if (oldVersion < 4) await _createTransfers(db);
           if (oldVersion < 5) await _createMessages(db);
           if (oldVersion < 6) await _upgradeGenres(db);
+          if (oldVersion < 7) await _createLocalBorrowed(db);
         },
         onConfigure: (db) async {
           final version =
@@ -174,6 +185,7 @@ class LibraryDatabase {
           await _createTransfers(db);
           await _createMessages(db);
           await _createGenres(db);
+          await _createLocalBorrowed(db);
         },
       ),
     );

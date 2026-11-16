@@ -33,9 +33,11 @@ page, directly after QR, using Icons.sms_outlined. The QR copy now calls the sep
 borrowed collection Pożyczone; the SMS copy explicitly describes manual sending.
 
 The SMS workflow is local-first and manual: the borrower prepares an extension
-request, Android opens their SMS app, and they send it manually. The owner imports
-the request and explicitly approves or rejects it, then can prepare an SMS decision.
-The borrower manually imports an approved confirmation to update their local date.
+request, Android opens their SMS app, and they send it manually. The owner reads
+the request and uses the correct book's management actions to approve or reject it,
+then can prepare a readable SMS decision. The borrower chooses Zmień termin zwrotu
+and explicitly confirms the agreed local date. Pożyczone also supports Dodaj z SMS
+with editable preview and Dodaj ręcznie alongside QR scanning.
 There is no automatic sending, SMS reading, synchronization, delivery guarantee,
 automatic approval, cryptographic sender verification, Firebase or push integration.
 

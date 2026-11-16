@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/library_repository.dart';
-import '../models/book.dart';
 import '../models/loan_transfer.dart';
 import '../models/loan_message.dart';
 import '../models/return_date.dart';
 import '../services/loan_sms.dart';
-import 'loan_extension_dialog.dart';
+import '../models/readable_loan.dart';
 
 String messageState(String state) => switch (state) {
       'prepared' => 'Przygotowana',
@@ -55,7 +54,9 @@ class _SmsMessageScreenState extends State<SmsMessageScreen> {
             () => feedback = 'Operacja nie powiodła się. Spróbuj ponownie.');
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
@@ -167,26 +168,12 @@ class LoanMessagingScreen extends StatefulWidget {
 
 class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
   late LoanTransfer loan = widget.loan;
-  List<Map<String, Object?>> records = [];
   bool busy = false;
   String? error;
-  String get role => widget.ownerSide ? 'owner' : 'borrower';
-
-  @override
-  void initState() {
-    super.initState();
-    refresh();
-  }
-
-  Future<void> refresh() async {
-    try {
-      final rows = await widget.repository.messages(role, loanId: loan.loanId);
-      if (mounted) setState(() => records = rows);
-    } catch (_) {
-      if (mounted) setState(() => error = 'Nie udało się odczytać wiadomości.');
-    }
-  }
-
+  late final history = widget.loan.origin == 'qr'
+      ? widget.repository.messages(widget.ownerSide ? 'owner' : 'borrower',
+          loanId: widget.loan.loanId)
+      : Future.value(<Map<String, Object?>>[]);
   Future<void> run(Future<void> Function() action) async {
     if (busy) return;
     setState(() {
@@ -195,19 +182,27 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
     });
     try {
       await action();
-      await refresh();
     } catch (e) {
       if (mounted) {
         setState(() => error = e is FormatException
             ? e.message
-            : 'Nie udało się wykonać operacji. Odśwież dane i spróbuj ponownie.');
+            : e is ReturnDateException
+                ? e.message
+                : 'Nie udało się wykonać operacji.');
       }
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() => busy = false);
+      }
     }
   }
 
-  Future<void> compose(String text, {String? requestId}) async {
+  Future<void> compose(String text) async {
+    final role = widget.ownerSide
+        ? 'owner'
+        : loan.origin == 'qr'
+            ? 'borrower'
+            : 'borrower_${loan.origin}';
     final phone = await widget.repository.contact(role, loan.loanId);
     if (!mounted) return;
     await Navigator.push<void>(
@@ -216,25 +211,79 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
             builder: (_) => SmsMessageScreen(
                 text: text,
                 initialPhone: phone ?? '',
-                onSavePhone: (p) =>
-                    widget.repository.saveContact(role, loan.loanId, p),
-                onSent: requestId == null
-                    ? null
-                    : () => widget.repository.markRequestSent(requestId))));
+                onSavePhone: (value) =>
+                    widget.repository.saveContact(role, loan.loanId, value))));
   }
 
-  Future<String?> paste(String title) async {
-    final controller = TextEditingController();
-    final code = await showDialog<String>(
+  Future<DateTime?> pick(String label) => showDatePicker(
+      context: context,
+      locale: const Locale('pl'),
+      helpText: label,
+      initialDate:
+          loan.returnDate ?? calendarDate(widget.repository.currentTime),
+      firstDate: DateTime(1900),
+      lastDate: DateTime(2200, 12, 31));
+
+  Future<void> request() async {
+    final date = await pick('Proponowany termin zwrotu');
+    if (date == null) return;
+    final validation = loanExtensionValidation(
+        loan.returnDate, date, widget.repository.currentTime);
+    if (validation != null) {
+      throw FormatException(validation);
+    }
+    await compose(withInstallationLink(
+        'Moja Biblioteka — prośba o przedłużenie\n\nKsiążka: ${loan.title}\n'
+        'Właściciel: ${loan.owner ?? 'Nie podano'}\n'
+        'Obecny termin zwrotu: ${returnDateHistoryValue(loan.returnDate)}\n'
+        'Proponowany termin zwrotu: ${formatReturnDate(date)}'));
+  }
+
+  Future<void> changeDate() async {
+    final date = await pick('Nowy termin zwrotu');
+    if (date == null || !mounted) return;
+    final confirmed = await showDialog<bool>(
         context: context,
         builder: (c) => AlertDialog(
-                title: Text(title),
+                title: const Text('Zmienić lokalny termin?'),
+                content: const Text(
+                    'Ustaw termin uzgodniony z właścicielem. Zmiana dotyczy tylko tego urządzenia.'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c),
+                      child: const Text('Anuluj')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(c, true),
+                      child: const Text('Potwierdź')),
+                ]));
+    if (confirmed != true) return;
+    await widget.repository.changeBorrowedDueDate(loan, date);
+    loan = (await widget.repository.borrowedLoans())
+        .singleWhere((l) => l.loanId == loan.loanId && l.origin == loan.origin);
+  }
+
+  Future<void> ownerApproval() async {
+    final date = await pick('Nowy termin zwrotu');
+    if (date == null) return;
+    // Existing transaction preserves owner history and reminder reconciliation.
+    await widget.repository.approveReadableExtension(loan, date);
+    loan = await widget.repository.loanInvitation(loan.bookId);
+    await compose(withInstallationLink(
+        'Moja Biblioteka — zatwierdzenie przedłużenia\n\n'
+        'Książka: ${loan.title}\nNowy termin zwrotu: ${formatReturnDate(date)}'));
+  }
+
+  Future<void> sendInvitation() async {
+    final controller = TextEditingController(text: loan.owner ?? '');
+    final owner = await showDialog<String>(
+        context: context,
+        builder: (c) => AlertDialog(
+                title: const Text('Właściciel'),
                 content: TextField(
                     controller: controller,
-                    maxLength: LoanTransfer.maxLength,
-                    maxLines: 5,
-                    decoration:
-                        const InputDecoration(labelText: 'Wklej sam kod')),
+                    maxLength: 120,
+                    decoration: const InputDecoration(
+                        labelText: 'Imię i nazwisko właściciela')),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(c),
@@ -245,97 +294,21 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
                 ]));
     await Future<void>.delayed(const Duration(milliseconds: 300));
     controller.dispose();
-    return code;
-  }
-
-  Future<void> request() async {
-    // A fresh local record prevents presets being calculated from an old screen.
-    final loans = await widget.repository.borrowedLoans();
-    loan = loans.singleWhere((l) => l.loanId == loan.loanId);
-    if (!mounted) return;
-    final result = await showDialog<LoanMessage>(
-        context: context,
-        builder: (_) => LoanExtensionDialog(
-            repository: widget.repository,
-            requestLoanId: loan.loanId,
-            book: Book(
-                id: loan.bookId,
-                title: loan.title,
-                author: loan.author,
-                createdAt: loan.borrowedAt,
-                updatedAt: loan.issuedAt,
-                returnDate: loan.returnDate)));
-    if (result != null && mounted) {
-      await compose(extensionMessage(result, loan.title),
-          requestId: result.requestId);
-    }
-  }
-
-  Future<void> importRequest() async {
-    final code = await paste('Odczytaj prośbę o przedłużenie');
-    if (code == null || !mounted) return;
-    final request = LoanMessage.decode(code);
-    if (request.loanId != loan.loanId) {
-      throw const FormatException('Kod dotyczy innego wypożyczenia.');
-    }
-    final book = await widget.repository.previewExtension(request);
-    if (!mounted) return;
-    final approved = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-                title: const Text('Niezweryfikowana prośba'),
-                content: SingleChildScrollView(
-                    child: Text(
-                        '${book.title}\nWypożyczono: ${book.borrowedBy}\nObecny termin zwrotu: ${returnDateHistoryValue(book.returnDate)}\n'
-                        'Proponowany termin zwrotu: ${formatReturnDate(request.newDate)}\nID: ${request.requestId}\n'
-                        'Kod nie dowodzi tożsamości nadawcy. Zweryfikuj prośbę we własnym zakresie.')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(c),
-                      child: const Text('Anuluj')),
-                  OutlinedButton(
-                      onPressed: () => Navigator.pop(c, false),
-                      child: const Text('Odrzuć prośbę')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const Text('Zatwierdź przedłużenie'))
-                ]));
-    if (approved == null) return;
-    final decision = await widget.repository.decideExtension(request, approved);
-    // The decision is already committed. This screen offers explicit composition.
-    await refresh();
-    if (mounted) await compose(extensionMessage(decision, loan.title));
-  }
-
-  Future<void> importApproval() async {
-    final code = await paste('Wklej potwierdzenie przedłużenia');
-    if (code == null || !mounted) return;
-    final message = LoanMessage.decode(code);
-    if (message.loanId != loan.loanId) {
-      throw const FormatException('Kod dotyczy innego wypożyczenia.');
-    }
-    final old = await widget.repository.previewConfirmation(message);
-    if (!mounted) return;
-    final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (c) => AlertDialog(
-                title: const Text('Niezweryfikowane potwierdzenie'),
-                content: Text(
-                    '${old.title}\nObecny termin zwrotu: ${returnDateHistoryValue(old.returnDate)}\n'
-                    'Nowy termin zwrotu: ${formatReturnDate(message.newDate)}\nID: ${message.requestId}\n'
-                    'Aplikacja nie może udowodnić, że kod pochodzi od właściciela. Brak automatycznej synchronizacji.'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(c),
-                      child: const Text('Anuluj')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(c, true),
-                      child: const Text('Zastosuj nowy termin'))
-                ]));
-    if (confirmed != true) return;
-    await widget.repository.importConfirmation(message);
-    loan = (await widget.repository.borrowedLoans())
-        .singleWhere((l) => l.loanId == loan.loanId);
+    if (owner == null) return;
+    final name = ReadableLoan.field(owner, 'Właściciel', 120);
+    loan = await widget.repository.loanInvitation(loan.bookId);
+    await compose(readableInvitation(LoanTransfer(
+        transferId: loan.transferId,
+        loanId: loan.loanId,
+        bookId: loan.bookId,
+        title: loan.title,
+        author: loan.author,
+        owner: name,
+        isbn: loan.isbn,
+        borrowedAt: loan.borrowedAt,
+        returnDate: loan.returnDate,
+        issuedAt: loan.issuedAt,
+        revision: loan.revision)));
   }
 
   @override
@@ -343,57 +316,55 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
       appBar: AppBar(title: const Text('Wiadomości o wypożyczeniu')),
       body: ListView(padding: const EdgeInsets.all(20), children: [
         Text(loan.title, style: Theme.of(context).textTheme.headlineSmall),
+        Text(loan.author),
+        Text('Właściciel: ${loan.owner ?? 'Nie podano'}'),
+        Text('Data wypożyczenia: ${formatReturnDate(loan.borrowedAt)}'),
+        Text('Termin zwrotu: ${returnDateHistoryValue(loan.returnDate)}'),
+        if (loan.isbn != null) Text('ISBN: ${loan.isbn}'),
+        Text('Źródło: ${switch (loan.origin) {
+          'sms' => 'SMS',
+          'manual' => 'Wpis ręczny',
+          _ => 'QR'
+        }}'),
         if (widget.ownerSide) ...[
           FilledButton(
-              onPressed: busy
-                  ? null
-                  : () => run(() async {
-                        loan =
-                            await widget.repository.loanInvitation(loan.bookId);
-                        await compose(invitationMessage(loan));
-                      }),
+              onPressed: busy ? null : () => run(sendInvitation),
               child: const Text('Wyślij informacje SMS')),
           OutlinedButton(
-              onPressed: busy ? null : () => run(importRequest),
-              child: const Text('Odczytaj prośbę o przedłużenie')),
+              onPressed: busy ? null : () => run(ownerApproval),
+              child: const Text('Zatwierdź przedłużenie')),
+          OutlinedButton(
+              onPressed: busy
+                  ? null
+                  : () => run(() => compose(withInstallationLink(
+                      'Moja Biblioteka — odmowa przedłużenia\n\nKsiążka: ${loan.title}\n'
+                      'Termin zwrotu pozostaje bez zmian: ${returnDateHistoryValue(loan.returnDate)}'))),
+              child: const Text('Odmów przedłużenia SMS')),
         ] else ...[
-          Text('Termin zwrotu: ${returnDateHistoryValue(loan.returnDate)}'),
           FilledButton(
               onPressed: busy ? null : () => run(request),
               child: const Text('Poproś o przedłużenie')),
           OutlinedButton(
-              onPressed: busy ? null : () => run(importApproval),
-              child: const Text('Wklej potwierdzenie przedłużenia')),
+              onPressed: busy ? null : () => run(changeDate),
+              child: const Text('Zmień termin zwrotu')),
         ],
         if (error != null) Text(error!),
-        for (final row in records)
-          Card(
-              child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(messageState(row['state']! as String)),
-                        Text('ID: ${row['request_id']}'),
-                        Text(
-                            'Proponowany termin zwrotu: ${formatReturnDate(LoanMessage.decode(row['request']! as String).newDate)}'),
-                        OutlinedButton(
-                            onPressed: busy
-                                ? null
-                                : () => run(() async {
-                                      final message = LoanMessage.decode(
-                                          (row['decision'] ?? row['request'])!
-                                              as String);
-                                      await compose(
-                                          extensionMessage(message, loan.title),
-                                          requestId: row['decision'] == null &&
-                                                  !widget.ownerSide
-                                              ? message.requestId
-                                              : null);
-                                    }),
-                            child: Text(row['state'] == 'approved'
-                                ? 'Wyślij potwierdzenie SMS'
-                                : 'Otwórz wiadomość')),
-                      ]))),
+        FutureBuilder<List<Map<String, Object?>>>(
+            future: history,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Wcześniejsze wiadomości'),
+                    for (final row in snapshot.data!)
+                      ListTile(
+                          title: Text(messageState(row['state']! as String)),
+                          subtitle: Text(
+                              'Proponowany termin zwrotu: ${formatReturnDate(LoanMessage.decode(row['request']! as String).newDate)}')),
+                  ]);
+            }),
       ]));
 }
