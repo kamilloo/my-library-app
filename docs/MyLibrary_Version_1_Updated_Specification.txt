@@ -194,7 +194,7 @@ the form does not undo them. Counts use Polish forms (1 książka, 2 książki,
 Owned-book genre filtering combines with title/author search, status and both
 sort modes. Renamed filters follow the stable registry ID; deleting the selected
 genre clears the filter. Registry changes behind a canceled form refresh the
-library/details. Pożyczone od innych remains separate and unchanged.
+library/details. Pożyczone remains separate and unchanged.
 Data: SQLite v6 adds books.genre, removes books.directory and persists the genres
 registry. Bez gatunku is a virtual reserved system entry, not a genres row;
 it cannot be renamed/deleted. Bez kategorii is also reserved.
@@ -337,7 +337,7 @@ Workflow/screens:
 1. Owner confirms loan, then Wyślij informacje SMS prepares readable Polish text
    plus the same v1 invitation code used for QR.
 2. Owner opens native SMS composer, reviews recipient/body and presses Send.
-   Recipient copies only the code into Pożyczone od innych and confirms import.
+   Recipient copies only the code into Pożyczone and confirms import.
 3. Borrower opens the imported loan, chooses Poproś o przedłużenie and a later
    future date. Preparing a request stores it locally without extending the loan.
 4. Borrower explicitly sends through the SMS app. Composer launch does not mark
@@ -404,9 +404,10 @@ Data: shared_preferences completion boolean, independent of SQLite and library.
 Finish persists before entering library. Existing completed users bypass; missing
 flag shows onboarding even if books exist. Do not infer grandfathering from books
 or install age. Read failure permits access for that launch; write failure retries.
-Pomoc reopens all pages from page one on a separate route; exits never reset
+Pomoc opens detailed SMS and local borrowing guidance on a separate route.
+Samouczek — 7 slajdów reopens all tutorial pages from page one; exits never reset
 completion or library data. Mandatory Back moves backward and cannot dismiss
-page one; Help Back can close. No permissions requested solely for onboarding.
+page one; manual tutorial Back can close. No permissions requested solely for onboarding.
 Offline: bundled content/icons only. No SMS, scanner or reminder activation.
 Evidence: lib/screens/tutorial_screen.dart, lib/services/tutorial_preferences.dart,
 lib/main.dart; test/tutorial_test.dart; docs/first_launch_tutorial.md; PRs #16, #17.

@@ -150,7 +150,7 @@ class LoanMessage {
 
 String invitationMessage(LoanTransfer loan) =>
     'Pożyczyłem Ci książkę „${loan.title}”. Termin zwrotu: ${returnDateHistoryValue(loan.returnDate)}. '
-    'Dodaj wypożyczenie w aplikacji Moja Biblioteka: „Pożyczone od innych” → „Wklej kod wypożyczenia”. '
+    'Dodaj wypożyczenie w aplikacji Moja Biblioteka: „Pożyczone” → „Wklej kod wypożyczenia”. '
     'Jeśli nie masz aplikacji, poproś o zaufane źródło instalacji. Po instalacji wklej sam kod:\n\n${loan.encode()}';
 
 String extensionMessage(LoanMessage message, String title) {

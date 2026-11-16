@@ -118,7 +118,7 @@ class _ReturnDateSectionState extends State<ReturnDateSection> {
             : 'Data wypożyczenia: ${formatReturnDate(widget.book.borrowedDate!)}'),
         Text(
             widget.book.returnDate == null
-                ? 'Nie ustawiono terminu zwrotu'
+                ? 'Brak terminu zwrotu'
                 : 'Termin zwrotu: ${formatReturnDate(widget.book.returnDate!)}',
             style: Theme.of(context).textTheme.titleMedium),
         Wrap(spacing: 8, children: [

@@ -95,7 +95,7 @@ void main() {
     await repository.extendLoan(original.id, DateTime(2027, 3, 1));
     final rows = await db.query('history', where: "action = 'loan_extended'");
     expect(rows.last['detail'],
-        'Przedłużono wypożyczenie: Nie ustawiono terminu zwrotu → 01.03.2027');
+        'Przedłużono wypożyczenie: Brak terminu zwrotu → 01.03.2027');
   });
 
   test('calendar presets handle month ends and leap years', () {
