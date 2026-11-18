@@ -213,8 +213,7 @@ void main() {
   });
 
   for (final name in <String?>[null, 'Jan Kowalski']) {
-    testWidgets('SMS name is explicitly editable and optional for $name',
-        (tester) async {
+    testWidgets('SMS reuses the saved name for $name', (tester) async {
       final repository = OwnerWidgetRepository()..name = name;
       final loan = await repository.loanInvitation('b');
       await pumpApp(
@@ -226,16 +225,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Wyślij informacje SMS'));
       await tester.pumpAndSettle();
-      expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
-          name ?? '');
-      await tester.enterText(find.byType(TextField), '');
-      await tester.tap(find.text('Dalej'));
-      await tester.pumpAndSettle();
+      expect(find.byType(TextFormField), findsNothing);
       final text =
           tester.widget<SelectableText>(find.byType(SelectableText)).data!;
-      expect(text, contains('Właściciel: Nie podano'));
+      expect(text, contains('Właściciel: ${name ?? 'Nie podano'}'));
       expect(text, isNot(contains('moja-biblioteka:')));
-      if (name != null) expect(text, isNot(contains(name)));
       expect(repository.name, name);
     });
   }
@@ -270,10 +264,7 @@ void main() {
     await tester.tap(find.text('Edytuj nazwę właściciela'));
     await tester.pumpAndSettle();
     expect(
-        tester
-            .widget<TextFormField>(find.byType(TextFormField))
-            .controller!
-            .text,
+        tester.widget<EditableText>(find.byType(EditableText)).controller.text,
         'Żaneta Łącka');
     await tester.enterText(find.byType(TextFormField), '');
     await tester.tap(find.text('Zapisz i odśwież QR'));

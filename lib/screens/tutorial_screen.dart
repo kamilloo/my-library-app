@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/library_repository.dart';
+import '../models/owner_name.dart';
 import '../services/tutorial_preferences.dart';
 
 class TutorialHelpButton extends StatelessWidget {
@@ -31,7 +33,7 @@ const loanHelpSections = <TutorialSlide>[
     'Wypożyczenia i synchronizacja danych',
     'Każde urządzenie przechowuje własną kopię informacji o wypożyczeniu. Zapis właściciela jest rozstrzygający dla rzeczywistego wypożyczenia. Osoba pożyczająca ma oddzielną lokalną kopię na liście „Pożyczone”, poza kolekcją własnych książek.\n\n'
         'Daty i statusy nie synchronizują się automatycznie. Skanowanie QR importuje kopię informacji, a SMS służy do komunikacji między stronami. Czytelną wiadomość dodasz przez „Dodaj z SMS”, a książkę od dowolnej osoby przez „Dodaj ręcznie”. Po uzgodnieniu zmian może być konieczna aktualizacja własnych lokalnych zapisów.\n\n'
-        'W ekranie kodu QR wybierz „Edytuj nazwę właściciela”. Opcjonalna nazwa (np. Jan Kowalski, do 120 znaków) jest zapisywana lokalnie i używana w kolejnych zaproszeniach. Możesz ją zmienić lub wyczyścić. Po zmianie pokaż nowy kod do ponownego importu. Bez nazwy zobaczysz „Właściciel: Nie podano”. Nazwa nie potwierdza tożsamości ani własności. SMS zawiera nazwę tylko po świadomym uzupełnieniu wiadomości.\n\n'
+        'Imię i nazwisko możesz podać na ekranie powitalnym. Jeśli pole pozostanie puste, aplikacja poprosi o nazwę przy kolejnym wypożyczeniu. Nazwa pozostaje na tym urządzeniu, dopóki nie udostępnisz informacji o wypożyczeniu w QR lub SMS. To etykieta wyświetlana jako „Właściciel”, bez weryfikacji tożsamości. Aby ją zmienić lub usunąć, otwórz „Pokaż kod QR”, wybierz „Edytuj nazwę właściciela” i zapisz nową nazwę lub puste pole. Po zmianie możesz udostępnić odświeżony kod.\n\n'
         'Usunięcie lokalnego zapisu z listy „Pożyczone” nie usuwa zapisu właściciela. Kod QR nie potwierdza tożsamości ani własności książki.',
     Icons.sync_disabled_outlined,
   ),
@@ -117,8 +119,12 @@ const tutorialSlides = [
 
 class TutorialGate extends StatefulWidget {
   const TutorialGate(
-      {required this.preferences, required this.libraryBuilder, super.key});
+      {required this.preferences,
+      required this.libraryBuilder,
+      this.repository,
+      super.key});
   final TutorialPreferences preferences;
+  final LibraryRepository? repository;
   final WidgetBuilder libraryBuilder;
 
   @override
@@ -151,17 +157,31 @@ class _TutorialGateState extends State<TutorialGate> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     if (completed!) return widget.libraryBuilder(context);
-    return TutorialScreen(onFinish: () async {
-      await widget.preferences.complete();
-      if (mounted) setState(() => completed = true);
-    });
+    final repository = widget.repository;
+    return TutorialScreen(
+      saveOwnerName: repository == null
+          ? null
+          : (name) async {
+              if (await repository.preferredOwnerName() == null) {
+                await repository.savePreferredOwnerName(name);
+              }
+            },
+      onFinish: () async {
+        await widget.preferences.complete();
+        if (mounted) setState(() => completed = true);
+      },
+    );
   }
 }
 
 class TutorialScreen extends StatefulWidget {
   const TutorialScreen(
-      {required this.onFinish, this.manual = false, super.key});
+      {required this.onFinish,
+      this.saveOwnerName,
+      this.manual = false,
+      super.key});
   final Future<void> Function() onFinish;
+  final Future<void> Function(String)? saveOwnerName;
   final bool manual;
 
   @override
@@ -172,7 +192,20 @@ class _TutorialScreenState extends State<TutorialScreen> {
   final controller = PageController();
   int page = 0;
   bool saving = false;
+  String ownerName = '';
+  String? ownerError;
   String? error;
+
+  bool validateWelcomeName() {
+    try {
+      validateOwnerName(ownerName);
+      return true;
+    } on FormatException catch (error) {
+      setState(() => ownerError = error.message);
+      move(0);
+      return false;
+    }
+  }
 
   @override
   void dispose() {
@@ -183,12 +216,14 @@ class _TutorialScreenState extends State<TutorialScreen> {
   void move(int value) => controller.jumpToPage(value);
 
   Future<void> finish() async {
-    if (saving) return;
+    if (saving || !validateWelcomeName()) return;
     setState(() {
       saving = true;
       error = null;
     });
     try {
+      final name = validateOwnerName(ownerName);
+      if (name != null) await widget.saveOwnerName?.call(name);
       await widget.onFinish();
     } catch (_) {
       if (mounted) {
@@ -228,7 +263,10 @@ class _TutorialScreenState extends State<TutorialScreen> {
               child: PageView.builder(
                 controller: controller,
                 itemCount: tutorialSlides.length,
-                onPageChanged: (value) => setState(() => page = value),
+                onPageChanged: (value) {
+                  if (page == 0) FocusScope.of(context).unfocus();
+                  setState(() => page = value);
+                },
                 itemBuilder: (context, index) {
                   final slide = tutorialSlides[index];
                   return SingleChildScrollView(
@@ -256,6 +294,27 @@ class _TutorialScreenState extends State<TutorialScreen> {
                           Text(slide.description,
                               textAlign: TextAlign.center,
                               style: theme.textTheme.bodyLarge),
+                          if (index == 0 && widget.saveOwnerName != null) ...[
+                            const SizedBox(height: 20),
+                            TextFormField(
+                              initialValue: ownerName,
+                              enabled: !saving,
+                              textCapitalization: TextCapitalization.words,
+                              maxLength: ownerNameMaxLength,
+                              onChanged: (value) => setState(() {
+                                ownerName = value;
+                                ownerError = null;
+                              }),
+                              decoration: InputDecoration(
+                                labelText: 'Twoje imię i nazwisko',
+                                errorText: ownerError,
+                              ),
+                            ),
+                            const Text(
+                              'Opcjonalnie. Nazwa pojawi się jako „Właściciel” '
+                              'w udostępnianych informacjach o wypożyczeniu.',
+                            ),
+                          ],
                         ]),
                       ),
                     ),
@@ -304,7 +363,11 @@ class _TutorialScreenState extends State<TutorialScreen> {
                       ? null
                       : page == tutorialSlides.length - 1
                           ? finish
-                          : () => move(page + 1),
+                          : () {
+                              if (page != 0 || validateWelcomeName()) {
+                                move(page + 1);
+                              }
+                            },
                   child: Text(
                       page == tutorialSlides.length - 1 ? 'Zakończ' : 'Dalej'),
                 )),

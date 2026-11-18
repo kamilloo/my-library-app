@@ -9,6 +9,16 @@ import 'package:my_library/models/book.dart';
 import 'package:my_library/services/tutorial_preferences.dart';
 
 class ExistingLibrary extends LibraryRepository {
+  String? ownerName;
+
+  @override
+  Future<String?> preferredOwnerName() async => ownerName;
+
+  @override
+  Future<void> savePreferredOwnerName(String input) async {
+    ownerName = input;
+  }
+
   final existing = Book(
       id: 'existing',
       title: 'Istniejąca książka',
@@ -65,13 +75,17 @@ void main() {
     await tester.pumpWidget(MaterialApp(
         home: TutorialGate(
       preferences: preferences,
+      repository: repository,
       libraryBuilder: (_) =>
           Scaffold(body: LibraryScreen(repository: repository)),
     )));
     await tester.pumpAndSettle();
+    expect(find.text('Twoje imię i nazwisko'), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), '  Żaneta Łącka  ');
     await lastPage(tester);
     await tester.tap(find.text('Zakończ'));
     await tester.pumpAndSettle();
+    expect(repository.ownerName, 'Żaneta Łącka');
     expect(find.byType(BookCard), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Anna');
     await tester.tap(find.text('Pomoc'));
@@ -217,10 +231,20 @@ void main() {
       (tester) async {
     SharedPreferences.setMockInitialValues({'tutorial_completed_v1': true});
     expect(LocalTutorialPreferences.completionKey, 'tutorial_completed_v1');
-    await tester.pumpWidget(app(LocalTutorialPreferences()));
+    final repository = ExistingLibrary()..ownerName = 'Jan Kowalski';
+    await tester.pumpWidget(MaterialApp(
+      home: TutorialGate(
+        preferences: LocalTutorialPreferences(),
+        repository: repository,
+        libraryBuilder: (_) =>
+            Scaffold(body: LibraryScreen(repository: repository)),
+      ),
+    ));
     await tester.pumpAndSettle();
-    expect(find.text('Biblioteka'), findsOneWidget);
+    expect(find.byType(BookCard), findsOneWidget);
     expect(find.byType(TutorialScreen), findsNothing);
+    expect(repository.ownerName, 'Jan Kowalski');
+    expect(await LocalTutorialPreferences().isCompleted(), isTrue);
   });
 
   testWidgets('read failure opens library without a launch loop',

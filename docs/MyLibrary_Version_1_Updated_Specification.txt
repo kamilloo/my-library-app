@@ -346,10 +346,14 @@ the complete supported templates, length bounds and validation rules.
 
 Outgoing invitations, extension requests, approvals and rejections contain
 readable information only, without encoded codes or internal protocol IDs.
-Owner display name can be explicitly chosen in the SMS invitation dialog;
-empty input uses Nie podano. QR preference is saved offline in local_preferences,
-key qr_owner_name. QR screen label Właściciel, example Jan Kowalski; editable and
-optional, reused across books and restarts. Trim input, reject C0/C1 controls,
+The saved owner label is included automatically in new QR invitations and readable
+loan-information SMS previews. An unnamed SMS uses Nie podano. The shared
+preference is stored offline in local_preferences under qr_owner_name. Welcome
+offers Twoje imię i nazwisko. If the name is missing when confirming a loan,
+the app asks for it before saving the loan. Canceling leaves the book and loan
+history unchanged. The name is a user-provided display label and stays on the
+device until the user shares loan information. In Pokaż kod QR, choose Edytuj
+nazwę właściciela and save a new name or an empty field to clear it. Trim input, reject C0/C1 controls,
 DEL and line/paragraph separators before trimming; maximum 120 UTF-16 code units,
 Polish characters allowed. No device/account/contact identity is read.
 Changing or clearing a name advances the next generated QR snapshot revision,
@@ -409,7 +413,8 @@ Sequence:
 6. Pilnuj terminów zwrotu
 7. Twoja biblioteka, Twoje zasady
 Data: shared_preferences completion boolean, independent of SQLite and library.
-Finish persists before entering library. Existing completed users bypass; missing
+Finish saves the optional Welcome name if there is no saved name, then persists
+completion before entering the library. Existing completed users bypass; missing
 flag shows onboarding even if books exist. Do not infer grandfathering from books
 or install age. Read failure permits access for that launch; write failure retries.
 Pomoc opens detailed SMS and local borrowing guidance on a separate route.
