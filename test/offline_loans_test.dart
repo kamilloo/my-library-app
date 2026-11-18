@@ -332,17 +332,24 @@ void main() {
   });
 
   testWidgets(
-      'manual import previews before confirmation and cancellation writes nothing',
+      'QR scan previews before confirmation and cancellation writes nothing',
       (tester) async {
+    final previous = MobileScannerPlatform.instance;
+    final camera = CameraPlatform();
+    MobileScannerPlatform.instance = camera;
+    addTearDown(() async {
+      MobileScannerPlatform.instance = previous;
+      await camera.captures.close();
+    });
     final repository = WidgetRepository();
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(body: BorrowedLoansScreen(repository: repository))));
     await tester.pumpAndSettle();
     Future<void> preview() async {
-      await tester.tap(find.text('Wklej kod wypożyczenia'));
+      await tester.tap(find.text('Skanuj kod QR'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), fixture().encode());
-      await tester.tap(find.text('Dalej'));
+      camera.captures.add(
+          BarcodeCapture(barcodes: [Barcode(rawValue: fixture().encode())]));
       await tester.pumpAndSettle();
     }
 
@@ -376,7 +383,7 @@ void main() {
         findsOneWidget);
     expect(tester.takeException(), isNull);
   });
-  testWidgets('camera denial offers manual fallback without any import',
+  testWidgets('camera denial returns to the three entry actions',
       (tester) async {
     final previous = MobileScannerPlatform.instance;
     final camera = CameraPlatform()..denied = true;
@@ -392,14 +399,14 @@ void main() {
     await tester.tap(find.text('Skanuj kod QR'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Brak dostępu do aparatu'), findsOneWidget);
-    await tester.tap(find.text('Wróć do ręcznego wklejania kodu'));
+    await tester.tap(find.text('Wróć do Pożyczonych'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Wklej kod wypożyczenia'));
-    await tester.pumpAndSettle();
-    expect(find.byType(TextField), findsOneWidget);
+    expect(find.byType(FilledButton), findsNWidgets(3));
+    for (final action in ['Skanuj kod QR', 'Dodaj z SMS', 'Dodaj ręcznie']) {
+      expect(find.text(action), findsOneWidget);
+    }
+    expect(find.text('Wklej kod wypożyczenia'), findsNothing);
     expect(repository.imported, isEmpty);
-    await tester.tap(find.text('Anuluj'));
-    await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets(
@@ -504,6 +511,10 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Pokaż kod QR'), -300);
+      expect(find.text('Odczytaj prośbę o przedłużenie'), findsNothing);
+      expect(find.text('Wyślij informacje SMS'), findsOneWidget);
+      expect(find.text('Brak terminu zwrotu'), findsOneWidget);
+      expect(find.text('Zmień termin zwrotu'), findsOneWidget);
       await tester.tap(find.text('Pokaż kod QR'));
       await tester.pumpAndSettle();
       expect(find.byType(QrImageView), findsOneWidget);

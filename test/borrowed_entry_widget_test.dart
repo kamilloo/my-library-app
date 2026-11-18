@@ -5,7 +5,6 @@ import 'package:my_library/data/library_repository.dart';
 import 'package:my_library/models/loan_transfer.dart';
 import 'package:my_library/models/book.dart';
 import 'package:my_library/models/readable_loan.dart';
-import 'package:my_library/screens/borrowed_entry.dart';
 import 'package:my_library/screens/loan_messaging.dart';
 import 'package:my_library/screens/offline_loans.dart';
 import 'readable_loan_test.dart' show text, today, invitation;
@@ -95,7 +94,10 @@ void main() {
     await large(tester);
     final repo = EntryRepository();
     await tester
-        .pumpWidget(app(BorrowedEntryScreen(repository: repo, fromSms: true)));
+        .pumpWidget(app(Scaffold(body: BorrowedLoansScreen(repository: repo))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dodaj z SMS'));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), text);
     await tester.tap(find.text('Odczytaj wiadomość'));
     await tester.pumpAndSettle();
@@ -124,7 +126,10 @@ void main() {
     await large(tester);
     final repo = EntryRepository();
     await tester
-        .pumpWidget(app(BorrowedEntryScreen(repository: repo, fromSms: false)));
+        .pumpWidget(app(Scaffold(body: BorrowedLoansScreen(repository: repo))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dodaj ręcznie'));
+    await tester.pumpAndSettle();
     expect(find.text('16.11.2026'), findsOneWidget);
     expect(find.text('Brak terminu zwrotu'), findsOneWidget);
     await tester.tap(find.text('Potwierdź i zapisz'));

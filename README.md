@@ -7,9 +7,14 @@ See the [historical comparison](docs/specification_gap_analysis.md) for reconcil
 ## Offline SMS loan messages
 
 **Pożyczone** offers **Skanuj kod QR**, **Dodaj z SMS** and **Dodaj ręcznie**
-above one borrowed-book list, separate from owned books. Readable Polish SMS
+above one borrowed-book list, separate from owned books. Use **Pokaż kod QR**
+on the owner's device and scan it from **Pożyczone**. If the camera is
+unavailable, return to **Pożyczone** to retry, import an SMS, or enter the
+details manually. Readable Polish SMS
 imports have an editable preview and explicit save. Manual entry works offline
-without an owner account or app. SMS contains no encoded loan codes.
+without an owner account or app. SMS contains no encoded loan codes. Prepared
+messages offer **Kopiuj wiadomość** and **Udostępnij wiadomość**. Android's
+share sheet lets you choose an app, where you send the message yourself.
 
 Extensions use readable requests/responses; **Zmień termin zwrotu** changes only
 the borrower's local agreed date. QR protocol v1 and existing revisions remain
@@ -142,8 +147,8 @@ After import, the preview, **Pożyczone** list and details show the saved name;
 older unnamed invitations show **Właściciel: Nie podano**. A changed name advances
 the QR revision while preserving IDs and the original borrowing date. Borrowers
 must import the new QR explicitly. The name is unverified user-provided information.
-SMS inclusion is chosen explicitly in its editable invitation dialog and remains
-optional. See [QR protocol and schema v8](docs/offline-loan-protocol.md).
+The readable invitation includes the saved owner name when available. See
+[QR protocol and schema v8](docs/offline-loan-protocol.md).
 
 ## Change return date
 

@@ -23,17 +23,16 @@ const loanHelpSections = <TutorialSlide>[
   TutorialSlide(
     'SMS i komunikacja o wypożyczeniu',
     'SMS może wiązać się z opłatami operatora. Długie wiadomości i polskie znaki mogą powodować podział na wiele SMS-ów i dodatkowe opłaty.\n\n'
-        'Wysyłasz SMS ręcznie w swojej aplikacji do wiadomości. Otwarcie edytora SMS nie potwierdza wysłania ani dostarczenia wiadomości.\n\n'
+        'Wybierz „Udostępnij wiadomość”, aby otworzyć systemową listę aplikacji, lub „Kopiuj wiadomość”, aby wkleić tekst w wybranej aplikacji. Wysyłasz wiadomość samodzielnie.\n\n'
         'Treść SMS może być widoczna dla operatora lub innych usług. SMS nie zapewnia szyfrowania od końca do końca ani niezależnego potwierdzenia tożsamości nadawcy.\n\n'
-        'Moja Biblioteka nie odczytuje SMS-ów automatycznie i nie synchronizuje urządzeń. Ważne zmiany potwierdzajcie bezpośrednio ze sobą.\n\n'
-        'Opcjonalny numer odbiorcy uzupełnia aplikację SMS. Zapisz go osobnym przyciskiem tylko na tym urządzeniu; zapisanie pustego numeru usuwa kontakt.',
+        'Moja Biblioteka nie odczytuje SMS-ów automatycznie i nie synchronizuje urządzeń. Ważne zmiany potwierdzajcie bezpośrednio ze sobą.',
     Icons.sms_outlined,
   ),
   TutorialSlide(
     'Wypożyczenia i synchronizacja danych',
     'Każde urządzenie przechowuje własną kopię informacji o wypożyczeniu. Zapis właściciela jest rozstrzygający dla rzeczywistego wypożyczenia. Osoba pożyczająca ma oddzielną lokalną kopię na liście „Pożyczone”, poza kolekcją własnych książek.\n\n'
         'Daty i statusy nie synchronizują się automatycznie. Skanowanie QR importuje kopię informacji, a SMS służy do komunikacji między stronami. Czytelną wiadomość dodasz przez „Dodaj z SMS”, a książkę od dowolnej osoby przez „Dodaj ręcznie”. Po uzgodnieniu zmian może być konieczna aktualizacja własnych lokalnych zapisów.\n\n'
-        'Imię i nazwisko możesz podać na ekranie powitalnym. Jeśli pole pozostanie puste, aplikacja poprosi o nazwę przy kolejnym wypożyczeniu. Nazwa pozostaje na tym urządzeniu, dopóki nie udostępnisz informacji o wypożyczeniu w QR lub SMS. To etykieta wyświetlana jako „Właściciel”, bez weryfikacji tożsamości. Aby ją zmienić lub usunąć, otwórz „Pokaż kod QR”, wybierz „Edytuj nazwę właściciela” i zapisz nową nazwę lub puste pole. Po zmianie możesz udostępnić odświeżony kod.\n\n'
+        'Imię i nazwisko możesz podać na ekranie powitalnym. Jeśli pole pozostanie puste, aplikacja poprosi o nazwę przy kolejnym wypożyczeniu. Nazwa pozostaje na tym urządzeniu, dopóki nie udostępnisz informacji o wypożyczeniu w QR lub SMS. To etykieta wyświetlana jako „Właściciel”, bez weryfikacji tożsamości. Aby ją zmienić lub usunąć, otwórz „Pokaż kod QR”, wybierz „Edytuj nazwę właściciela” i zapisz nową nazwę lub puste pole. Po zmianie pokaż odświeżony kod do zeskanowania.\n\n'
         'Usunięcie lokalnego zapisu z listy „Pożyczone” nie usuwa zapisu właściciela. Kod QR nie potwierdza tożsamości ani własności książki.',
     Icons.sync_disabled_outlined,
   ),
@@ -100,12 +99,12 @@ const tutorialSlides = [
       'Zapisuj, komu pożyczasz książki, ustalaj terminy zwrotu i przeglądaj historię.',
       Icons.people_alt_outlined),
   TutorialSlide(
-      'Udostępniaj kod QR',
+      'Pokazuj kod QR',
       'Po wypożyczeniu pokaż kod QR. W „Pożyczone” wybierz „Skanuj kod QR”, „Dodaj z SMS” lub „Dodaj ręcznie”. SMS wymaga odczytania wiadomości, sprawdzenia pól i potwierdzenia zapisu. Wpis ręczny działa bez internetu i bez aplikacji u właściciela.',
       Icons.qr_code_2_rounded),
   TutorialSlide(
       'Proś o przedłużenie',
-      'Przygotuj prośbę o przedłużenie i wyślij ją ręcznie w aplikacji SMS. Po uzgodnieniu z właścicielem wybierz „Zmień termin zwrotu” i popraw lokalny zapis.',
+      'Przygotuj prośbę o przedłużenie, skopiuj ją lub udostępnij w wybranej aplikacji i wyślij samodzielnie. Po uzgodnieniu z właścicielem wybierz „Zmień termin zwrotu” i popraw lokalny zapis.',
       Icons.sms_outlined),
   TutorialSlide(
       'Pilnuj terminów zwrotu',

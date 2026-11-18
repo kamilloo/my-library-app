@@ -301,8 +301,9 @@ docs/return_reminders.md. Merged PR #8.
 
 Status: IMPLEMENTED; two-physical-device workflow: RELEASE VALIDATION PENDING.
 Purpose/workflow: confirm owner lending first, display invitation QR, or reopen
-Pokaż kod QR for the active loan without lending again. Recipient opens Pożyczone, scans QR or pastes standalone code, reviews unverified metadata and
-explicitly confirms import. Share/copy fallback and local deletion are available.
+Pokaż kod QR for the active loan without lending again. The recipient opens
+Pożyczone, scans the QR code, reviews unverified metadata and confirms import.
+The recipient can delete the local entry.
 Data: owner_loan_instances, loan_transfers, borrowed_loans; no transfer of ownership,
 no owned-book insertion and no authority to lend/give a borrowed record.
 Protocol: moja-biblioteka: + bounded Base64URL UTF-8 JSON; version 1,
@@ -317,10 +318,9 @@ Stale, same-revision conflicting or transfer-collision imports fail transactiona
 New lending periods receive new instance IDs; unchanged QR reopening preserves
 bytes. Legacy active loans receive a persisted ID once. Local status is preserved
 on revision import; its column is not a complete borrower return-management UI.
-Offline: QR and manual-code operations need no network. Devices remain independent.
+Offline: QR scanning and manual entry need no network. Devices remain independent.
 Limits: untrusted claims, no cryptographic identity/ownership proof; no automatic
 sync, verified installation URL or deferred deep-link installation guarantee.
-Retain the code and import manually after obtaining a trusted installer.
 Evidence: lib/models/loan_transfer.dart, lib/screens/offline_loans.dart,
 lib/data/library_repository.dart (loanInvitation, importLoan, deleteBorrowedLoan),
 test/offline_loans_test.dart, test/offline_sharing_test.dart;
@@ -331,8 +331,8 @@ docs/offline-loan-protocol.md. Merged PR #14.
 Status: IMPLEMENTED in Task 24 source; physical SMS/two-device QA:
 RELEASE VALIDATION PENDING. Replaces Task 20's encoded SMS workflow.
 Pożyczone offers Skanuj kod QR, Dodaj z SMS and Dodaj ręcznie above one list.
-Manual QR paste remains a separate fallback. SMS/manual entries are local and
-require no owner account, application, QR, SMS permission or internet access.
+If the camera is unavailable, return to Pożyczone to retry scanning, import a
+readable SMS, or enter the loan manually. SMS/manual entries are local and require no owner account, application, QR, SMS permission or internet access.
 All sources open the same details UI and support local deletion outside books.
 
 SMS has the exact header "Moja Biblioteka — informacja o wypożyczeniu" and Polish
@@ -383,10 +383,10 @@ never rewrites the invitation. Exact SMS duplicates are blocked; independent
 same-title/ISBN manual loans remain valid. Newer QR revisions retain local overrides.
 All rows appear together and deletion selects origin plus identifier.
 
-Native transport still opens ACTION_SENDTO/smsto:/sms_body, with explicit Send in
-the user's SMS application and copy/share fallback. No inbox access or restricted
+Prepared messages can be copied or shared through Android's native share sheet.
+The user sends the message in the chosen app. No inbox access or restricted
 SMS/contacts permissions. Carrier charges and plaintext SMS limitations remain.
-Optional explicitly saved phone numbers stay local. Existing message history and
+Previously saved contacts are preserved. Existing message history and
 codecs remain for persistence compatibility; no new UI imports encoded messages.
 Owner-book and borrower-record deletion retain role-aware personal-data cleanup.
 
@@ -408,7 +408,7 @@ Sequence:
 1. Witaj w Mojej Bibliotece!
 2. Dodawaj książki
 3. Zarządzaj wypożyczeniami
-4. Udostępniaj kod QR
+4. Pokazuj kod QR
 5. Proś o przedłużenie
 6. Pilnuj terminów zwrotu
 7. Twoja biblioteka, Twoje zasady
