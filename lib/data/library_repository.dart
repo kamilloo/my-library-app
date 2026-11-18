@@ -621,16 +621,26 @@ class LibraryRepository {
     return rows.map(HistoryEntry.fromMap).toList();
   }
 
-  static const bookHistoryLimit = 50;
-
-  Future<List<HistoryEntry>> historyForBook(String bookId) async {
+  Future<List<HistoryEntry>> historyForBook(
+    String bookId, {
+    required int limit,
+    String? beforeId,
+  }) async {
     final db = await _database.database;
+    // Read the cursor's stored timestamp verbatim, including legacy formats.
+    const cursorTimestamp = '(SELECT timestamp FROM history WHERE id = ?)';
     final rows = await db.query(
       'history',
-      where: 'book_id = ?',
-      whereArgs: [bookId],
+      where: beforeId == null
+          ? 'book_id = ?'
+          : 'book_id = ? AND timestamp <= $cursorTimestamp '
+              'AND (timestamp < $cursorTimestamp OR id < ?)',
+      whereArgs: [
+        bookId,
+        if (beforeId != null) ...[beforeId, beforeId, beforeId],
+      ],
       orderBy: 'timestamp DESC, id DESC',
-      limit: bookHistoryLimit,
+      limit: limit,
     );
     return rows.map(HistoryEntry.fromMap).toList();
   }

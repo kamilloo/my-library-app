@@ -104,7 +104,12 @@ class WidgetRepository extends LibraryRepository {
   @override
   Future<List<Book>> books() async => [book];
   @override
-  Future<List<HistoryEntry>> historyForBook(String id) async => [];
+  Future<List<HistoryEntry>> historyForBook(
+    String bookId, {
+    required int limit,
+    String? beforeId,
+  }) async =>
+      [];
   @override
   Future<void> lendBook(Book original, String borrower, DateTime? due) async {
     lendCalls++;

@@ -241,8 +241,13 @@ test/offline_loans_test.dart.
 5.2 Global and per-book history
 Status: IMPLEMENTED.
 Purpose/workflow: Historia lists newest events with book-title snapshot, detail
-and date; Historia książki in details shows newest 50 events for that ID, ordered
-timestamp DESC then id DESC, with loading/empty/retry handling.
+and date. Historia książki appears below the primary action in Book Details,
+including Oznacz jako zwróconą for borrowed books, and above deletion. It
+initially shows up to five events. Pokaż więcej loads up to ten older events
+and disappears when history is exhausted. SQLite pages by timestamp DESC then
+id DESC, with no total cap. Loading, empty and retry states remain available.
+Returning a book, extending a loan, or changing the return date reloads the
+first five events, with the latest event at the top.
 Data: history actions added, borrowed, returned, given, return_date_changed,
 loan_extended. Opening details/QR creates no extra history. Deleting a book removes
 its history; edits preserve historical titles and earlier events.
@@ -251,8 +256,11 @@ no-op/failed operations create none. Metadata editing is not a lending event.
 Mixed legacy timestamp offsets/device clocks limit guaranteed global chronology.
 Offline: fully local.
 Evidence: lib/screens/book_history_section.dart, lib/main.dart (HistoryScreen),
-lib/data/library_repository.dart (history, historyForBook, bookHistoryLimit),
-test/book_history_test.dart. Merged PR #6.
+lib/data/library_repository.dart (history, historyForBook),
+test/book_history_test.dart. Per-book history was introduced in PR #6.
+Task 28 pagination was based on main 4b39e4895561a9afb0b8182f4e4f2ab9c6ca3c1a.
+Flutter formatting, analysis, all 394 tests, and the Android debug APK build
+passed locally. Small-screen coverage used a 320 x 480 logical-pixel viewport.
 
 5.3 Return-date change and extension
 Status: IMPLEMENTED.
