@@ -114,7 +114,7 @@ void main() {
       'Witaj w Mojej Bibliotece!',
       'Dodawaj książki',
       'Zarządzaj wypożyczeniami',
-      'Udostępniaj kod QR',
+      'Pokazuj kod QR',
       'Proś o przedłużenie',
       'Pilnuj terminów zwrotu',
       'Twoja biblioteka, Twoje zasady',
@@ -134,7 +134,7 @@ void main() {
       'Skanuj kod ISBN, wyszukuj po tytule lub autorze albo dodawaj książki ręcznie. Ustaw własną okładkę.',
       'Zapisuj, komu pożyczasz książki, ustalaj terminy zwrotu i przeglądaj historię.',
       'Po wypożyczeniu pokaż kod QR. W „Pożyczone” wybierz „Skanuj kod QR”, „Dodaj z SMS” lub „Dodaj ręcznie”. SMS wymaga odczytania wiadomości, sprawdzenia pól i potwierdzenia zapisu. Wpis ręczny działa bez internetu i bez aplikacji u właściciela.',
-      'Przygotuj prośbę o przedłużenie i wyślij ją ręcznie w aplikacji SMS. Po uzgodnieniu z właścicielem wybierz „Zmień termin zwrotu” i popraw lokalny zapis.',
+      'Przygotuj prośbę o przedłużenie, skopiuj ją lub udostępnij w wybranej aplikacji i wyślij samodzielnie. Po uzgodnieniu z właścicielem wybierz „Zmień termin zwrotu” i popraw lokalny zapis.',
       'Włącz przypomnienia o zwrocie książek, zmieniaj terminy i przedłużaj wypożyczenia.',
       'Książki i historia są przechowywane na Twoim urządzeniu. Możesz korzystać z biblioteki także bez internetu.',
     ]);

@@ -22,7 +22,7 @@ unchanged library with Android Back. No preference is read or written by these r
 1. Witaj w Mojej Bibliotece! — optional owner name
 2. Dodawaj książki
 3. Zarządzaj wypożyczeniami
-4. Udostępniaj kod QR
+4. Pokazuj kod QR
 5. Proś o przedłużenie
 6. Pilnuj terminów zwrotu
 7. Twoja biblioteka, Twoje zasady
@@ -43,7 +43,8 @@ page, directly after QR, using Icons.sms_outlined. The QR copy now calls the sep
 borrowed collection Pożyczone; the SMS copy explicitly describes manual sending.
 
 The SMS workflow is local-first and manual: the borrower prepares an extension
-request, Android opens their SMS app, and they send it manually. The owner reads
+request, copies it or chooses an app from Android's share sheet, and sends it
+manually. The owner reads
 the request and uses the correct book's management actions to approve or reject it,
 then can prepare a readable SMS decision. The borrower chooses Zmień termin zwrotu
 and explicitly confirms the agreed local date. Pożyczone also supports Dodaj z SMS

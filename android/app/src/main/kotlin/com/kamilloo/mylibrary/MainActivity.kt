@@ -39,7 +39,7 @@ class MainActivity : FlutterActivity() {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, text)
                         }
-                        startActivity(Intent.createChooser(send, "Udostępnij informacje"))
+                        startActivity(Intent.createChooser(send, "Udostępnij wiadomość"))
                     }
                     result.success(null)
                 } catch (_: ActivityNotFoundException) {

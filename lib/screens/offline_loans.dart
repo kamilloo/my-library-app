@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -83,34 +82,6 @@ class _LoanQrScreenState extends State<LoanQrScreen> {
                     padding: const EdgeInsets.all(24),
                     errorCorrectionLevel: QrErrorCorrectLevel.M)),
           )),
-          FilledButton(
-              onPressed: () async {
-                try {
-                  await const MethodChannel('my_library/offline_loans')
-                      .invokeMethod<void>('share', {
-                    'text': 'Informacje o wypożyczeniu książki „${loan.title}”. Potrzebujesz aplikacji Moja Biblioteka. '
-                        'Jeśli jej nie masz, poproś właściciela o zaufane źródło instalacji. '
-                        'Po instalacji otwórz „Pożyczone” i „Wklej kod wypożyczenia”. '
-                        'Skopiuj sam kod poniżej:\n\n${loan.encode()}',
-                  });
-                } catch (_) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text(
-                            'Nie udało się udostępnić informacji. Użyj „Kopiuj kod”.')));
-                  }
-                }
-              },
-              child: const Text('Udostępnij informacje')),
-          OutlinedButton(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: loan.encode()));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Skopiowano kod')));
-                }
-              },
-              child: const Text('Kopiuj kod')),
           TextButton(
               onPressed: () => Navigator.pop(context),
               child: const Text('Zamknij')),
@@ -179,32 +150,6 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
     }
   }
 
-  Future<void> paste() async {
-    final controller = TextEditingController();
-    final code = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: const Text('Wklej kod wypożyczenia'),
-                content: TextField(
-                    controller: controller,
-                    maxLength: LoanTransfer.maxLength,
-                    maxLines: 5,
-                    decoration:
-                        const InputDecoration(labelText: 'Kod wypożyczenia')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Anuluj')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(context, controller.text),
-                      child: const Text('Dalej')),
-                ]));
-    // The dialog may still be animating while its field detaches.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    controller.dispose();
-    if (code != null && mounted) await importCode(code);
-  }
-
   Future<void> addEntry(bool sms) async {
     await Navigator.push<void>(
         context,
@@ -234,9 +179,6 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
         FilledButton(
             onPressed: busy ? null : () => addEntry(false),
             child: const Text('Dodaj ręcznie')),
-        OutlinedButton(
-            onPressed: busy ? null : paste,
-            child: const Text('Wklej kod wypożyczenia')),
         FutureBuilder<List<LoanTransfer>>(
             future: loans,
             builder: (context, snapshot) {
@@ -366,8 +308,10 @@ class _LoanScannerScreenState extends State<LoanScannerScreen>
                   controller: controller,
                   useAppLifecycleState: false,
                   errorBuilder: (context, error) => const Center(
-                      child: Text(
-                          'Brak dostępu do aparatu. Wróć i wybierz „Wklej kod wypożyczenia”.')),
+                      child: SingleChildScrollView(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                              'Brak dostępu do aparatu. Wróć do „Pożyczone”, aby ponowić skanowanie, dodać książkę z SMS lub wpisać ją ręcznie.'))),
                   onDetect: (capture) {
                     if (handled) return;
                     for (final barcode in capture.barcodes) {
@@ -409,7 +353,7 @@ class _LoanScannerScreenState extends State<LoanScannerScreen>
               child: Text('Umieść kod QR wypożyczenia w aparacie')),
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Wróć do ręcznego wklejania kodu')),
+              child: const Text('Wróć do Pożyczonych')),
         ]),
       );
 }

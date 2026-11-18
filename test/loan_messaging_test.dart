@@ -441,47 +441,59 @@ void main() {
     expect(await const LoanSms().share(text), isFalse);
   });
 
-  testWidgets(
-      'missing SMS app exposes copy and share; composer does not mark sent',
+  testWidgets('prepared message shares its exact text and can still be copied',
       (tester) async {
-    var recorded = 0;
+    final calls = <MethodCall>[];
     String? copied;
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(LoanSms.channel,
-            (_) async => throw PlatformException(code: 'unavailable'));
-    tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(LoanSms.channel, (call) async {
+      calls.add(call);
+      if (calls.length > 1) throw PlatformException(code: 'unavailable');
+      return null;
+    });
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
       if (call.method == 'Clipboard.setData') {
         copied = (call.arguments as Map)['text'] as String;
       }
       return null;
     });
-    addTearDown(() => tester.binding.defaultBinaryMessenger
-        .setMockMethodCallHandler(SystemChannels.platform, null));
+    addTearDown(() {
+      messenger.setMockMethodCallHandler(LoanSms.channel, null);
+      messenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+    await tester.binding.setSurfaceSize(const Size(320, 480));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final text = invitationMessage(loan);
     await tester.pumpWidget(MaterialApp(
-        home: SmsMessageScreen(
-            text: 'Żółć',
-            onSent: () async {
-              recorded++;
-            })));
-    await tester.tap(find.text('Otwórz aplikację SMS'));
+        home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: SmsMessageScreen(text: text))));
+    expect(find.text(text), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Zapisz numer tylko na tym urządzeniu'), findsNothing);
+    expect(find.text('Otwórz aplikację SMS'), findsNothing);
+    final share = find.text('Udostępnij wiadomość');
+    await tester.scrollUntilVisible(share, 120,
+        scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
-    expect(recorded, 0);
-    expect(find.textContaining('Nie udało się otworzyć'), findsOneWidget);
-    await tester.tap(find.text('Kopiuj wiadomość'));
+    expect(find.byType(OutlinedButton), findsNWidgets(2));
+    await tester.tap(share);
     await tester.pumpAndSettle();
-    expect(copied, 'Żółć');
-    await tester.ensureVisible(find.text('Zapisz, że wysłano prośbę'));
-    await tester.tap(find.text('Zapisz, że wysłano prośbę'));
+    expect(calls.single.method, 'share');
+    expect(calls.single.arguments, {'text': text});
+    await tester.tap(share);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Anuluj'));
+    await tester.scrollUntilVisible(
+        find.textContaining('Udostępnianie niedostępne'), 80,
+        scrollable: find.byType(Scrollable).first);
+    final copy = find.text('Kopiuj wiadomość');
+    await tester.scrollUntilVisible(copy, -80,
+        scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
-    expect(recorded, 0);
-    await tester.tap(find.text('Zapisz, że wysłano prośbę'));
+    await tester.tap(copy);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Tak, wysłałem prośbę'));
-    await tester.pumpAndSettle();
-    expect(recorded, 1);
+    expect(copied, text);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('request UI shows preset date without extending actual record',
@@ -586,6 +598,10 @@ void main() {
             'android/app/src/main/kotlin/com/kamilloo/mylibrary/MainActivity.kt')
         .readAsString();
     expect(native, contains('Intent.ACTION_SENDTO'));
+    expect(native, contains('Intent(Intent.ACTION_SEND)'));
+    expect(native, contains('putExtra(Intent.EXTRA_TEXT, text)'));
+    expect(
+        native, contains('Intent.createChooser(send, "Udostępnij wiadomość")'));
     expect(native, contains('Uri.fromParts("smsto", phone, null)'));
     expect(native, contains('putExtra("sms_body", text)'));
     expect(native, isNot(contains('SmsManager')));

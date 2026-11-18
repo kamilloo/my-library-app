@@ -10,11 +10,11 @@ All physical tutorial/QR/SMS/reminder/upgrade checks remain pending until record
 ## Task 20: SMS and offline extension QA
 
 All physical-device cases remain **Pending**. Execute the two-device workflow,
-composer cancellation, missing SMS handler, Unicode/multipart SMS, offline/restart,
+share-sheet cancellation, message copy fallback, Unicode/multipart SMS, offline/restart,
 stale/replayed codes and APK permission checks listed in
-[offline loan messaging](offline_loan_messaging.md#verification-and-physical-device-qa).
+[offline loan messaging](offline_loan_messaging.md#limits).
 Record device model/API, commit, signing identity, tester, evidence and outcome.
-Automated tests use mocked composers and never send real SMS. PR #19 schema is v6;
+Automated tests mock the Android sharing channel. PR #19 schema is v6;
 installed upgrades from v1–v5 must preserve owned books, history, opt-in, borrower
 records, messages and contacts. Legacy directory values intentionally become
 Bez gatunku; no genre is inferred. Explicitly review the authenticity and delivery warnings.

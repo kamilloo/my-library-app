@@ -18,30 +18,16 @@ String messageState(String state) => switch (state) {
     };
 
 class SmsMessageScreen extends StatefulWidget {
-  const SmsMessageScreen(
-      {required this.text,
-      this.initialPhone = '',
-      this.onSavePhone,
-      this.onSent,
-      this.sms = const LoanSms(),
-      super.key});
-  final String text, initialPhone;
-  final Future<void> Function(String)? onSavePhone;
-  final Future<void> Function()? onSent;
-  final LoanSms sms;
+  const SmsMessageScreen({required this.text, super.key});
+  final String text;
+
   @override
   State<SmsMessageScreen> createState() => _SmsMessageScreenState();
 }
 
 class _SmsMessageScreenState extends State<SmsMessageScreen> {
-  late final phone = TextEditingController(text: widget.initialPhone);
   String? feedback;
   bool busy = false;
-  @override
-  void dispose() {
-    phone.dispose();
-    super.dispose();
-  }
 
   Future<void> perform(Future<void> Function() action) async {
     if (busy) return;
@@ -64,38 +50,7 @@ class _SmsMessageScreenState extends State<SmsMessageScreen> {
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(title: const Text('Przygotowana wiadomość')),
       body: ListView(padding: const EdgeInsets.all(20), children: [
-        TextField(
-            controller: phone,
-            keyboardType: TextInputType.phone,
-            maxLength: 40,
-            decoration:
-                const InputDecoration(labelText: 'Opcjonalny numer odbiorcy')),
-        if (widget.onSavePhone != null)
-          OutlinedButton(
-              onPressed: busy
-                  ? null
-                  : () => perform(() async {
-                        await widget.onSavePhone!(phone.text);
-                        if (mounted) {
-                          setState(() => feedback =
-                              'Zapisano lokalnie. Pusty numer usuwa zapisany kontakt.');
-                        }
-                      }),
-              child: const Text('Zapisz numer tylko na tym urządzeniu')),
         SelectableText(widget.text),
-        FilledButton(
-            onPressed: busy
-                ? null
-                : () => perform(() async {
-                      final opened =
-                          await widget.sms.compose(widget.text, phone.text);
-                      if (mounted) {
-                        setState(() => feedback = opened
-                            ? 'Otwarto aplikację SMS. Wysłanie i dostarczenie nie są potwierdzone.'
-                            : 'Nie udało się otworzyć aplikacji SMS. Użyj kopiowania lub udostępniania.');
-                      }
-                    }),
-            child: const Text('Otwórz aplikację SMS')),
         OutlinedButton(
             onPressed: busy
                 ? null
@@ -110,7 +65,7 @@ class _SmsMessageScreenState extends State<SmsMessageScreen> {
             onPressed: busy
                 ? null
                 : () => perform(() async {
-                      final opened = await widget.sms.share(widget.text);
+                      final opened = await const LoanSms().share(widget.text);
                       if (mounted) {
                         setState(() => feedback = opened
                             ? 'Otwarto udostępnianie. Dostarczenie nie jest potwierdzone.'
@@ -118,37 +73,6 @@ class _SmsMessageScreenState extends State<SmsMessageScreen> {
                       }
                     }),
             child: const Text('Udostępnij wiadomość')),
-        if (widget.onSent != null)
-          TextButton(
-              onPressed: busy
-                  ? null
-                  : () => perform(() async {
-                        final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (c) => AlertDialog(
-                                    title: const Text(
-                                        'Zapisać oczekiwanie na odpowiedź?'),
-                                    content: const Text(
-                                        'Potwierdzasz ręcznie, że wysłano prośbę. Aplikacja nie może sprawdzić jej dostarczenia.'),
-                                    actions: [
-                                      TextButton(
-                                          onPressed: () => Navigator.pop(c),
-                                          child: const Text('Anuluj')),
-                                      FilledButton(
-                                          onPressed: () =>
-                                              Navigator.pop(c, true),
-                                          child: const Text(
-                                              'Tak, wysłałem prośbę'))
-                                    ]));
-                        if (confirmed == true) {
-                          await widget.onSent!();
-                          if (mounted) {
-                            setState(() => feedback =
-                                'Oczekuje na odpowiedź. Dostarczenie niezweryfikowane.');
-                          }
-                        }
-                      }),
-              child: const Text('Zapisz, że wysłano prośbę')),
         if (feedback != null) Text(feedback!),
       ]));
 }
@@ -197,23 +121,10 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
     }
   }
 
-  Future<void> compose(String text) async {
-    final role = widget.ownerSide
-        ? 'owner'
-        : loan.origin == 'qr'
-            ? 'borrower'
-            : 'borrower_${loan.origin}';
-    final phone = await widget.repository.contact(role, loan.loanId);
-    if (!mounted) return;
-    await Navigator.push<void>(
+  Future<void> compose(String text) => Navigator.push<void>(
         context,
-        MaterialPageRoute(
-            builder: (_) => SmsMessageScreen(
-                text: text,
-                initialPhone: phone ?? '',
-                onSavePhone: (value) =>
-                    widget.repository.saveContact(role, loan.loanId, value))));
-  }
+        MaterialPageRoute(builder: (_) => SmsMessageScreen(text: text)),
+      );
 
   Future<DateTime?> pick(String label) => showDatePicker(
       context: context,
@@ -267,6 +178,7 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
     // Existing transaction preserves owner history and reminder reconciliation.
     await widget.repository.approveReadableExtension(loan, date);
     loan = await widget.repository.loanInvitation(loan.bookId);
+    if (!mounted) return;
     await compose(withInstallationLink(
         'Moja Biblioteka — zatwierdzenie przedłużenia\n\n'
         'Książka: ${loan.title}\nNowy termin zwrotu: ${formatReturnDate(date)}'));

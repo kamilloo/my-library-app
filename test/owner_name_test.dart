@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:my_library/data/library_database.dart';
 import 'package:my_library/data/library_repository.dart';
 import 'package:my_library/models/loan_transfer.dart';
@@ -14,7 +15,7 @@ import 'package:my_library/screens/loan_messaging.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-import 'offline_loans_test.dart' show WidgetRepository, fixture;
+import 'offline_loans_test.dart' show CameraPlatform, WidgetRepository, fixture;
 
 class OwnerWidgetRepository extends WidgetRepository {
   String? name;
@@ -274,6 +275,13 @@ void main() {
 
   for (final name in <String?>['Jan Kowalski', null]) {
     testWidgets('preview, list and details label for $name', (tester) async {
+      final previous = MobileScannerPlatform.instance;
+      final camera = CameraPlatform();
+      MobileScannerPlatform.instance = camera;
+      addTearDown(() async {
+        MobileScannerPlatform.instance = previous;
+        await camera.captures.close();
+      });
       final repository = OwnerWidgetRepository()..name = name;
       final loan = await repository.loanInvitation('b');
       await pumpApp(
@@ -283,10 +291,10 @@ void main() {
               home:
                   Scaffold(body: BorrowedLoansScreen(repository: repository))));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Wklej kod wypożyczenia'));
+      await tester.tap(find.text('Skanuj kod QR'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), loan.encode());
-      await tester.tap(find.text('Dalej'));
+      camera.captures
+          .add(BarcodeCapture(barcodes: [Barcode(rawValue: loan.encode())]));
       await tester.pumpAndSettle();
       final label = 'Właściciel: ${name ?? 'Nie podano'}';
       expect(find.text(label), findsOneWidget);

@@ -6,7 +6,8 @@ Task 23 is already in main at cc1209e. No application publication is part of thi
 ## Borrower workflows
 
 **Pożyczone** shows **Skanuj kod QR**, **Dodaj z SMS**, and **Dodaj ręcznie**
-above one list. **Wklej kod wypożyczenia** is a separate QR fallback.
+above one list. If the camera is unavailable, return to **Pożyczone** to retry
+scanning, import a readable SMS, or enter the loan manually.
 Every entry opens the same details screen and can be deleted locally.
 Entries never insert into the owned `books` table or affect genre management.
 
@@ -84,13 +85,12 @@ not assert that a public listing exists. URL validation cannot prove public avai
 configured in this task. Tests use a clearly isolated example fixture.
 Missing/invalid configuration never blocks composition.
 
-Android opens ACTION_SENDTO with smsto: and sms_body. The user chooses to send.
-Copy and share remain available. Opening a composer is not proof of delivery;
-SMS can incur operator charges and is not end-to-end encrypted. No automatic inbox
-reading, sending, SMS permission, contacts permission, account or network is needed.
-Optional recipient contacts remain local and are removed with their local record.
-QR uses the existing borrower role; SMS/manual contacts use separate
-borrower_sms/borrower_manual roles so coincident identifiers stay isolated.
+Use **Kopiuj wiadomość** to copy the readable text or **Udostępnij wiadomość**
+to choose an app in Android's native share sheet. Send the message yourself in
+the selected app. SMS can incur operator charges and lacks end-to-end encryption.
+No automatic inbox reading, sending, SMS permission, contacts permission, account
+or network is needed to prepare the message. Existing locally stored recipient
+contacts are preserved. The prepared-message screen does not read or write them.
 
 ## Database v7 and origins
 

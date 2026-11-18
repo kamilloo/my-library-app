@@ -105,23 +105,18 @@ the name differs. Unchanged normalized names preserve the complete encoded bytes
 Date-only extension snapshots preserve their existing owner until QR generation.
 Borrowers see the name after explicit import, or Właściciel: Nie podano if absent.
 Names remain unverified claims. Phone contacts, SMS codecs, history and reminders
-are unaffected. The SMS invitation dialog lets the user explicitly choose a name
-for that message; leaving it empty uses Nie podano. Extension SMS does not
-automatically include the QR owner name.
+are unaffected. The readable SMS invitation includes the saved owner name when available.
+Extension SMS omits the owner name.
 
 ## Sharing and QA
 
-User-initiated sharing uses Android ACTION_SEND with text/plain through the
-bounded my_library/offline_loans method channel. No sharing plugin, SMS permission,
-incoming link receiver or additional manifest component is needed. A native
-sharing failure offers the copy-code fallback. Widget tests verify the shared
-message, privacy boundaries and failure/copy behavior.
+The owner opens **Pokaż kod QR**. On the borrower's device, open **Pożyczone**
+and select **Skanuj kod QR**. The QR is black on white with a quiet zone and
+medium error correction. When camera access is unavailable, return to **Pożyczone**
+and retry scanning or use **Dodaj z SMS** or **Dodaj ręcznie**.
 
-Share text explains the app requirement and manual import after installation.
-There is no verified Play listing configured; no URL is invented. Users obtain a
-trusted installer from the owner. Automatic app opening and deferred installation
-routing are not implemented. Copy/paste and in-app camera scanning are fallback
-paths. The QR is black on white with a quiet zone and medium error correction.
+Readable messages can be copied or shared using Android's native chooser. See
+[offline loan messaging](offline_loan_messaging.md).
 
 Widget tests exercise preview/cancel/confirm, owner confirmation and QR reopening,
 camera denial and manual fallback, repeated detections, invalid-code retry,

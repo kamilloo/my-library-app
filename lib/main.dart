@@ -1121,9 +1121,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             OutlinedButton(
                 onPressed: showMessages,
                 child: const Text('Wyślij informacje SMS')),
-            TextButton(
-                onPressed: showMessages,
-                child: const Text('Odczytaj prośbę o przedłużenie')),
             OutlinedButton.icon(
                 onPressed: showQr,
                 icon: const Icon(Icons.qr_code),
