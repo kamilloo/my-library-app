@@ -19,13 +19,23 @@ unchanged library with Android Back. No preference is read or written by these r
 
 ## Seven-slide sequence
 
-1. Witaj w Mojej Bibliotece!
+1. Witaj w Mojej Bibliotece! — optional owner name
 2. Dodawaj książki
 3. Zarządzaj wypożyczeniami
 4. Udostępniaj kod QR
 5. Proś o przedłużenie
 6. Pilnuj terminów zwrotu
 7. Twoja biblioteka, Twoje zasady
+
+Welcome offers **Twoje imię i nazwisko**. The app saves it locally on **Zakończ**
+and preserves any existing owner name. If left blank, the next confirmed loan
+asks for a name before saving. Canceling leaves the loan untouched. The shared
+SQLite preference `qr_owner_name` supplies the **Właściciel** display label in
+new QR invitations and readable loan-information SMS previews. It stays on the
+device until the user shares loan information and carries no identity verification.
+To change or clear it, open **Pokaż kod QR**, choose **Edytuj nazwę właściciela**,
+then save the new name or an empty field. No account, internet or contact access
+is required.
 
 Content is the ordered tutorialSlides metadata list. Task 19 is represented by
 the offline QR export/import page. Task 20 is represented by the SMS extension

@@ -7,7 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../data/library_repository.dart';
 import '../models/loan_transfer.dart';
-import '../models/owner_name.dart';
+import 'owner_name_dialog.dart';
 import '../models/return_date.dart';
 import 'loan_messaging.dart';
 import 'borrowed_entry.dart';
@@ -31,48 +31,15 @@ class _LoanQrScreenState extends State<LoanQrScreen> {
 
   Future<void> editOwner() async {
     setState(() => busy = true);
-    TextEditingController? controller;
     try {
       final preferred = await widget.repository!.preferredOwnerName();
       if (!mounted) return;
-      controller = TextEditingController(text: preferred ?? '');
-      final form = GlobalKey<FormState>();
-      final input = await showDialog<String>(
-          context: context,
-          builder: (context) => AlertDialog(
-                  title: const Text('Właściciel'),
-                  content: Form(
-                      key: form,
-                      child: TextFormField(
-                          controller: controller,
-                          maxLength: ownerNameMaxLength,
-                          decoration: const InputDecoration(
-                              labelText: 'Właściciel',
-                              hintText: 'Jan Kowalski',
-                              helperText:
-                                  'Opcjonalnie. Zapis tylko na tym urządzeniu.',
-                              helperMaxLines: 2),
-                          validator: (value) {
-                            try {
-                              validateOwnerName(value ?? '');
-                              return null;
-                            } on FormatException catch (e) {
-                              return e.message;
-                            }
-                          })),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Anuluj')),
-                    FilledButton(
-                        onPressed: () {
-                          if (form.currentState!.validate()) {
-                            Navigator.pop(context, controller!.text);
-                          }
-                        },
-                        child: const Text('Zapisz i odśwież QR')),
-                  ]));
-      if (input == null) return;
+      final input = await showOwnerNameDialog(
+        context,
+        requiredName: false,
+        initialName: preferred ?? '',
+      );
+      if (input == null || !mounted) return;
       await widget.repository!.savePreferredOwnerName(input);
       final updated = await widget.repository!.loanInvitation(loan.bookId);
       if (mounted) setState(() => loan = updated);
@@ -82,8 +49,6 @@ class _LoanQrScreenState extends State<LoanQrScreen> {
             content: Text('Nie udało się odświeżyć kodu. Spróbuj ponownie.')));
       }
     } finally {
-      await Future<void>.delayed(const Duration(milliseconds: 300));
-      controller?.dispose();
       if (mounted) setState(() => busy = false);
     }
   }

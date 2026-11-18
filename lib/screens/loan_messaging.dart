@@ -273,49 +273,9 @@ class _LoanMessagingScreenState extends State<LoanMessagingScreen> {
   }
 
   Future<void> sendInvitation() async {
-    final preferred = await widget.repository.preferredOwnerName();
-    if (!mounted) return;
-    final controller =
-        TextEditingController(text: preferred ?? loan.owner ?? '');
-    final owner = await showDialog<String>(
-        context: context,
-        builder: (c) => AlertDialog(
-                title: const Text('Właściciel'),
-                content: TextField(
-                    controller: controller,
-                    maxLength: 120,
-                    decoration: const InputDecoration(
-                        labelText: 'Właściciel (opcjonalnie w tej wiadomości)',
-                        helperText:
-                            'Dalej dołączy tę nazwę do SMS. Możesz ją usunąć.',
-                        helperMaxLines: 2)),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(c),
-                      child: const Text('Anuluj')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(c, controller.text),
-                      child: const Text('Dalej'))
-                ]));
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    controller.dispose();
-    if (owner == null) return;
-    final name = owner.trim().isEmpty
-        ? 'Nie podano'
-        : ReadableLoan.field(owner, 'Właściciel', 120);
     loan = await widget.repository.loanInvitation(loan.bookId);
-    await compose(readableInvitation(LoanTransfer(
-        transferId: loan.transferId,
-        loanId: loan.loanId,
-        bookId: loan.bookId,
-        title: loan.title,
-        author: loan.author,
-        owner: name,
-        isbn: loan.isbn,
-        borrowedAt: loan.borrowedAt,
-        returnDate: loan.returnDate,
-        issuedAt: loan.issuedAt,
-        revision: loan.revision)));
+    if (!mounted) return;
+    await compose(readableInvitation(loan));
   }
 
   @override

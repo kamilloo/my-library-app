@@ -84,6 +84,16 @@ class WidgetRepository extends LibraryRepository {
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026));
   int lendCalls = 0;
+  String? ownerName;
+
+  @override
+  Future<String?> preferredOwnerName() async => ownerName;
+
+  @override
+  Future<void> savePreferredOwnerName(String input) async {
+    ownerName = input;
+  }
+
   @override
   Future<List<LoanTransfer>> borrowedLoans() async => List.of(imported);
   @override
@@ -459,37 +469,49 @@ void main() {
     expect(find.text('Open'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
-  testWidgets('owner confirms once and reopens QR without lending again',
+  for (final savedName in <String?>[null, 'Małgorzata']) {
+    testWidgets('owner name $savedName: lends once and reopens QR',
+        (tester) async {
+      final repository = WidgetRepository()..ownerName = savedName;
+      await tester.pumpWidget(MaterialApp(
+          home: BookDetailsScreen(
+              book: repository.book, repository: repository)));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Wypożycz książkę'), 300);
+      await tester.tap(find.text('Wypożycz książkę'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Anna');
+      await tester.tap(find.text('Bez terminu zwrotu'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Dalej — sprawdź dane'));
+      await tester.tap(find.text('Dalej — sprawdź dane'));
+      await tester.pumpAndSettle();
+      expect(repository.lendCalls, 0);
+      await tester
+          .tap(find.widgetWithText(FilledButton, 'Potwierdź wypożyczenie'));
+      await tester.pumpAndSettle();
+      if (savedName == null) {
+        expect(repository.lendCalls, 0);
+        await tester.enterText(find.byType(TextFormField), 'Małgorzata');
+        await tester.tap(find.widgetWithText(FilledButton, 'Zapisz'));
+        await tester.pumpAndSettle();
+      } else {
+        expect(find.text('Twoje imię i nazwisko'), findsNothing);
+      }
+      expect(repository.ownerName, 'Małgorzata');
+      expect(find.byType(QrImageView), findsOneWidget);
+      expect(repository.lendCalls, 1);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Pokaż kod QR'), -300);
+      await tester.tap(find.text('Pokaż kod QR'));
+      await tester.pumpAndSettle();
+      expect(find.byType(QrImageView), findsOneWidget);
+      expect(repository.lendCalls, 1);
+    });
+  }
+  testWidgets('canceling the missing owner name creates no loan',
       (tester) async {
-    final repository = WidgetRepository();
-    await tester.pumpWidget(MaterialApp(
-        home:
-            BookDetailsScreen(book: repository.book, repository: repository)));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Wypożycz książkę'), 300);
-    await tester.tap(find.text('Wypożycz książkę'));
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Anna');
-    await tester.tap(find.text('Bez terminu zwrotu'));
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Dalej — sprawdź dane'));
-    await tester.tap(find.text('Dalej — sprawdź dane'));
-    await tester.pumpAndSettle();
-    expect(repository.lendCalls, 0);
-    await tester
-        .tap(find.widgetWithText(FilledButton, 'Potwierdź wypożyczenie'));
-    await tester.pumpAndSettle();
-    expect(find.byType(QrImageView), findsOneWidget);
-    expect(repository.lendCalls, 1);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Pokaż kod QR'), -300);
-    await tester.tap(find.text('Pokaż kod QR'));
-    await tester.pumpAndSettle();
-    expect(find.byType(QrImageView), findsOneWidget);
-    expect(repository.lendCalls, 1);
-  });
-  testWidgets('cancel before owner review creates no loan', (tester) async {
     final repository = WidgetRepository();
     final book = repository.book;
     await tester.pumpWidget(MaterialApp(
@@ -504,9 +526,16 @@ void main() {
     await tester.ensureVisible(find.text('Dalej — sprawdź dane'));
     await tester.tap(find.text('Dalej — sprawdź dane'));
     await tester.pumpAndSettle();
-    expect((await repository.books()).single.status, book.status);
+    await tester
+        .tap(find.widgetWithText(FilledButton, 'Potwierdź wypożyczenie'));
+    await tester.pumpAndSettle();
+    expect(find.text('Twoje imię i nazwisko'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Zapisz'));
+    await tester.pumpAndSettle();
+    expect(find.text('Podaj imię i nazwisko.'), findsOneWidget);
     await tester.tap(find.text('Anuluj'));
     await tester.pumpAndSettle();
+    expect(repository.ownerName, isNull);
     expect(repository.lendCalls, 0);
     expect((await repository.books()).single.status, book.status);
   });

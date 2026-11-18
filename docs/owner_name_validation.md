@@ -16,10 +16,10 @@ invitations but may reject a name-changing update for an already imported loan.
 There is no automatic identity verification, account, contact lookup or network
 request. The QR name is unverified information, never proof of legal ownership.
 
-SMS keeps its readable template and manual transport. Its invitation name dialog
-offers the saved name for explicit inclusion; clearing it sends Nie podano.
-Extension requests do not automatically include the QR name. No encoded SMS or
-private phone details are introduced.
+Welcome offers the owner name on first launch. If it was skipped or cleared,
+the next confirmed loan asks for a name before saving. Readable loan-information
+SMS previews use the saved name automatically, or Nie podano for unnamed loans.
+Extension requests omit the owner label. SMS sending remains manual.
 
 ## Automated validation
 

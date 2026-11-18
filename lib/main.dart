@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'screens/tutorial_screen.dart';
+import 'screens/owner_name_dialog.dart';
 import 'services/tutorial_preferences.dart';
 
 import 'package:flutter/foundation.dart';
@@ -75,6 +76,7 @@ class MyLibraryApp extends StatelessWidget {
         home: defaultTargetPlatform == TargetPlatform.android
             ? TutorialGate(
                 preferences: LocalTutorialPreferences(),
+                repository: LibraryRepository(),
                 libraryBuilder: (_) => const LibraryShell(),
               )
             : const LibraryShell(),
@@ -972,8 +974,16 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
         book = book.copyWith(
             status: BookStatus.given, borrowedBy: request.borrower);
       } else {
-        await widget.repository
-            .lendBook(book, request.borrower, request.returnDate);
+        final repository = widget.repository;
+        final preferred = await repository.preferredOwnerName();
+        if (!mounted) return;
+        if (preferred == null) {
+          final name = await showOwnerNameDialog(context, requiredName: true);
+          if (name == null || !mounted) return;
+          await repository.savePreferredOwnerName(name);
+          if (!mounted) return;
+        }
+        await repository.lendBook(book, request.borrower, request.returnDate);
         book = book.copyWith(
             status: BookStatus.borrowed,
             borrowedBy: request.borrower,
