@@ -63,8 +63,11 @@ are preserved; this audit adds no management features for either field.
 `book_id REFERENCES books(id) ON DELETE CASCADE`. Deleting a book deletes its
 history, matching established behavior. Metadata edits retain history and its
 original title snapshots. `idx_history_book_timestamp` indexes
-`(book_id, timestamp DESC, id DESC)`. Book Details reads only that book's newest
-50 events with deterministic ID tie-breaking. Global History behavior is unchanged.
+`(book_id, timestamp DESC, id DESC)`. Book Details fetches the latest five
+rows to display, then up to ten older rows per request. Each SQLite query reads
+one extra row to determine whether another page exists. The last displayed ID
+and its stored timestamp identify the cursor, including across timestamp ties.
+Pagination is read-only and uses the existing schema and index.
 
 ### return_reminders
 

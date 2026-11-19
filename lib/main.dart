@@ -918,6 +918,16 @@ class BookDetailsScreen extends StatefulWidget {
 
 class _BookDetailsScreenState extends State<BookDetailsScreen> {
   late Book book = widget.book;
+  int historyRevision = 0;
+
+  @override
+  void didUpdateWidget(covariant BookDetailsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.book.id != widget.book.id ||
+        oldWidget.repository != widget.repository) {
+      book = widget.book;
+    }
+  }
 
   Future<void> edit() async {
     final updated = await Navigator.push<Book>(
@@ -1045,8 +1055,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   Future<void> returnBook() async {
     await widget.repository.returnBook(book);
     if (!mounted) return;
-    setState(() =>
-        book = book.copyWith(status: BookStatus.available, clearLoan: true));
+    setState(() {
+      book = book.copyWith(status: BookStatus.available, clearLoan: true);
+      historyRevision++;
+    });
   }
 
   Future<void> deleteBook() async {
@@ -1116,6 +1128,10 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             Expanded(
                 child: _Detail(label: 'Dodano', value: _date(book.createdAt)))
           ]),
+          if (book.description.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Text(book.description)
+          ],
           const SizedBox(height: 24),
           if (book.status == BookStatus.borrowed) ...[
             OutlinedButton(
@@ -1128,15 +1144,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
             ReturnDateSection(
               book: book,
               repository: widget.repository,
-              onBookChanged: (updated) => setState(() => book = updated),
+              onBookChanged: (updated) => setState(() {
+                book = updated;
+                historyRevision++;
+              }),
             ),
             const SizedBox(height: 20),
           ],
-          BookHistorySection(
-            key: ValueKey('${book.id}:${book.updatedAt.toIso8601String()}'),
-            repository: widget.repository,
-            bookId: book.id,
-          ),
           if (book.status == BookStatus.borrowed &&
               widget.repository.reminders != null) ...[
             const SizedBox(height: 20),
@@ -1147,11 +1161,6 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
               repository: widget.repository,
             ),
           ],
-          if (book.description.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Text(book.description)
-          ],
-          const SizedBox(height: 24),
           if (book.status == BookStatus.available)
             FilledButton(
                 onPressed: lend,
@@ -1164,6 +1173,13 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                 child: const Padding(
                     padding: EdgeInsets.all(15),
                     child: Text('Oznacz jako zwróconą'))),
+          const SizedBox(height: 20),
+          BookHistorySection(
+            key: const ValueKey('book-history'),
+            repository: widget.repository,
+            bookId: book.id,
+            revision: (book.updatedAt, historyRevision),
+          ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: deleteBook,

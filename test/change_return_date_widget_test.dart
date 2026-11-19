@@ -14,7 +14,18 @@ class DateRepository extends LibraryRepository {
   final events = <HistoryEntry>[];
 
   @override
-  Future<List<HistoryEntry>> historyForBook(String bookId) async => events;
+  Future<List<HistoryEntry>> historyForBook(
+    String bookId, {
+    required int limit,
+    String? beforeId,
+  }) async =>
+      events.reversed
+          .skip(beforeId == null
+              ? 0
+              : events.length -
+                  events.indexWhere((event) => event.id == beforeId))
+          .take(limit)
+          .toList();
 
   @override
   Future<Book> updateReturnDate(String bookId, DateTime? date) async {

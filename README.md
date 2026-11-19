@@ -150,6 +150,14 @@ must import the new QR explicitly. The name is unverified user-provided informat
 The readable invitation includes the saved owner name when available. See
 [QR protocol and schema v8](docs/offline-loan-protocol.md).
 
+## Book history
+
+In Book Details, **Historia książki** appears below the primary action, such as
+**Oznacz jako zwróconą**, and above **Usuń książkę**. It starts with the five
+newest events. **Pokaż więcej** loads up to ten older events at a time, until
+you reach the start of the history. Returning a book, extending a loan, or
+changing the return date resets the view to the latest five events.
+
 ## Change return date
 
 For a borrowed book, Book Details shows the saved return date or

@@ -7,6 +7,7 @@ import 'package:my_library/data/library_repository.dart';
 import 'package:my_library/main.dart';
 import 'package:my_library/models/book.dart';
 import 'package:my_library/models/return_date.dart';
+import 'package:my_library/screens/book_history_section.dart';
 
 class ExtensionRepository extends LibraryRepository {
   ExtensionRepository(this.book)
@@ -19,7 +20,18 @@ class ExtensionRepository extends LibraryRepository {
   @override
   Future<List<Book>> books() async => [book];
   @override
-  Future<List<HistoryEntry>> historyForBook(String bookId) async => events;
+  Future<List<HistoryEntry>> historyForBook(
+    String bookId, {
+    required int limit,
+    String? beforeId,
+  }) async =>
+      events.reversed
+          .skip(beforeId == null
+              ? 0
+              : events.length -
+                  events.indexWhere((event) => event.id == beforeId))
+          .take(limit)
+          .toList();
   @override
   Future<Book> extendLoan(String bookId, DateTime date) async {
     calls++;
@@ -110,7 +122,13 @@ void main() {
           find.text(
               'Przedłużono wypożyczenie do ${formatReturnDate(newDate)}.'),
           findsOneWidget);
-      expect(find.text('Przedłużono wypożyczenie'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(BookHistorySection),
+          matching: find.text('Przedłużono wypożyczenie'),
+        ),
+        findsOneWidget,
+      );
       expect(repo.book.borrowedBy, 'Anna');
       expect(repo.book.borrowedDate, DateTime(2020, 2, 3));
       Navigator.of(tester.element(find.byType(BookDetailsScreen))).pop();
