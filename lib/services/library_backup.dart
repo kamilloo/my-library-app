@@ -293,6 +293,14 @@ class LibraryBackup {
         (await db.rawQuery('PRAGMA foreign_key_check')).isNotEmpty) {
       throw const FormatException('Invalid database integrity');
     }
+    final sequences = await db.query('sqlite_sequence');
+    if (sequences.isNotEmpty &&
+        (sequences.length != 1 ||
+            sequences.single['name'] != 'return_reminders' ||
+            sequences.single['seq'] is! int ||
+            (sequences.single['seq'] as int) < 0)) {
+      throw const FormatException('Invalid reminder ID sequence');
+    }
   }
 
   static Future<Map<String, Object>> _layout(DatabaseExecutor db) async {
@@ -318,9 +326,12 @@ class LibraryBackup {
       DatabaseExecutor source, DatabaseExecutor target,
       {Map<String, String> remap = const {}}) async {
     for (final table in _tables.reversed) {
-      await target.delete(table);
+      if (table != 'sqlite_sequence') await target.delete(table);
     }
     for (final table in _tables) {
+      // Explicit reminder IDs can recreate the sequence row during inserts.
+      // Replace that generated sequence with the original high-water mark.
+      if (table == 'sqlite_sequence') await target.delete(table);
       var last = -9223372036854775808;
       var initial = true;
       while (true) {

@@ -138,6 +138,8 @@ void main() {
         'owner_loan_instances', {'book_id': book.id, 'loan_id': 'loan'});
     await db.insert(
         'return_reminders', {'id': 4, 'book_id': book.id, 'enabled': 1});
+    await db.update('sqlite_sequence', {'seq': 42},
+        where: 'name = ?', whereArgs: ['return_reminders']);
     await sourceRepo.savePreferredOwnerName('Łucja');
     for (final origin in ['sms', 'manual']) {
       await db.insert('local_borrowed_entries', {
@@ -193,7 +195,8 @@ void main() {
         'owner_loan_instances',
         'local_preferences',
         'local_borrowed_entries',
-        'return_reminders'
+        'return_reminders',
+        'sqlite_sequence',
       ]) {
         expect(
             await db.query(table), await (await source.database).query(table));
