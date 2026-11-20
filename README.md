@@ -13,6 +13,15 @@ first and matches authors when the associated book is still in the collection.
 Tap the selected genre or **Wszystkie gatunki** to change the filter or open
 **Zarządzaj gatunkami**.
 
+## Android manual backup
+
+Open **Pomoc → Kopia zapasowa** and choose **Eksportuj kopię zapasową** to save
+one `.mlbak` file in an Android document location you choose. To recover a
+library after reinstalling or changing devices, use **Przywróć kopię zapasową**
+and confirm the replacement. The unencrypted file can contain personal data.
+Store it somewhere you can access after uninstalling the app.
+[Backup format, recovery and limitations](docs/manual_library_backup.md)
+
 ## Offline SMS loan messages
 
 **Pożyczone** offers **Skanuj kod QR**, **Dodaj z SMS** and **Dodaj ręcznie**

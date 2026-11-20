@@ -9,8 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/library_repository.dart';
-import 'data/library_database.dart';
-import 'services/return_reminders.dart';
+import 'services/library_backup.dart';
 import 'services/local_reminder_notifications.dart';
 import 'screens/return_reminder_settings.dart';
 import 'screens/return_date_section.dart';
@@ -106,8 +105,15 @@ ThemeData _buildLibraryTheme() {
   );
 }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    try {
+      await LibraryBackup().recoverCovers(startup: true);
+    } catch (_) {
+      // Cover cleanup is retryable. SQLite is still the source of truth.
+    }
+  }
   runApp(const MyLibraryApp());
 }
 
@@ -146,8 +152,7 @@ class LibraryShell extends StatefulWidget {
 class _LibraryShellState extends State<LibraryShell>
     with WidgetsBindingObserver {
   final repository = LibraryRepository(
-    reminders:
-        ReturnReminders(LibraryDatabase.instance, LocalReminderNotifications()),
+    reminders: libraryReturnReminders,
   );
 
   Future<void> refreshReminders() async {
@@ -165,17 +170,22 @@ class _LibraryShellState extends State<LibraryShell>
 
   @override
   void dispose() {
+    LibraryBackup.revision.removeListener(libraryRestored);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   int index = 0;
   int refreshKey = 0;
+  int restoredRevision = 0;
+
+  void libraryRestored() => setState(() => restoredRevision++);
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    LibraryBackup.revision.addListener(libraryRestored);
     unawaited(refreshReminders());
     if (defaultTargetPlatform == TargetPlatform.android) {
       WidgetsBinding.instance.addPostFrameCallback((_) => recoverCover());
@@ -222,6 +232,7 @@ class _LibraryShellState extends State<LibraryShell>
   Widget build(BuildContext context) => Scaffold(
         body: SafeArea(
           child: IndexedStack(
+            key: ValueKey(restoredRevision),
             index: index,
             children: [
               LibraryScreen(

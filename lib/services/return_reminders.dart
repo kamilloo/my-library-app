@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:sqflite/sqflite.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../data/library_database.dart';
@@ -37,6 +38,21 @@ String reminderFingerprint(Book book, tz.TZDateTime date) => jsonEncode([
       date.millisecondsSinceEpoch,
       date.location.name,
     ]);
+
+bool _isReminder(String? payload) {
+  if (payload == null || !payload.startsWith('[1,')) return false;
+  try {
+    final values = jsonDecode(payload);
+    return values is List &&
+        values.length == 5 &&
+        values[1] is String &&
+        values[2] is String &&
+        values[3] is int &&
+        values[4] is String;
+  } on FormatException {
+    return false;
+  }
+}
 
 enum ReminderResult { enabled, disabled, denied, ineligible, failed }
 
@@ -91,18 +107,35 @@ class ReturnReminders {
                   where: 'book_id = ?', whereArgs: [bookId]);
             }
           });
-          await _reconcile();
+          await _reconcile(db);
           return value ? ReminderResult.enabled : ReminderResult.disabled;
         } catch (_) {
           return ReminderResult.failed;
         }
       });
 
-  Future<void> reconcile() => _serial(_reconcile);
+  Future<void> reconcile() =>
+      _serial(() async => _reconcile(await database.database));
 
-  Future<void> _reconcile() async {
+  Future<void> replaceLibrary(
+    Future<void> Function(Future<void> Function(DatabaseExecutor)) replace,
+  ) =>
+      _serial(() async {
+        try {
+          await replace(_reconcile);
+        } catch (_) {
+          // Native schedules may have changed before SQLite rolled back.
+          try {
+            await _reconcile(await database.database);
+          } catch (_) {
+            // Startup and resume retry from the committed database.
+          }
+          rethrow;
+        }
+      });
+
+  Future<void> _reconcile(DatabaseExecutor db) async {
     await notifications.prepare();
-    final db = await database.database;
     final rows = await db.query('return_reminders');
     final allowed = await notifications.authorized();
     final candidates = <({int id, Book book, tz.TZDateTime date})>[];
@@ -132,7 +165,11 @@ class ReturnReminders {
     // If inventory cannot be read, make no destructive guesses.
     final pending = Map<int, String?>.of(await notifications.pendingRequests());
     final ownedIds = rows.map((row) => row['id'] as int).toSet();
-    final active = pending.keys.where(ownedIds.contains).toSet();
+    final active = pending.entries
+        .where(
+            (entry) => ownedIds.contains(entry.key) || _isReminder(entry.value))
+        .map((entry) => entry.key)
+        .toSet();
     final failures = <int>[];
 
     // Free slots only for ineligible or displaced reminders. A failed cancellation

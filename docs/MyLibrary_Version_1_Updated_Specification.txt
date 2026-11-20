@@ -612,25 +612,20 @@ Advertising-enabled release validation: RELEASE VALIDATION PENDING.
 
 12. LOCAL LIBRARY BACKUP AND RESTORE
 
-Status: PLANNED — high priority. No complete backup/export/import feature exists.
-Purpose: recover or move a full local library safely despite disabled Android
-Auto Backup and device transfer. No current manual backup is promised to users.
-Desired workflow: user exports a single versioned backup package; import validates
-structure/version/integrity, previews contents/conflicts and requires explicit
-confirmation. Interrupted/failed imports must not destroy current data.
-Data scope: books/metadata, managed local cover files, borrower-side loans, relevant
-lending/extension history and reminder preferences as applicable. Design must
-explicitly decide message/contact inclusion and conflict/replace/merge policy,
-protect personal information and preserve identity/revision/replay invariants.
-Requirements: compatible supported database versions; portable cover references;
-safe staging/atomic recovery strategy; no raw notification-ID collision; cancel/
-reschedule appropriate OS reminders only after successful import. Document private
-storage/sharing and protection of exported personal information.
-Offline: complete local export/restore must not require backend/accounts.
-Acceptance needs separate implementation/migration/failure tests and device QA.
-Evidence of absence/current loss risk: lib/main.dart, lib/screens/,
-lib/data/library_repository.dart, Android backup configuration; docs/android_release.md.
-A private developer copy of test DB/covers during QA is not this product feature.
+Status: IMPLEMENTED in Task 32. Android device recovery remains RELEASE VALIDATION PENDING.
+Help places Kopia zapasowa below the seven-slide tutorial button. The Android
+document picker saves or opens a single .mlbak file at a user-selected location.
+Import validates format 1, SQLite schema 8, checksums and managed cover references
+before asking for explicit confirmation. Restore replaces the entire library.
+The archive preserves persistent SQLite records, including owner preferences,
+QR/SMS/manual loan information, contacts, history and reminder preferences, and
+referenced managed covers. The file is unencrypted and may contain personal data.
+SQLite transactions provide a consistent snapshot and record rollback. The cover
+journal resolves filesystem cleanup after commit, rollback or process death.
+Reminders are reconciled against the committed local dataset. Android automatic
+backup and device transfer remain disabled. No account or network is needed
+for local export or recovery. See docs/manual_library_backup.md for format and
+limitations, and docs/android_qa_checklist.md for device QA.
 
 13. ROADMAP AND SCOPE DECISIONS
 
@@ -643,7 +638,7 @@ Implemented | Owner loans, date changes/extensions, global/per-book history, opt
 Implemented | QR/SMS/manual borrowed entry, readable SMS and local date confirmation | IMPLEMENTED | Tasks 19/24; sections 6–7
 Implemented | Seven-page tutorial and Help, including SMS page | IMPLEMENTED | Tasks 18/18.1, PRs #16/#17; section 8
 Prioritized | Android release/device/privacy/distribution gates | RELEASE VALIDATION PENDING | High; section 14
-Prioritized | Complete local backup/export/import | PLANNED | High; section 12
+Implemented | Manual Android library backup and restore | IMPLEMENTED in Task 32 | Device recovery QA pending; section 12
 Prioritized | Google AdMob and consent/disclosures | PLANNED | High before advertising-enabled release; section 11
 Prioritized | Manual descriptions | PLANNED | Complete partially implemented storage/display; section 4
 Implemented | Genre selection, creation, renaming, deletion and filtering — Task 22 | IMPLEMENTED in PR #19 | SQLite v6 and persistent registry; section 4.3. Physical upgrade/accessibility QA pending

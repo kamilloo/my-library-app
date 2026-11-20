@@ -7,6 +7,32 @@ result; it is not a new/current suite run. Later PR test snapshots are recorded 
 the canonical specification. Unexecuted upgrade cases below now target v6.
 All physical tutorial/QR/SMS/reminder/upgrade checks remain pending until recorded.
 
+## Task 32 manual backup and recovery
+
+Run on a clean disposable Android installation. Record the model/API, commit,
+APK signing type, selected provider and results. Keep physical-device and
+emulator evidence separate. Repeat on a second physical device when available.
+Use only synthetic data in screenshots and backup files.
+
+1. Create three books in different genres. Save an on-device cover for at least
+   one book. Lend one book with a future return date, add a manually borrowed
+   book, set a preferred owner name, and explicitly enable a return reminder.
+2. Open **Pomoc → Kopia zapasowa** and export to **Downloads** or an installed
+   document provider. Confirm the success message and find the file independently
+   in the system Files app. Cancel another export and check the feedback.
+3. Uninstall and reinstall on the disposable device. Open Help, select the file,
+   and cancel the first confirmation. Verify the clean library is unchanged.
+4. Select the file again and confirm. Check all books, genres, local cover
+   offline, history, loan dates, manually borrowed record and owner name.
+5. Verify restored reminder settings and pending schedules, respecting the
+   reinstall's notification permission. Restart and check that data persists.
+6. Try an invalid file. Verify that the restore is rejected without changing
+   the library. Restore the valid file again and verify there are no duplicates.
+7. Capture the Help buttons, Help section order, backup screen and restore dialog.
+
+Device recovery QA remains a release gate. See the [archive and recovery
+specification](manual_library_backup.md).
+
 ## Task 20: SMS and offline extension QA
 
 All physical-device cases remain **Pending**. Execute the two-device workflow,
@@ -63,7 +89,7 @@ for native compatibility, labeled separately from physical delivery tests.
 | A05 | Verify offline launch/list/search/sort/filter/manual save; remote image placeholders; no dependence on Open Library connectivity | Pending |
 | A06 | Small display, rotation during forms/dialogs/scanner, large font/display scale, keyboard; controls remain reachable and drafts do not corrupt saved records | Pending |
 | A07 | Low storage during add/edit/cover copy/upgrade; Polish failure feedback, original rows/history/cover retained, retry possible | Pending |
-| A08 | Backup/restore and device transfer respect exclusion policy; disclose that uninstall/clear-data/device replacement has no V1 recovery mechanism | Pending |
+| A08 | Confirm Android automatic backup/transfer exclusions and complete Task 32 manual recovery QA before release | Pending |
 | A09 | Test release on 16 KB page-size runtime; verify all native libraries, camera/scanner/cropper and SQLite work | Pending |
 
 For upgrade tests, retain the original installed app ID and compatible signing
