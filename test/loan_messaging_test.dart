@@ -498,16 +498,19 @@ void main() {
 
   testWidgets('request UI shows preset date without extending actual record',
       (tester) async {
+    late Future<LoanMessage?> requestResult;
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
             body: Builder(
                 builder: (c) => TextButton(
-                    onPressed: () => showDialog<LoanMessage>(
-                        context: c,
-                        builder: (_) => LoanExtensionDialog(
-                            book: book,
-                            repository: borrower,
-                            requestLoanId: loan.loanId)),
+                    onPressed: () {
+                      requestResult = showDialog<LoanMessage>(
+                          context: c,
+                          builder: (_) => LoanExtensionDialog(
+                              book: book,
+                              repository: borrower,
+                              requestLoanId: loan.loanId));
+                    },
                     child: const Text('Open'))))));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
@@ -516,9 +519,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nowy termin zwrotu: 27.12.2026'), findsOneWidget);
     await tester.tap(find.text('Przygotuj prośbę SMS'));
-    await tester.runAsync(
-        () async => Future<void>.delayed(const Duration(milliseconds: 100)));
-    await tester.pumpAndSettle();
+    final dialog = find.byType(LoanExtensionDialog);
+    final wait = Stopwatch()..start();
+    // SQLite replies on a real isolate, while dialog frames use fake time.
+    while (dialog.evaluate().isNotEmpty &&
+        wait.elapsed < const Duration(seconds: 10)) {
+      await tester.runAsync(() => Future<void>(() {}));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(dialog, findsNothing);
+    expect((await requestResult)?.newDate, DateTime(2026, 12, 27));
     await tester.runAsync(() async {
       expect(
           (await borrower.borrowedLoans()).single.returnDate, loan.returnDate);
