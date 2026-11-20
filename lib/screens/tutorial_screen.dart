@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/library_repository.dart';
 import '../models/owner_name.dart';
 import '../services/tutorial_preferences.dart';
+import 'library_backup_screen.dart';
 
 class TutorialHelpButton extends StatelessWidget {
   const TutorialHelpButton({super.key});
@@ -38,6 +39,40 @@ const loanHelpSections = <TutorialSlide>[
   ),
 ];
 
+const backupHelpTitle = 'Kopia zapasowa i przywracanie danych';
+
+const backupHelp = <({String? heading, String text})>[
+  (
+    heading: null,
+    text:
+        'Moja Biblioteka przechowuje Twoje książki i informacje o wypożyczeniach lokalnie na urządzeniu. Dane nie są automatycznie synchronizowane ani zapisywane w chmurze.',
+  ),
+  (
+    heading: 'Jak utworzyć kopię zapasową?',
+    text: '1. Otwórz ekran „Kopia zapasowa”.\n'
+        '2. Wybierz „Eksportuj kopię zapasową”.\n'
+        '3. Wskaż miejsce zapisania pliku, np. folder na telefonie lub Dysk Google.\n'
+        '4. Zachowaj kopię pliku poza telefonem, aby móc odzyskać dane w razie jego zgubienia, uszkodzenia lub wymiany.\n\n'
+        'Kopia zapasowa zawiera książki, gatunki, historię, informacje o wypożyczeniach, zapisane nazwy właścicieli, ustawienia przypomnień oraz okładki przechowywane lokalnie. Okładki pobierane z internetu mogą wymagać ponownego połączenia z siecią.',
+  ),
+  (
+    heading: 'Jak przywrócić dane?',
+    text: '1. Zainstaluj i uruchom aplikację Moja Biblioteka.\n'
+        '2. Otwórz ekran „Kopia zapasowa”.\n'
+        '3. Wybierz „Przywróć kopię zapasową”.\n'
+        '4. Wskaż wcześniej zapisany plik kopii zapasowej.\n'
+        '5. Przeczytaj ostrzeżenie i potwierdź przywrócenie danych.\n'
+        '6. Po zakończeniu sprawdź, czy Twoje książki i historia są dostępne.',
+  ),
+  (
+    heading: 'Ważne informacje',
+    text: 'Przywrócenie kopii zapasowej zastępuje wszystkie dane aktualnie zapisane w aplikacji. Nie łączy dwóch bibliotek. Przed przywróceniem warto wykonać kopię obecnych danych.\n\n'
+        'Plik kopii zapasowej może zawierać dane osobowe, w tym imiona i nazwiska właścicieli oraz osób wypożyczających książki. Przechowuj go w bezpiecznym miejscu i nie udostępniaj osobom nieupoważnionym.\n\n'
+        'Kopia zapasowa nie jest tworzona automatycznie. Wykonuj ją regularnie, szczególnie po dodaniu nowych książek lub zmianie informacji o wypożyczeniach.\n\n'
+        'Odinstalowanie aplikacji lub wyczyszczenie jej danych może spowodować utratę całej lokalnej biblioteki. Dane można odzyskać tylko wtedy, gdy wcześniej zapisano kopię zapasową.',
+  ),
+];
+
 class LoanHelpScreen extends StatelessWidget {
   const LoanHelpScreen({super.key});
 
@@ -59,6 +94,16 @@ class LoanHelpScreen extends StatelessWidget {
                       onFinish: () async => Navigator.pop(tutorialContext),
                     ),
                   ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.backup_outlined),
+                label: const Text('Kopia zapasowa'),
+                onPressed: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const LibraryBackupScreen()),
                 ),
               ),
               const SizedBox(height: 24),
@@ -85,6 +130,24 @@ class LoanHelpScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(section.description),
+              ],
+              const SizedBox(height: 24),
+              Semantics(
+                header: true,
+                child: Text(backupHelpTitle,
+                    style: Theme.of(context).textTheme.titleLarge),
+              ),
+              for (final paragraph in backupHelp) ...[
+                if (paragraph.heading != null) ...[
+                  const SizedBox(height: 16),
+                  Semantics(
+                    header: true,
+                    child: Text(paragraph.heading!,
+                        style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Text(paragraph.text),
               ],
             ],
           ),

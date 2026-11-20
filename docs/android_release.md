@@ -270,11 +270,17 @@ and partial database/cover/native-schedule restoration.
 [Android backup behavior](https://developer.android.com/identity/data/autobackup).
 
 Updates installed over the same app with a compatible certificate preserve private
-data in place; disabling backup does not delete it. **Uninstall, clear-data, lost
-devices and phone replacement have no V1 recovery/export mechanism.** Disclose this
-before release. This policy does not retroactively erase any backup an older app
-version may already have made; any future migration/import/backup feature requires
-a separate reviewed design and tests. OEM transfer behavior still needs device QA.
+data in place. Users can export a manual `.mlbak` file through the Android
+document picker and restore it after reinstalling or changing devices.
+The selected document provider controls access to the exported, unencrypted file.
+Warn users that it may contain borrower names, phone numbers and lending records.
+This policy does not retroactively erase any backup an older app version may
+already have made. OEM transfer behavior still needs device QA.
+
+Before shipping, complete the [backup recovery QA](android_qa_checklist.md#task-32-manual-backup-and-recovery).
+The [manual backup specification](manual_library_backup.md) describes format 1,
+the SQLite snapshot and atomic record replacement, cover-journal recovery,
+notification reconciliation and compatibility limits.
 
 ## SQLite, covers and reminders
 

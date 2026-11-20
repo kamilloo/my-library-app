@@ -71,8 +71,11 @@ void main() {
       expect(find.text(section.description), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
-    await tester.scrollUntilVisible(find.text('Samouczek — 7 slajdów'), -150);
-    await tester.tap(find.text('Samouczek — 7 slajdów'));
+    final tutorial = find.text('Samouczek — 7 slajdów');
+    await tester.scrollUntilVisible(tutorial, -150);
+    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+    await tester.tap(tutorial);
     await tester.pumpAndSettle();
     expect(find.text('1 / 7'), findsOneWidget);
     expect(tester.takeException(), isNull);

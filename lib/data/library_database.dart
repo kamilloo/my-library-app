@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:path/path.dart';
 import '../models/genre.dart';
 import 'package:sqflite/sqflite.dart';
@@ -20,8 +22,58 @@ class LibraryDatabase {
 
   final DatabaseFactory? _factory;
 
+  static const schemaVersion = 8;
+
+  Future<Database> openBackupDatabase(String path,
+      {bool readOnly = false}) async {
+    final db = await _open(backupPath: path, readOnly: readOnly);
+    if (readOnly) return db;
+    try {
+      // Android can default to PERSIST and leave a rollback journal after
+      // close. A staged database must be self-contained before packaging.
+      final mode = await db.rawQuery('PRAGMA journal_mode = DELETE');
+      if (mode.single.values.single != 'delete') {
+        throw StateError('Nie można przygotować samodzielnej kopii SQLite.');
+      }
+      return db;
+    } catch (_) {
+      await db.close();
+      rethrow;
+    }
+  }
+
   static final instance = LibraryDatabase._();
   Database? _database;
+  final _writeZone = Object();
+  int _activeWrites = 0;
+  bool _exclusive = false;
+  Completer<void>? _drained;
+
+  Future<T> write<T>(Future<T> Function() action) async {
+    if (Zone.current[_writeZone] == true) return action();
+    if (_exclusive) throw StateError('Trwa operacja na kopii zapasowej.');
+    _activeWrites++;
+    try {
+      return await runZoned(action, zoneValues: {_writeZone: true});
+    } finally {
+      if (--_activeWrites == 0) _drained?.complete();
+    }
+  }
+
+  Future<T> exclusive<T>(Future<T> Function() action) async {
+    if (_exclusive) throw StateError('Trwa operacja na kopii zapasowej.');
+    _exclusive = true;
+    try {
+      if (_activeWrites > 0) {
+        _drained = Completer<void>();
+        await _drained!.future;
+      }
+      return await action();
+    } finally {
+      _drained = null;
+      _exclusive = false;
+    }
+  }
 
   Future<Database> get database async => _database ??= await _open();
 
@@ -124,16 +176,21 @@ class LibraryDatabase {
   static Future<void> _createPreferences(Database db) => db.execute(
       'CREATE TABLE local_preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
 
-  Future<Database> _open() async {
+  Future<Database> _open({String? backupPath, bool readOnly = false}) async {
     final factory = _factory ?? databaseFactory;
-    final path = _path ??
+    final path = backupPath ??
+        _path ??
         (_factory != null
             ? inMemoryDatabasePath
             : join(await getDatabasesPath(), 'my_library.db'));
+    if (readOnly) {
+      return factory.openDatabase(path,
+          options: OpenDatabaseOptions(readOnly: true, singleInstance: false));
+    }
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 8,
+        version: schemaVersion,
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) await _createHistoryIndex(db);
           if (oldVersion < 3) await _createReminders(db);

@@ -5,8 +5,15 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../data/library_database.dart';
 import '../models/book.dart';
 import 'return_reminders.dart';
+
+final libraryReturnReminders = ReturnReminders(
+  LibraryDatabase.instance,
+  LocalReminderNotifications(),
+  rearmOnStart: defaultTargetPlatform == TargetPlatform.android,
+);
 
 class LocalReminderNotifications extends ReminderNotifications {
   @override
