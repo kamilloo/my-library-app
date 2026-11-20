@@ -9,8 +9,11 @@ import '../data/library_database.dart';
 import '../models/book.dart';
 import 'return_reminders.dart';
 
-final libraryReturnReminders =
-    ReturnReminders(LibraryDatabase.instance, LocalReminderNotifications());
+final libraryReturnReminders = ReturnReminders(
+  LibraryDatabase.instance,
+  LocalReminderNotifications(),
+  rearmOnStart: defaultTargetPlatform == TargetPlatform.android,
+);
 
 class LocalReminderNotifications extends ReminderNotifications {
   @override

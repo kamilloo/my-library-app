@@ -24,8 +24,23 @@ class LibraryDatabase {
 
   static const schemaVersion = 8;
 
-  Future<Database> openBackupDatabase(String path, {bool readOnly = false}) =>
-      _open(backupPath: path, readOnly: readOnly);
+  Future<Database> openBackupDatabase(String path,
+      {bool readOnly = false}) async {
+    final db = await _open(backupPath: path, readOnly: readOnly);
+    if (readOnly) return db;
+    try {
+      // Android can default to PERSIST and leave a rollback journal after
+      // close. A staged database must be self-contained before packaging.
+      final mode = await db.rawQuery('PRAGMA journal_mode = DELETE');
+      if (mode.single.values.single != 'delete') {
+        throw StateError('Nie można przygotować samodzielnej kopii SQLite.');
+      }
+      return db;
+    } catch (_) {
+      await db.close();
+      rethrow;
+    }
+  }
 
   static final instance = LibraryDatabase._();
   Database? _database;

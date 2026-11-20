@@ -224,6 +224,24 @@ void main() {
     return db.insert('return_reminders', {'book_id': id, 'enabled': 1});
   }
 
+  test('cold Android reconciliation re-arms cached IDs once without prompting',
+      () async {
+    expect(await reminders.setEnabled(book.id, true), ReminderResult.enabled);
+    final id = notifications.pending.keys.single;
+    notifications.schedules.clear();
+    notifications.permissionRequests = 0;
+
+    final restarted = ReturnReminders(database, notifications,
+        now: () => now, rearmOnStart: true);
+    await restarted.reconcile();
+    await restarted.reconcile();
+
+    expect(notifications.schedules, [id]);
+    expect(notifications.pending.keys, [id]);
+    expect(notifications.cancellations, isEmpty);
+    expect(notifications.permissionRequests, 0);
+  });
+
   test(
       'unchanged schedules survive repeated reconciliation and restart untouched',
       () async {

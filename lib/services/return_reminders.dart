@@ -57,12 +57,15 @@ bool _isReminder(String? payload) {
 enum ReminderResult { enabled, disabled, denied, ineligible, failed }
 
 class ReturnReminders {
-  ReturnReminders(this.database, this.notifications, {DateTime Function()? now})
-      : now = now ?? DateTime.now;
+  ReturnReminders(this.database, this.notifications,
+      {DateTime Function()? now, bool rearmOnStart = false})
+      : now = now ?? DateTime.now,
+        _rearmExisting = rearmOnStart;
   final LibraryDatabase database;
   final ReminderNotifications notifications;
   final DateTime Function() now;
   Future<void> _tail = Future.value();
+  bool _rearmExisting;
 
   // Serialize permission, DB and OS operations to prevent stale schedules winning.
   Future<T> _serial<T>(Future<T> Function() action) {
@@ -186,7 +189,10 @@ class ReturnReminders {
 
     for (final candidate in desired.values) {
       final fingerprint = reminderFingerprint(candidate.book, candidate.date);
-      if (active.contains(candidate.id) &&
+      // Android can clear alarms on force-stop while the plugin retains
+      // its persisted inventory. Register existing IDs once per process.
+      if (!_rearmExisting &&
+          active.contains(candidate.id) &&
           pending[candidate.id] == fingerprint) {
         continue;
       }
@@ -211,5 +217,6 @@ class ReturnReminders {
       throw StateError(
           'Could not synchronize reminder IDs: ${failures.join(', ')}');
     }
+    _rearmExisting = false;
   }
 }
