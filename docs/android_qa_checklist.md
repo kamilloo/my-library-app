@@ -30,10 +30,10 @@ Use only synthetic data in screenshots and backup files.
    the library. Restore the valid file again and verify there are no duplicates.
 7. Capture the Help buttons, Help section order, backup screen and restore dialog.
 
-Device recovery QA remains a release gate. The disposable API 34 emulator
-reached ADB, and debug APK installation timed out. The Help and backup images
-in `docs/screenshots/task32/` are Flutter widget captures. See the [archive
-and recovery specification](manual_library_backup.md).
+The [API 34 emulator record](screenshots/task32/emulator-qa/README.md) documents
+the installed-device recovery results and links to native screenshots. The
+earlier Flutter widget captures are also retained. See the [archive and
+recovery specification](manual_library_backup.md).
 
 ## Task 20: SMS and offline extension QA
 
