@@ -109,6 +109,10 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
     }
   }
 
+  static const _actionButtonStyle = ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(Size(0, 50)),
+  );
+
   bool busy = false;
   void reload() => setState(() {
         loans = widget.repository.borrowedLoans();
@@ -187,19 +191,27 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
               onSearchChanged: (value) =>
                   setState(() => query = normalizeMainSearch(value)),
             ),
-            Wrap(
-              spacing: 8,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 FilledButton.icon(
+                    style: _actionButtonStyle,
                     onPressed: busy ? null : scan,
                     icon: const Icon(Icons.qr_code_scanner),
-                    label: const Text('Skanuj kod QR')),
+                    label: const Text('Skanuj kod QR',
+                        textAlign: TextAlign.center)),
+                const SizedBox(height: 10),
                 FilledButton(
+                    style: _actionButtonStyle,
                     onPressed: busy ? null : () => addEntry(true),
-                    child: const Text('Dodaj z SMS')),
+                    child:
+                        const Text('Dodaj z SMS', textAlign: TextAlign.center)),
+                const SizedBox(height: 10),
                 FilledButton(
+                    style: _actionButtonStyle,
                     onPressed: busy ? null : () => addEntry(false),
-                    child: const Text('Dodaj ręcznie')),
+                    child: const Text('Dodaj ręcznie',
+                        textAlign: TextAlign.center)),
               ],
             ),
             const SizedBox(height: 8),
