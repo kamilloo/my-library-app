@@ -4,6 +4,15 @@ Current Android V1 scope, feature statuses, schema and release gates:
 [canonical specification](docs/MyLibrary_Version_1_Updated_Specification.txt).
 See the [historical comparison](docs/specification_gap_analysis.md) for reconciled requirements.
 
+## Main screens and offline search
+
+**Moje książki**, **Historia** and **Pożyczone** each have a search bar and
+**Pomoc**. Search by title or author, or by owner name in **Pożyczone**.
+Matching ignores case and Polish diacritics. **Historia** shows newest entries
+first and matches authors when the associated book is still in the collection.
+Tap the selected genre or **Wszystkie gatunki** to change the filter or open
+**Zarządzaj gatunkami**.
+
 ## Offline SMS loan messages
 
 **Pożyczone** offers **Skanuj kod QR**, **Dodaj z SMS** and **Dodaj ręcznie**
@@ -34,7 +43,7 @@ Add and Edit Book include **Gatunek** after condition. New books default to
 **Bez gatunku**. The selector supports creating a custom genre without losing
 the form. Book Details shows the saved genre.
 
-**Zarządzaj gatunkami** is available from the library and selector. It shows book
+**Zarządzaj gatunkami** is available in the genre selector. It shows book
 counts, supports renaming, and confirms deletion. Removing a used genre assigns
 its books to **Bez gatunku** atomically; books and lending data are preserved.
 The reserved default cannot be renamed or removed. Names are trimmed, limited to
@@ -47,7 +56,7 @@ Literatura faktu, Przygodowa. These may be renamed or deleted and are seeded onl
 on installation or upgrade, never on reopening. Fresh installs have no demo books.
 
 The **Gatunek** library selector combines with title/author search, status and
-both sorting modes; **Pożyczone** is unchanged.
+both sorting modes.
 
 SQLite v6 removes the unused `directory` column and introduces
 `genre TEXT NOT NULL DEFAULT 'Bez gatunku'`, plus the `genres` registry

@@ -271,7 +271,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'atlas');
     await tester.pumpAndSettle();
     expect(titles(), ['Atlas']);
-    expect(find.text('3 książek w kolekcji'), findsOneWidget);
+    expect(find.text('3 książek w kolekcji'), findsNothing);
     await tapVisible(tester, find.widgetWithText(FilterChip, 'Dostępne'));
     expect(
         find.text('Brak książek pasujących do wyszukiwania.'), findsOneWidget);
@@ -291,6 +291,7 @@ void main() {
     await tester.pumpAndSettle();
     await tapVisible(tester, find.byType(GenreSelector));
     await tapVisible(tester, find.text('Horror'));
+    await tapVisible(tester, find.byType(GenreSelector));
     await tapVisible(tester, find.text('Zarządzaj gatunkami'));
     await tapVisible(tester, find.text('Edytuj gatunek'));
     await tester.enterText(find.byType(TextFormField), 'Groza');
@@ -298,6 +299,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Groza'), findsOneWidget);
+    await tapVisible(tester, find.byType(GenreSelector));
     await tapVisible(tester, find.text('Zarządzaj gatunkami'));
     await tapVisible(tester, find.text('Usuń gatunek'));
     await tapVisible(tester, find.widgetWithText(FilledButton, 'Usuń'));

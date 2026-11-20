@@ -2,8 +2,8 @@
 
 The Add/Edit Book selector appears after Stan and before Save. It defaults to
 Bez gatunku, preserves the form during inline genre creation and selects the new
-name. Details displays Gatunek. Zarządzaj gatunkami is reachable from the library
-and selector, shows assignment counts, and requires explicit save/confirmation.
+name. Details displays Gatunek. Open Zarządzaj gatunkami from either genre
+selector to see assignment counts and manage the registry.
 Counts use Polish forms: 1 książka, 2 książki, 5 książek; 12–14 and repeated
 hundreds/tens follow Polish plural rules in both the list and deletion preview.
 Rename/delete commit independently of the book form. Canceling that form does
@@ -12,7 +12,7 @@ not undo an already confirmed registry operation.
 The owned-library selector offers Wszystkie gatunki, Bez gatunku and saved
 genres, combined with title/author search, status and recent/A–Z sorting.
 Renamed filters follow the stable registry ID; deleting the selected genre clears
-the filter. The total collection count includes all owned books.
+the filter. The selector displays the current genre or Wszystkie gatunki.
 
 ## Schema v6
 

@@ -139,11 +139,13 @@ test/book_cover_test.dart. Merged PR #4.
 
 3.5 Browse, search, sort, details and deletion
 Status: IMPLEMENTED.
-Purpose/workflow: Moje książki shows total owned-record count, title, author,
-cover/status and due information. Pull to refresh; case-insensitive title/author
-substring search; sort by recently added or title A–Z. Combine search/sort with
-Wszystkie, Dostępne, Wypożyczone or Oddane na stałe filters and the owned-book
-Gatunek selector (Wszystkie gatunki, Bez gatunku or a saved genre).
+Purpose/workflow: Moje książki shows title, author, cover/status and due
+information. Pull to refresh and sort by recently added or title A–Z. Combine
+title/author search with the Wszystkie, Dostępne, Wypożyczone or Oddane na stałe
+status filter and the selected genre. The genre selector shows the active genre
+or Wszystkie gatunki and opens genre options and management.
+Moje książki, Historia and Pożyczone share the same header, Pomoc and search
+styling. Local search ignores case and Polish diacritics.
 Details show metadata, condition, genre, ISBN, creation date, description
 when present, history and status-appropriate actions.
 Delete requires confirmation and permanently removes the owned book and cascading
@@ -185,8 +187,8 @@ Status: IMPLEMENTED in PR #19; physical migration/accessibility QA:
 RELEASE VALIDATION PENDING.
 Purpose/workflow: Add/Edit Book selects one genre after condition, defaulting
 to Bez gatunku. Inline creation preserves the draft and selects the new genre.
-Details displays Gatunek. Zarządzaj gatunkami, accessible from the library and
-selector, shows assignment counts, creates/renames genres and confirms deletion.
+Details displays Gatunek. Zarządzaj gatunkami is accessible from the genre
+selector and shows assignment counts, creates/renames genres and confirms deletion.
 Deleting a used genre atomically reassigns its books to Bez gatunku; it never
 deletes books. Registry changes commit independently of a book form: canceling
 the form does not undo them. Counts use Polish forms (1 książka, 2 książki,
@@ -194,7 +196,7 @@ the form does not undo them. Counts use Polish forms (1 książka, 2 książki,
 Owned-book genre filtering combines with title/author search, status and both
 sort modes. Renamed filters follow the stable registry ID; deleting the selected
 genre clears the filter. Registry changes behind a canceled form refresh the
-library/details. Pożyczone remains separate and unchanged.
+library/details. Pożyczone keeps a separate list of borrowed books.
 Data: SQLite v6 adds books.genre, removes books.directory and persists the genres
 registry. Bez gatunku is a virtual reserved system entry, not a genres row;
 it cannot be renamed/deleted. Bez kategorii is also reserved.
@@ -241,7 +243,9 @@ test/offline_loans_test.dart.
 5.2 Global and per-book history
 Status: IMPLEMENTED.
 Purpose/workflow: Historia lists newest events with book-title snapshot, detail
-and date. Historia książki appears below the primary action in Book Details,
+and date. Search matches the recorded title and, when available, the author's
+current name in Moje książki. Historia książki appears below the primary action
+in Book Details,
 including Oznacz jako zwróconą for borrowed books, and above deletion. It
 initially shows up to five events. Pokaż więcej loads up to ten older events
 and disappears when history is exhausted. SQLite pages by timestamp DESC then
@@ -339,6 +343,7 @@ docs/offline-loan-protocol.md. Merged PR #14.
 Status: IMPLEMENTED in Task 24 source; physical SMS/two-device QA:
 RELEASE VALIDATION PENDING. Replaces Task 20's encoded SMS workflow.
 Pożyczone offers Skanuj kod QR, Dodaj z SMS and Dodaj ręcznie above one list.
+Search it by book title, author or owner name.
 If the camera is unavailable, return to Pożyczone to retry scanning, import a
 readable SMS, or enter the loan manually. SMS/manual entries are local and require no owner account, application, QR, SMS permission or internet access.
 All sources open the same details UI and support local deletion outside books.
