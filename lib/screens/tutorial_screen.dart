@@ -61,6 +61,21 @@ class LoanHelpScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+              Semantics(
+                header: true,
+                child: Text('Wyszukiwanie i gatunki',
+                    style: Theme.of(context).textTheme.titleLarge),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'W „Moje książki” szukaj według tytułu lub autora. '
+                'Dotknij nazwy gatunku lub „Wszystkie gatunki”, aby zmienić filtr, '
+                'dodać gatunek albo wybrać „Zarządzaj gatunkami”.\n\n'
+                'W „Historii” szukaj według tytułu lub autora, jeśli książka '
+                'wciąż jest w kolekcji. W „Pożyczone” możesz też wpisać '
+                'nazwę właściciela.',
+              ),
               for (final section in loanHelpSections) ...[
                 const SizedBox(height: 24),
                 Semantics(

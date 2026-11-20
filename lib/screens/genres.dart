@@ -151,9 +151,16 @@ class _GenreSelectorState extends State<GenreSelector> {
   @override
   Widget build(BuildContext context) => ListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Gatunek'),
-        subtitle: Text(widget.value ??
-            (widget.filter ? 'Wszystkie gatunki' : defaultGenre)),
+        title: widget.filter
+            ? Semantics(
+                header: true,
+                child: Text(
+                  widget.value ?? 'Wszystkie gatunki',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              )
+            : const Text('Gatunek'),
+        subtitle: widget.filter ? null : Text(widget.value ?? defaultGenre),
         trailing: const Icon(Icons.arrow_drop_down),
         onTap: widget.enabled ? choose : null,
       );

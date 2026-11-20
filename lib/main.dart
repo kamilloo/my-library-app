@@ -17,6 +17,7 @@ import 'screens/return_date_section.dart';
 import 'models/book.dart';
 import 'models/genre.dart';
 import 'screens/genres.dart';
+import 'screens/main_screen_header.dart';
 import 'models/isbn.dart';
 import 'models/open_library_search.dart';
 import 'screens/search_books_screen.dart';
@@ -172,9 +173,11 @@ class _LibraryShellState extends State<LibraryShell>
             index: index,
             children: [
               LibraryScreen(
-                  key: ValueKey('library-$refreshKey'), repository: repository),
+                  refreshRevision: refreshKey, repository: repository),
               HistoryScreen(
-                  key: ValueKey('history-$refreshKey'), repository: repository),
+                  active: index == 1,
+                  refreshRevision: refreshKey,
+                  repository: repository),
               BorrowedLoansScreen(repository: repository),
             ],
           ),
@@ -189,7 +192,10 @@ class _LibraryShellState extends State<LibraryShell>
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: NavigationBar(
           selectedIndex: index,
-          onDestinationSelected: (value) => setState(() => index = value),
+          onDestinationSelected: (value) {
+            FocusScope.of(context).unfocus();
+            setState(() => index = value);
+          },
           destinations: const [
             NavigationDestination(
                 icon: Icon(Icons.local_library_outlined),
@@ -207,7 +213,9 @@ class _LibraryShellState extends State<LibraryShell>
 }
 
 class LibraryScreen extends StatefulWidget {
-  const LibraryScreen({required this.repository, super.key});
+  const LibraryScreen(
+      {required this.repository, this.refreshRevision = 0, super.key});
+  final int refreshRevision;
   final LibraryRepository repository;
 
   @override
@@ -219,6 +227,19 @@ class _LibraryScreenState extends State<LibraryScreen> {
   BookStatus? filter;
   String? genreFilter;
   bool alphabetical = false;
+  late Future<List<Book>> collection = widget.repository.books();
+
+  Future<void> reload() async {
+    final next = widget.repository.books();
+    setState(() {
+      collection = next;
+    });
+    try {
+      await next;
+    } catch (_) {
+      // The FutureBuilder displays the error.
+    }
+  }
 
   @override
   void initState() {
@@ -233,11 +254,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
       oldWidget.repository.genreChanges.removeListener(registryChanged);
       widget.repository.genreChanges.addListener(registryChanged);
     }
+    if (oldWidget.repository != widget.repository ||
+        oldWidget.refreshRevision != widget.refreshRevision) {
+      collection = widget.repository.books();
+    }
   }
 
   void registryChanged() {
     final change = widget.repository.genreChanges.value;
     setState(() {
+      collection = widget.repository.books();
       if (genreFilter != null && genreFilter == change?.before) {
         genreFilter = change?.after;
       }
@@ -251,65 +277,39 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> openBook(Book book) async {
-    String? genreId;
-    if (genreFilter != null) {
-      final genres = await widget.repository.genres();
-      genreId = genres.where((g) => g.name == genreFilter).firstOrNull?.id;
-    }
-    if (!mounted) return;
     await Navigator.push<bool>(
-        context,
-        MaterialPageRoute(
-            builder: (_) =>
-                BookDetailsScreen(book: book, repository: widget.repository)));
-    if (!mounted) return;
-    if (genreFilter != null) {
-      final genres = await widget.repository.genres();
-      if (!mounted) return;
-      setState(() =>
-          genreFilter = genres.where((g) => g.id == genreId).firstOrNull?.name);
-    } else {
-      setState(() {});
-    }
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            BookDetailsScreen(book: book, repository: widget.repository),
+      ),
+    );
+    if (mounted) await reload();
   }
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Book>>(
-        future: widget.repository.books(),
+        future: collection,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          var books = snapshot.data!.where((book) {
-            final text = '${book.title} ${book.author}'.toLowerCase();
-            return text.contains(query.toLowerCase()) &&
+          final books = (snapshot.data ?? const <Book>[]).where((book) {
+            final text = normalizeMainSearch('${book.title} ${book.author}');
+            return text.contains(query) &&
                 (filter == null || book.status == filter) &&
                 (genreFilter == null || book.genre == genreFilter);
           }).toList();
           if (alphabetical) books.sort((a, b) => a.title.compareTo(b.title));
           return RefreshIndicator(
-            onRefresh: () async => setState(() {}),
+            onRefresh: reload,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 110),
+              physics: const AlwaysScrollableScrollPhysics(),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: mainScreenPadding,
               children: [
-                Text('${snapshot.data!.length} książek w kolekcji',
-                    style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Expanded(
-                      child: Text('Moja biblioteka',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.w600))),
-                  const TutorialHelpButton(),
-                ]),
-                const SizedBox(height: 20),
-                SearchBar(
-                  leading: const Icon(Icons.search),
-                  hintText: 'Szukaj tytułu lub autora',
-                  onChanged: (value) => setState(() => query = value),
-                  trailing: [
+                MainScreenHeader(
+                  title: 'Moje książki',
+                  onSearchChanged: (value) =>
+                      setState(() => query = normalizeMainSearch(value)),
+                  searchActions: [
                     IconButton(
                       icon: const Icon(Icons.sort),
                       tooltip: alphabetical
@@ -320,7 +320,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
                 Wrap(
                   spacing: 8,
                   children: [
@@ -350,40 +349,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     value: genreFilter,
                     filter: true,
                     onChanged: (value) => setState(() => genreFilter = value)),
-                TextButton(
-                    onPressed: () async {
-                      final before = await widget.repository.genres();
-                      final id = before
-                          .where((g) => g.name == genreFilter)
-                          .firstOrNull
-                          ?.id;
-                      if (!context.mounted) return;
-                      await Navigator.push<void>(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => ManageGenresScreen(
-                                  repository: widget.repository)));
-                      final after = await widget.repository.genres();
-                      if (mounted) {
-                        setState(() => genreFilter =
-                            after.where((g) => g.id == id).firstOrNull?.name);
-                      }
-                    },
-                    child: const Text('Zarządzaj gatunkami')),
-                const SizedBox(height: 18),
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('Twoje książki',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600)),
-                      Text(alphabetical ? 'A–Z' : 'Ostatnio dodane',
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ]),
-                const SizedBox(height: 10),
-                if (books.isEmpty)
+                if (snapshot.hasError)
+                  const Text('Nie udało się odczytać książek.')
+                else if (!snapshot.hasData)
+                  const LinearProgressIndicator()
+                else if (books.isEmpty)
                   const _EmptyState()
                 else
                   ...books.map((book) => Padding(
@@ -1315,41 +1285,101 @@ class _LoanRequest {
   final bool permanent;
 }
 
-class HistoryScreen extends StatelessWidget {
-  const HistoryScreen({required this.repository, super.key});
+class HistoryScreen extends StatefulWidget {
+  const HistoryScreen({
+    required this.repository,
+    this.active = true,
+    this.refreshRevision = 0,
+    super.key,
+  });
+
   final LibraryRepository repository;
+  final bool active;
+  final int refreshRevision;
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<List<HistoryEntry>>(
-        future: repository.history(),
-        builder: (context, snapshot) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 110),
-          children: [
-            Text('Wszystkie zmiany zapisane lokalnie',
-                style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 4),
-            Text('Historia',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 20),
-            if (!snapshot.hasData)
-              const Center(child: CircularProgressIndicator())
-            else if (snapshot.data!.isEmpty)
-              const _EmptyState(message: 'Brak historii wypożyczeń.')
-            else
-              ...snapshot.data!.map((item) => ListTile(
-                    contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                    leading:
-                        CircleAvatar(child: Icon(_historyIcon(item.action))),
-                    title: Text(item.bookTitle),
-                    subtitle: Text(item.detail ?? item.action),
-                    trailing: Text(_date(item.timestamp),
-                        style: Theme.of(context).textTheme.bodySmall),
-                  )),
-          ],
-        ),
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  late var history = loadHistory();
+  String query = '';
+
+  Future<({List<HistoryEntry> entries, Map<String, String> authors})>
+      loadHistory() async {
+    final repository = widget.repository;
+    final entries = await repository.history();
+    const noAuthors = <String, String>{};
+    if (entries.isEmpty) return (entries: entries, authors: noAuthors);
+    try {
+      final books = await repository.books();
+      return (
+        entries: entries,
+        authors: {
+          for (final book in books) book.id: normalizeMainSearch(book.author)
+        },
+      );
+    } catch (_) {
+      // Titles are stored in history and remain searchable independently.
+      return (entries: entries, authors: noAuthors);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.repository != oldWidget.repository ||
+        (widget.active && !oldWidget.active) ||
+        widget.refreshRevision != oldWidget.refreshRevision) {
+      history = loadHistory();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: mainScreenPadding,
+        children: [
+          MainScreenHeader(
+            title: 'Historia',
+            onSearchChanged: (value) =>
+                setState(() => query = normalizeMainSearch(value)),
+          ),
+          FutureBuilder(
+            future: history,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Text('Nie udało się odczytać historii.');
+              }
+              if (!snapshot.hasData) return const LinearProgressIndicator();
+              final (:entries, :authors) = snapshot.data!;
+              if (entries.isEmpty) {
+                return const _EmptyState(message: 'Brak historii wypożyczeń.');
+              }
+              final matches = entries.where((item) =>
+                  normalizeMainSearch(item.bookTitle).contains(query) ||
+                  (authors[item.bookId]?.contains(query) ?? false));
+              if (matches.isEmpty) {
+                return const _EmptyState(
+                    message: 'Brak wpisów pasujących do wyszukiwania.');
+              }
+              return Column(
+                children: [
+                  for (final item in matches)
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      leading:
+                          CircleAvatar(child: Icon(_historyIcon(item.action))),
+                      title: Text(item.bookTitle),
+                      subtitle: Text(item.detail ?? item.action),
+                      trailing: Text(_date(item.timestamp),
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
       );
 }
 

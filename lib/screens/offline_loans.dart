@@ -10,6 +10,7 @@ import 'owner_name_dialog.dart';
 import '../models/return_date.dart';
 import 'loan_messaging.dart';
 import 'borrowed_entry.dart';
+import 'main_screen_header.dart';
 
 String loanDate(DateTime? date) => returnDateHistoryValue(date);
 
@@ -98,6 +99,16 @@ class BorrowedLoansScreen extends StatefulWidget {
 
 class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
   late Future<List<LoanTransfer>> loans = widget.repository.borrowedLoans();
+  String query = '';
+
+  @override
+  void didUpdateWidget(covariant BorrowedLoansScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.repository != widget.repository) {
+      loans = widget.repository.borrowedLoans();
+    }
+  }
+
   bool busy = false;
   void reload() => setState(() {
         loans = widget.repository.borrowedLoans();
@@ -166,89 +177,116 @@ class _BorrowedLoansScreenState extends State<BorrowedLoansScreen> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      ListView(padding: const EdgeInsets.fromLTRB(20, 22, 20, 110), children: [
-        Text('Pożyczone', style: Theme.of(context).textTheme.headlineSmall),
-        FilledButton.icon(
-            onPressed: busy ? null : scan,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Skanuj kod QR')),
-        FilledButton(
-            onPressed: busy ? null : () => addEntry(true),
-            child: const Text('Dodaj z SMS')),
-        FilledButton(
-            onPressed: busy ? null : () => addEntry(false),
-            child: const Text('Dodaj ręcznie')),
-        FutureBuilder<List<LoanTransfer>>(
-            future: loans,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return const Text(
-                    'Nie udało się odczytać pożyczonych książek.');
-              }
-              if (!snapshot.hasData) return const LinearProgressIndicator();
-              if (snapshot.data!.isEmpty) {
-                return const Text('Brak pożyczonych książek.');
-              }
-              return Column(
-                  children: snapshot.data!
-                      .map((loan) => Card(
-                              child: ListTile(
-                            onTap: busy
-                                ? null
-                                : () async {
-                                    await Navigator.push<void>(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => LoanMessagingScreen(
-                                                repository: widget.repository,
-                                                loan: loan,
-                                                ownerSide: false)));
-                                    if (mounted) reload();
-                                  },
-                            title: Text(loan.title),
-                            subtitle: Text(
-                                '${loan.author}\nWłaściciel: ${loan.owner ?? 'Nie podano'}\n'
-                                'Data wypożyczenia: ${loanDate(loan.borrowedAt)}\nTermin zwrotu: ${loanDate(loan.returnDate)}'),
-                            trailing: IconButton(
-                                tooltip: 'Usuń lokalny zapis',
-                                icon: const Icon(Icons.delete_outline),
-                                onPressed: busy
+  Widget build(BuildContext context) => ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: mainScreenPadding,
+          children: [
+            MainScreenHeader(
+              title: 'Pożyczone',
+              searchHint: 'Tytuł, autor lub właściciel',
+              onSearchChanged: (value) =>
+                  setState(() => query = normalizeMainSearch(value)),
+            ),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilledButton.icon(
+                    onPressed: busy ? null : scan,
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Skanuj kod QR')),
+                FilledButton(
+                    onPressed: busy ? null : () => addEntry(true),
+                    child: const Text('Dodaj z SMS')),
+                FilledButton(
+                    onPressed: busy ? null : () => addEntry(false),
+                    child: const Text('Dodaj ręcznie')),
+              ],
+            ),
+            const SizedBox(height: 8),
+            FutureBuilder<List<LoanTransfer>>(
+                future: loans,
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Text(
+                        'Nie udało się odczytać pożyczonych książek.');
+                  }
+                  if (!snapshot.hasData) return const LinearProgressIndicator();
+                  if (snapshot.data!.isEmpty) {
+                    return const Text('Brak pożyczonych książek.');
+                  }
+                  final matches = snapshot.data!.where((loan) => [
+                        loan.title,
+                        loan.author,
+                        loan.owner ?? ''
+                      ].any((field) =>
+                          normalizeMainSearch(field).contains(query)));
+                  if (matches.isEmpty) {
+                    return const Text(
+                        'Brak pożyczonych książek pasujących do wyszukiwania.');
+                  }
+                  return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: matches
+                          .map((loan) => Card(
+                                  child: ListTile(
+                                onTap: busy
                                     ? null
                                     : () async {
-                                        final confirmed = await showDialog<
-                                                bool>(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                                    title: const Text(
-                                                        'Usunąć lokalny zapis?'),
-                                                    content: const Text(
-                                                        'Nie zmieni to danych na urządzeniu właściciela.'),
-                                                    actions: [
-                                                      TextButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                  context),
-                                                          child: const Text(
-                                                              'Anuluj')),
-                                                      FilledButton(
-                                                          onPressed: () =>
-                                                              Navigator.pop(
-                                                                  context,
-                                                                  true),
-                                                          child: const Text(
-                                                              'Usuń')),
-                                                    ]));
-                                        if (confirmed != true) return;
-                                        await widget.repository
-                                            .deleteBorrowedLoan(loan.loanId,
-                                                origin: loan.origin);
+                                        await Navigator.push<void>(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) =>
+                                                    LoanMessagingScreen(
+                                                        repository:
+                                                            widget.repository,
+                                                        loan: loan,
+                                                        ownerSide: false)));
                                         if (mounted) reload();
-                                      }),
-                          )))
-                      .toList());
-            }),
-      ]);
+                                      },
+                                title: Text(loan.title),
+                                subtitle: Text(
+                                    '${loan.author}\nWłaściciel: ${loan.owner ?? 'Nie podano'}\n'
+                                    'Data wypożyczenia: ${loanDate(loan.borrowedAt)}\nTermin zwrotu: ${loanDate(loan.returnDate)}'),
+                                trailing: IconButton(
+                                    tooltip: 'Usuń lokalny zapis',
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: busy
+                                        ? null
+                                        : () async {
+                                            final confirmed = await showDialog<
+                                                    bool>(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AlertDialog(
+                                                        title: const Text(
+                                                            'Usunąć lokalny zapis?'),
+                                                        content: const Text(
+                                                            'Nie zmieni to danych na urządzeniu właściciela.'),
+                                                        actions: [
+                                                          TextButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                      context),
+                                                              child: const Text(
+                                                                  'Anuluj')),
+                                                          FilledButton(
+                                                              onPressed: () =>
+                                                                  Navigator.pop(
+                                                                      context,
+                                                                      true),
+                                                              child: const Text(
+                                                                  'Usuń')),
+                                                        ]));
+                                            if (confirmed != true) return;
+                                            await widget.repository
+                                                .deleteBorrowedLoan(loan.loanId,
+                                                    origin: loan.origin);
+                                            if (mounted) reload();
+                                          }),
+                              )))
+                          .toList());
+                }),
+          ]);
 }
 
 class LoanScannerScreen extends StatefulWidget {

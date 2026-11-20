@@ -63,7 +63,7 @@ void main() {
           expect(find.text('Brak książek pasujących do wyszukiwania.'),
               findsOneWidget);
         }
-        expect(find.text('6 książek w kolekcji'), findsOneWidget);
+        expect(find.text('6 książek w kolekcji'), findsNothing);
       }
       await tester.enterText(find.byType(TextField), '');
       await tester.pumpAndSettle();
