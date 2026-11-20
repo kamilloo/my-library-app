@@ -73,21 +73,63 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
   }
 
-  testWidgets('all three actions coexist above the same borrowed list',
-      (tester) async {
-    await large(tester);
-    await tester.pumpWidget(app(
-        Scaffold(body: BorrowedLoansScreen(repository: EntryRepository()))));
-    await tester.pumpAndSettle();
-    for (final label in [
-      'Skanuj kod QR',
-      'Dodaj z SMS',
-      'Dodaj ręcznie',
-      'Wiedźmin'
-    ]) {
-      expect(find.text(label), findsOneWidget);
-    }
-  });
+  for (final (viewport, scale) in [
+    (const Size(800, 1600), 1.0),
+    (const Size(320, 480), 2.0),
+  ]) {
+    testWidgets(
+        'borrowed actions stack and fill the width at text scale $scale',
+        (tester) async {
+      await tester.binding.setSurfaceSize(viewport);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(app(Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(scale),
+          ),
+          child: Scaffold(
+            body: BorrowedLoansScreen(repository: EntryRepository()),
+          ),
+        ),
+      )));
+      await tester.pumpAndSettle();
+
+      final buttons = [
+        for (final label in ['Skanuj kod QR', 'Dodaj z SMS', 'Dodaj ręcznie'])
+          find.ancestor(
+            of: find.text(label),
+            matching: find.bySubtype<FilledButton>(),
+          ),
+      ];
+      await tester.scrollUntilVisible(buttons.first, 100,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      for (final button in buttons) {
+        expect(button, findsOneWidget);
+      }
+      final bounds = buttons.map(tester.getRect).toList();
+      for (final rect in bounds) {
+        expect(rect.left, 20);
+        expect(rect.right, viewport.width - 20);
+        expect(rect.height, bounds.first.height);
+        expect(rect.height, greaterThanOrEqualTo(48));
+      }
+      for (var i = 1; i < bounds.length; i++) {
+        expect(bounds[i].top - bounds[i - 1].bottom, 10);
+      }
+      final borrowedTitle = find.text('Wiedźmin');
+      expect(borrowedTitle, findsOneWidget);
+      expect(
+          tester.getTopLeft(borrowedTitle).dy, greaterThan(bounds.last.bottom));
+
+      for (final button in buttons) {
+        await tester.ensureVisible(button);
+        await tester.pumpAndSettle();
+        expect(button.hitTestable(), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets(
       'SMS preview saves every correction only after explicit confirmation',
       (tester) async {
