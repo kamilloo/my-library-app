@@ -18,20 +18,24 @@ class BookCover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final placeholder = Container(
       width: width,
       height: height,
       alignment: Alignment.center,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primaryContainer,
+          color: colors.secondaryContainer,
           borderRadius: BorderRadius.circular(9)),
       child: Text(title.isEmpty ? 'Brak okładki' : title,
           textAlign: TextAlign.center,
           maxLines: 4,
           overflow: TextOverflow.ellipsis,
-          style:
-              TextStyle(fontFamily: 'serif', fontSize: width > 80 ? 18 : 11)),
+          style: TextStyle(
+            color: colors.onSecondaryContainer,
+            fontFamily: 'serif',
+            fontSize: width > 80 ? 18 : 11,
+          )),
     );
     final value = reference;
     if (value == null || value.isEmpty) return placeholder;

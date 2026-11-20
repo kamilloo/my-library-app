@@ -32,6 +32,80 @@ import 'services/cover_picker.dart';
 import 'services/cover_storage.dart';
 import 'package:image_picker/image_picker.dart';
 
+final _libraryTheme = _buildLibraryTheme();
+
+ThemeData _buildLibraryTheme() {
+  final scheme = ColorScheme.fromSeed(
+    seedColor: const Color(0xff0755a3),
+    surface: const Color(0xfff5f9ff),
+  ).copyWith(
+    primary: const Color(0xffa34200),
+    onPrimary: Colors.white,
+    primaryContainer: const Color(0xffffddbb),
+    onPrimaryContainer: const Color(0xff542000),
+    secondary: const Color(0xff20548b),
+    onSecondary: Colors.white,
+    secondaryContainer: const Color(0xffd8e9ff),
+    onSecondaryContainer: const Color(0xff12375d),
+    surfaceContainerLowest: const Color(0xfffcfdff),
+    surfaceContainerLow: const Color(0xffeef5ff),
+    surfaceContainer: const Color(0xffe7f0fc),
+    surfaceContainerHigh: const Color(0xffdfeaf8),
+  );
+
+  return ThemeData(
+    colorScheme: scheme,
+    scaffoldBackgroundColor: scheme.surface,
+    appBarTheme: AppBarTheme(
+      backgroundColor: scheme.surfaceContainerLow,
+      foregroundColor: scheme.onSurface,
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: scheme.primary,
+      foregroundColor: scheme.onPrimary,
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: scheme.surfaceContainer,
+      indicatorColor: scheme.primaryContainer,
+      iconTheme: WidgetStateProperty.resolveWith((states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? scheme.onPrimaryContainer
+                : scheme.onSurfaceVariant,
+          )),
+    ),
+    chipTheme: ChipThemeData(
+      selectedColor: scheme.primaryContainer,
+      secondarySelectedColor: scheme.primaryContainer,
+      checkmarkColor: scheme.onPrimaryContainer,
+      labelStyle: TextStyle(color: scheme.onSurface),
+      secondaryLabelStyle: TextStyle(color: scheme.onPrimaryContainer),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: scheme.surfaceContainerLow,
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: scheme.surfaceContainer,
+      border: const OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(16)),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: scheme.surfaceContainerLowest,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(18)),
+      ),
+    ),
+  );
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyLibraryApp());
@@ -51,29 +125,7 @@ class MyLibraryApp extends StatelessWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xff315c45),
-            brightness: Brightness.light,
-            surface: const Color(0xfffffdf8),
-          ),
-          scaffoldBackgroundColor: const Color(0xfff5f2eb),
-          useMaterial3: true,
-          inputDecorationTheme: const InputDecorationTheme(
-            filled: true,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
-              borderSide: BorderSide.none,
-            ),
-          ),
-          cardTheme: const CardThemeData(
-            elevation: 0,
-            margin: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(18)),
-            ),
-          ),
-        ),
+        theme: _libraryTheme,
         home: defaultTargetPlatform == TargetPlatform.android
             ? TutorialGate(
                 preferences: LocalTutorialPreferences(),
@@ -189,7 +241,7 @@ class _LibraryShellState extends State<LibraryShell>
                 tooltip: 'Dodaj książkę',
                 child: const Icon(Icons.add),
               ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
         bottomNavigationBar: NavigationBar(
           selectedIndex: index,
           onDestinationSelected: (value) {

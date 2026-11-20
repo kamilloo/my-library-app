@@ -3,7 +3,8 @@
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: assets/icon/my_library_icon_1024.png
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/icon/my_library_icon_1024.png
-  adaptive_icon_foreground_inset: 20
+  image_path: assets/icon/launcher_legacy.png
+  adaptive_icon_background: "#073486"
+  adaptive_icon_foreground: assets/icon/launcher_adaptive.png
+  # The foreground source already includes the adaptive safe-area padding.
+  adaptive_icon_foreground_inset: 0
