@@ -1,11 +1,14 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_android/image_picker_android.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+import 'browser_files.dart';
 
 class CoverPicker {
   CoverPicker({
@@ -35,6 +38,7 @@ class CoverPicker {
     );
     if (image == null) return null;
     _temporaryOutputs.add(image.path);
+    if (kIsWeb) return image.path;
     String? result;
     try {
       result = await adjust(image.path);
@@ -91,6 +95,11 @@ class CoverPicker {
 
   Future<void> _discard(String path) async {
     if (!_temporaryOutputs.contains(path)) return;
+    if (kIsWeb) {
+      releasePhoto(path);
+      _temporaryOutputs.remove(path);
+      return;
+    }
     try {
       final cache = await (await _temporaryDirectory()).resolveSymbolicLinks();
       final file = File(path);

@@ -1,17 +1,24 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/library_database.dart';
 import '../models/book.dart';
+import 'browser_files.dart';
 import 'cover_storage.dart';
 import 'return_reminders.dart';
+
+part 'browser_library_backup.dart';
 
 class RestoreFailure implements Exception {
   const RestoreFailure({required this.previousLibraryVerified});

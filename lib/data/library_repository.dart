@@ -693,26 +693,31 @@ class LibraryRepository {
         final normalizedBarcode = normalizeBookBarcode(barcode);
         final db = await _database.database;
         await _assertUniqueBarcode(db, normalizedBarcode);
-        final storedCover = await coverStorage.persist(coverUrl);
+        final nativeCover =
+            kIsWeb ? null : await coverStorage.persist(coverUrl);
         final now = _now();
-        final book = Book(
-          id: _uuid.v4(),
-          title: title.trim(),
-          author: author.trim(),
-          description: description.trim(),
-          coverUrl: storedCover,
-          barcode: normalizedBarcode,
-          condition: condition,
-          genre: genre,
-          createdAt: now,
-          updatedAt: now,
-        );
+        late final Book book;
         try {
           await db.transaction((txn) async {
             // Recheck under SQLite's write lock, including equivalent 10/13 values
             // that the unchanged text-only unique index cannot compare.
             await _assertUniqueBarcode(txn, normalizedBarcode);
             await _requireGenre(txn, genre);
+            final savedCover = kIsWeb
+                ? await coverStorage.persistBrowserCover(coverUrl, txn)
+                : nativeCover;
+            book = Book(
+              id: _uuid.v4(),
+              title: title.trim(),
+              author: author.trim(),
+              description: description.trim(),
+              coverUrl: savedCover,
+              barcode: normalizedBarcode,
+              condition: condition,
+              genre: genre,
+              createdAt: now,
+              updatedAt: now,
+            );
             try {
               await txn.insert('books', book.toMap());
             } on DatabaseException catch (error) {
@@ -728,7 +733,7 @@ class LibraryRepository {
                 'history', _event(book, 'added', 'Dodano na półkę').toMap());
           });
         } catch (_) {
-          if (storedCover != coverUrl) await _deleteUnusedCover(storedCover);
+          if (nativeCover != coverUrl) await _deleteUnusedCover(nativeCover);
           rethrow;
         }
         return book;
@@ -752,8 +757,9 @@ class LibraryRepository {
         }
         final normalizedBarcode = normalizeBookBarcode(barcode);
         final db = await _database.database;
-        final storedCover =
-            updateCover ? await coverStorage.persist(coverUrl) : null;
+        var storedCover = updateCover && !kIsWeb
+            ? await coverStorage.persist(coverUrl)
+            : null;
         String? previousCover;
         late final Book result;
         try {
@@ -764,6 +770,10 @@ class LibraryRepository {
             final current = rows.single;
             previousCover = current['cover_url'] as String?;
             await _assertUniqueBarcode(txn, normalizedBarcode, exceptId: id);
+            if (kIsWeb && updateCover) {
+              storedCover =
+                  await coverStorage.persistBrowserCover(coverUrl, txn);
+            }
             final changes = <String, Object?>{
               'title': title.trim(),
               'author': author.trim(),
@@ -791,7 +801,9 @@ class LibraryRepository {
           });
         } catch (_) {
           // Only rollback-created files are candidates here; never existing covers.
-          if (storedCover != coverUrl) await _deleteUnusedCover(storedCover);
+          if (!kIsWeb && storedCover != coverUrl) {
+            await _deleteUnusedCover(storedCover);
+          }
           rethrow;
         }
         // The write has committed. Cleanup cannot change the saved result.
@@ -991,7 +1003,14 @@ class LibraryRepository {
             where: 'cover_url = ?',
             whereArgs: [reference],
             limit: 1);
-        if (users.isEmpty) await coverStorage.delete(reference);
+        if (users.isEmpty) {
+          if (kIsWeb) {
+            await txn.delete('browser_covers',
+                where: 'path = ?', whereArgs: [reference]);
+          } else {
+            await coverStorage.delete(reference);
+          }
+        }
       });
     } catch (error, stackTrace) {
       // Cleanup is best effort, including unexpected storage/DB failures.

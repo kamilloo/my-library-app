@@ -8,6 +8,11 @@
 build/
 coverage/
 
+# Generated SQLite browser runtime
+/web/sqlite3.wasm
+/web/sqflite_sw.js
+/web/sqflite_sw.js.map
+
 # Platform build artifacts
 android/.gradle/
 android/.kotlin/

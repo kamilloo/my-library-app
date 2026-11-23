@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
@@ -10,7 +11,7 @@ class ScannedBook {
   const ScannedBook({required this.isbn, required this.book});
 
   final String isbn;
-  final OpenLibraryBook book;
+  final OpenLibraryBook? book;
 }
 
 class ScanBookScreen extends StatefulWidget {
@@ -47,7 +48,12 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
     for (final barcode in capture.barcodes) {
       final isbn = normalizeIsbn(barcode.rawValue);
       if (isbn == null) continue;
-      await lookup(isbn);
+      if (kIsWeb) {
+        lookingUp = true;
+        Navigator.pop(context, ScannedBook(isbn: isbn, book: null));
+      } else {
+        await lookup(isbn);
+      }
       return;
     }
   }
@@ -105,12 +111,13 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
           foregroundColor: Colors.white,
           title: const Text('Skanuj ISBN'),
           actions: [
-            IconButton(
-              onPressed: toggleTorch,
-              tooltip: torchEnabled ? 'Wyłącz latarkę' : 'Włącz latarkę',
-              icon: Icon(
-                  torchEnabled ? Icons.flashlight_off : Icons.flashlight_on),
-            ),
+            if (!kIsWeb)
+              IconButton(
+                onPressed: toggleTorch,
+                tooltip: torchEnabled ? 'Wyłącz latarkę' : 'Włącz latarkę',
+                icon: Icon(
+                    torchEnabled ? Icons.flashlight_off : Icons.flashlight_on),
+              ),
           ],
         ),
         body: Stack(

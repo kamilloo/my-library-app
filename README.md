@@ -4,6 +4,12 @@ Current Android V1 scope, feature statuses, schema and release gates:
 [canonical specification](docs/MyLibrary_Version_1_Updated_Specification.txt).
 See the [historical comparison](docs/specification_gap_analysis.md) for reconciled requirements.
 
+## Safari na iPhonie
+
+Moja Biblioteka w przeglądarce jest przeznaczona dla Safari na iPhonie.
+Na Androidzie zalecamy aplikację natywną.
+[Budowanie, publikacja HTTPS i weryfikacja zadania 33](docs/task33_iphone_safari.md).
+
 ## Main screens and offline search
 
 **Moje książki**, **Historia** and **Pożyczone** each have a search bar and

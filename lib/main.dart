@@ -6,6 +6,7 @@ import 'services/tutorial_preferences.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/library_repository.dart';
@@ -107,7 +108,11 @@ ThemeData _buildLibraryTheme() {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  if (defaultTargetPlatform == TargetPlatform.android) {
+  if (kIsWeb) {
+    MobileScannerPlatform.instance
+      ..setWebBarcodeReader(WebBarcodeReader.zxingJs)
+      ..setBarcodeLibraryScriptUrl('zxing.min.js');
+  } else if (defaultTargetPlatform == TargetPlatform.android) {
     try {
       await LibraryBackup().recoverCovers(startup: true);
     } catch (_) {
@@ -132,7 +137,7 @@ class MyLibraryApp extends StatelessWidget {
         ],
         debugShowCheckedModeBanner: false,
         theme: _libraryTheme,
-        home: defaultTargetPlatform == TargetPlatform.android
+        home: kIsWeb || defaultTargetPlatform == TargetPlatform.android
             ? TutorialGate(
                 preferences: LocalTutorialPreferences(),
                 repository: LibraryRepository(),
@@ -152,12 +157,12 @@ class LibraryShell extends StatefulWidget {
 class _LibraryShellState extends State<LibraryShell>
     with WidgetsBindingObserver {
   final repository = LibraryRepository(
-    reminders: libraryReturnReminders,
+    reminders: kIsWeb ? null : libraryReturnReminders,
   );
 
   Future<void> refreshReminders() async {
     try {
-      await repository.reminders!.reconcile();
+      await repository.reminders?.reconcile();
     } catch (error) {
       if (kDebugMode) debugPrint('Reminder synchronization deferred: $error');
     }
@@ -187,7 +192,7 @@ class _LibraryShellState extends State<LibraryShell>
     WidgetsBinding.instance.addObserver(this);
     LibraryBackup.revision.addListener(libraryRestored);
     unawaited(refreshReminders());
-    if (defaultTargetPlatform == TargetPlatform.android) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       WidgetsBinding.instance.addPostFrameCallback((_) => recoverCover());
     }
   }
@@ -711,10 +716,18 @@ class _AddBookScreenState extends State<AddBookScreen> {
       MaterialPageRoute(builder: (_) => const ScanBookScreen()),
     );
     if (scanned == null || !mounted) return;
-    title.text = scanned.book.title;
-    author.text = scanned.book.author;
+    final book = scanned.book;
     isbn.text = scanned.isbn;
-    coverUrl = scanned.book.coverUrl;
+    if (book == null) {
+      setState(() => lookupMessage = null);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Zeskanowano ISBN. Uzupełnij dane książki lub wyszukaj je online.')));
+      return;
+    }
+    title.text = book.title;
+    author.text = book.author;
+    coverUrl = book.coverUrl;
     unawaited(coverPicker.releaseExcept(coverUrl));
     setState(() {});
     ScaffoldMessenger.of(context).showSnackBar(
@@ -849,7 +862,9 @@ class _AddBookScreenState extends State<AddBookScreen> {
                         : () => selectCover(source: ImageSource.camera),
                     icon: const Icon(Icons.camera_alt_outlined),
                     label: const Text('Zrób zdjęcie')),
-                if (coverUrl != null && !CoverStorage.isNetwork(coverUrl!))
+                if (!kIsWeb &&
+                    coverUrl != null &&
+                    !CoverStorage.isNetwork(coverUrl!))
                   TextButton(
                       onPressed:
                           saving || selectingCover ? null : () => selectCover(),

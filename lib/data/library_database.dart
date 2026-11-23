@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:path/path.dart';
 import '../models/genre.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 class LibraryDatabase {
   LibraryDatabase._()
@@ -75,7 +77,16 @@ class LibraryDatabase {
     }
   }
 
-  Future<Database> get database async => _database ??= await _open();
+  Future<Database>? _opening;
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    try {
+      return _database = await (_opening ??= _open());
+    } finally {
+      _opening = null;
+    }
+  }
 
   static Future<void> _createHistoryIndex(Database db) => db.execute(
       'CREATE INDEX IF NOT EXISTS idx_history_book_timestamp ON history(book_id, timestamp DESC, id DESC)');
@@ -177,15 +188,18 @@ class LibraryDatabase {
       'CREATE TABLE local_preferences (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
 
   Future<Database> _open({String? backupPath, bool readOnly = false}) async {
-    final factory = _factory ?? databaseFactory;
+    final factory =
+        _factory ?? (kIsWeb ? databaseFactoryFfiWeb : databaseFactory);
     final path = backupPath ??
         _path ??
         (_factory != null
             ? inMemoryDatabasePath
-            : join(await getDatabasesPath(), 'my_library.db'));
+            : kIsWeb
+                ? 'my_library.db'
+                : join(await getDatabasesPath(), 'my_library.db'));
     if (readOnly) {
       return factory.openDatabase(path,
-          options: OpenDatabaseOptions(readOnly: true, singleInstance: false));
+          options: OpenDatabaseOptions(readOnly: true, singleInstance: kIsWeb));
     }
     return factory.openDatabase(
       path,
@@ -208,7 +222,13 @@ class LibraryDatabase {
           await db.execute(
               'PRAGMA foreign_keys = ${version > 0 && version < 6 ? 'OFF' : 'ON'}');
         },
-        onOpen: (db) => db.execute('PRAGMA foreign_keys = ON'),
+        onOpen: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+          if (kIsWeb && backupPath == null) {
+            await db.execute('CREATE TABLE IF NOT EXISTS browser_covers '
+                '(path TEXT PRIMARY KEY, bytes BLOB NOT NULL)');
+          }
+        },
         onCreate: (db, version) async {
           await db.execute('''
             CREATE TABLE books (

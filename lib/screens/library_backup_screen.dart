@@ -1,8 +1,10 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/browser_files.dart';
 import '../services/library_backup.dart';
 import '../services/local_reminder_notifications.dart';
 
@@ -22,10 +24,45 @@ class _LibraryBackupScreenState extends State<LibraryBackupScreen> {
   String? _feedback;
   bool _confirming = false;
 
+  final _browserBackup = BrowserLibraryBackup();
+  Uint8List? _download;
+
+  Future<bool?> _confirmRestore() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        scrollable: true,
+        title: const Text('Przywrócić kopię zapasową?'),
+        content: const Text(
+          'Przywrócenie kopii zapasowej zastąpi wszystkie książki, wypożyczenia, historię i ustawienia zapisane obecnie w aplikacji. Tych danych nie będzie można odzyskać bez wcześniejszej kopii zapasowej. Czy chcesz kontynuować?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Anuluj'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Przywróć dane'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _saveDownload() {
+    downloadBackup(_browserBackup.exportName, _download!);
+    setState(() {
+      _download = null;
+      _feedback = 'Rozpoczęto pobieranie kopii zapasowej.';
+    });
+  }
+
   Future<void> _run({required bool restore}) async {
     if (_progress != null) return;
     setState(() {
       _feedback = null;
+      _download = null;
       _progress = restore
           ? 'Wybieranie i sprawdzanie kopii zapasowej…'
           : 'Przygotowywanie i zapisywanie kopii zapasowej…';
@@ -34,6 +71,36 @@ class _LibraryBackupScreenState extends State<LibraryBackupScreen> {
     var replacing = false;
     var feedback = 'Operacja została anulowana.';
     try {
+      if (kIsWeb) {
+        if (!restore) {
+          final bytes = await _browserBackup.export();
+          if (mounted) setState(() => _download = bytes);
+          feedback = 'Kopia jest gotowa do pobrania.';
+        } else {
+          final staged = await _browserBackup.prepareRestore();
+          if (staged != null) {
+            try {
+              if (mounted) {
+                setState(() => _confirming = true);
+                final confirmed = await _confirmRestore();
+                if (confirmed == true && mounted) {
+                  replacing = true;
+                  setState(() {
+                    _confirming = false;
+                    _progress = 'Przywracanie danych…';
+                  });
+                  await _browserBackup.restore(
+                      staged.verifiedPath, staged.covers);
+                  feedback = 'Dane zostały przywrócone pomyślnie.';
+                }
+              }
+            } finally {
+              await _browserBackup.discard(staged.verifiedPath);
+            }
+          }
+        }
+        return;
+      }
       work = await _service.workspace();
       if (!restore) {
         if (await _service.export(work)) {
@@ -41,26 +108,7 @@ class _LibraryBackupScreenState extends State<LibraryBackupScreen> {
         }
       } else if (await _service.prepareRestore(work) && mounted) {
         setState(() => _confirming = true);
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            scrollable: true,
-            title: const Text('Przywrócić kopię zapasową?'),
-            content: const Text(
-              'Przywrócenie kopii zapasowej zastąpi wszystkie książki, wypożyczenia, historię i ustawienia zapisane obecnie w aplikacji. Tych danych nie będzie można odzyskać bez wcześniejszej kopii zapasowej. Czy chcesz kontynuować?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Anuluj'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Przywróć dane'),
-              ),
-            ],
-          ),
-        );
+        final confirmed = await _confirmRestore();
         if (confirmed == true && mounted) {
           replacing = true;
           setState(() {
@@ -118,6 +166,12 @@ class _LibraryBackupScreenState extends State<LibraryBackupScreen> {
               const Text(
                 'Kopie zapasowe tworzysz ręcznie. Plik nie jest szyfrowany i może zawierać dane osobowe. Przechowuj go w bezpiecznym miejscu.',
               ),
+              if (kIsWeb) ...[
+                const SizedBox(height: 8),
+                const Text(
+                  'Wyczyszczenie danych witryny w Safari może usunąć bibliotekę. Zachowaj kopię w aplikacji Pliki. W przeglądarce limit kopii wynosi 64 MiB.',
+                ),
+              ],
               const SizedBox(height: 24),
               FilledButton.icon(
                 onPressed: busy ? null : () => _run(restore: false),
@@ -130,6 +184,14 @@ class _LibraryBackupScreenState extends State<LibraryBackupScreen> {
                 icon: const Icon(Icons.restore),
                 label: const Text('Przywróć kopię zapasową'),
               ),
+              if (_download != null) ...[
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: _saveDownload,
+                  icon: const Icon(Icons.download),
+                  label: const Text('Pobierz plik .mlbak'),
+                ),
+              ],
               if (busy && !_confirming) ...[
                 const SizedBox(height: 16),
                 LinearProgressIndicator(semanticsLabel: _progress),
