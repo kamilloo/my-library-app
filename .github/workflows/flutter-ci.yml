@@ -44,6 +44,36 @@ jobs:
       - name: Run all unit and widget tests
         run: flutter test
 
+  web-build:
+    needs: quality-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Build the Safari web application
+        run: |
+          flutter pub get
+          dart run sqflite_common_ffi_web:setup
+          flutter build web --no-web-resources-cdn
+          node tool/prepare_web.mjs
+      - name: Upload static HTTPS hosting artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: my-library-iphone-web
+          path: build/web
+          if-no-files-found: error
+          retention-days: 7
+
   android-build:
     needs: quality-checks
     runs-on: ubuntu-latest

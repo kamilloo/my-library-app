@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f9ff">
+  <title>Moja Biblioteka</title>
+  <link rel="stylesheet" href="entry.css">
+  <script src="entry.js" defer></script>
+</head>
+<body>
+  <main id="entry">
+    <h1>Moja Biblioteka</h1>
+    <p id="platform-message">Moja Biblioteka jest przeznaczona na telefony.</p>
+    <div id="actions">
+      <a id="browser" href="?app=1">Użyj w przeglądarce</a>
+      <a id="android" hidden rel="noopener">Zainstaluj na Androidzie</a>
+      <button id="android-info" type="button">Zainstaluj na Androidzie</button>
+    </div>
+    <p id="play-status" role="status"></p>
+  </main>
+  <p id="startup" role="status" hidden>Uruchamianie biblioteki…</p>
+  <p id="offline-status" role="status" hidden></p>
+  <noscript>Włącz JavaScript, aby uruchomić bibliotekę.</noscript>
+</body>
+</html>

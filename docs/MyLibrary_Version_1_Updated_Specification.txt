@@ -43,7 +43,11 @@ contain foreign-language text or fallback labels.
 Supported release target: Android. Flutter, Material 3, SQLite, local-first.
 Accounts are not required. Backend, Firebase accounts/database/FCM and cloud
 synchronization are not implemented; these capabilities are DEFERRED.
-iOS release is DEFERRED even though platform files and some plugin setup exist.
+Native iOS release is DEFERRED even though platform files and some plugin setup
+exist. Task 33 targets Flutter Web in Safari on iPhone, with release acceptance
+on a physical iPhone. Android browsers guide users to the native Android app.
+Desktop browsers are for development and testing.
+See docs/task33_iphone_safari.md for the web scope and acceptance checklist.
 This is a personal library product, not a social-network application.
 
 Independent Android devices can exchange selected borrowing information through

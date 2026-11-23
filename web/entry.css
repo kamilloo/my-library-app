@@ -1,0 +1,10 @@
+[hidden] { display: none !important; }
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #122338; background: #f5f9ff; }
+body { margin: 0; }
+main { box-sizing: border-box; max-width: 33rem; margin: 12vh auto 0; padding: 1.5rem; }
+h1 { font-family: Georgia, serif; font-size: clamp(2rem, 8vw, 3rem); margin: 0 0 1rem; }
+#actions { display: grid; gap: .75rem; margin-top: 1.5rem; }
+#actions > * { box-sizing: border-box; display: block; min-height: 3rem; border: 1px solid #20548b; border-radius: 1rem; padding: .8rem 1rem; background: transparent; color: #12375d; font: inherit; text-align: center; text-decoration: none; cursor: pointer; }
+#actions .primary { background: #a34200; border-color: #a34200; color: white; }
+#startup { padding: 1rem; }
+#offline-status { position: fixed; z-index: 10000; bottom: 0; left: 0; right: 0; margin: 0; padding: .6rem 1rem; color: #12375d; background: #d8e9ff; text-align: center; pointer-events: none; }

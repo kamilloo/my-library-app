@@ -1,8 +1,13 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
+
+import '../data/library_database.dart';
+import 'browser_files.dart';
 
 /// SQLite stores only URLs or portable paths relative to application support.
 class CoverStorage {
@@ -20,6 +25,25 @@ class CoverStorage {
   Future<File> resolve(String reference) async => File(isManaged(reference)
       ? p.join((await _directory()).path, reference)
       : reference);
+
+  Future<Uint8List> readBytes(String reference) async {
+    if (!kIsWeb) return (await resolve(reference)).readAsBytes();
+    if (!isManaged(reference)) return photoAsJpeg(reference);
+    final db = await LibraryDatabase.instance.database;
+    final rows = await db.query('browser_covers',
+        columns: ['bytes'], where: 'path = ?', whereArgs: [reference]);
+    return rows.single['bytes']! as Uint8List;
+  }
+
+  Future<String?> persistBrowserCover(
+      String? reference, DatabaseExecutor database) async {
+    if (reference == null || reference.isEmpty) return null;
+    if (isNetwork(reference) || isManaged(reference)) return reference;
+    final name = 'covers/${const Uuid().v4()}.jpg';
+    final bytes = await photoAsJpeg(reference);
+    await database.insert('browser_covers', {'path': name, 'bytes': bytes});
+    return name;
+  }
 
   Future<String?> persist(String? reference) async {
     if (reference == null || reference.isEmpty) return null;

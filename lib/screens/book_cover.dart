@@ -1,4 +1,6 @@
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../services/cover_storage.dart';
 
@@ -46,11 +48,22 @@ class BookCover extends StatelessWidget {
           height: height,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => placeholder);
-    } else {
+    } else if (!kIsWeb) {
       image = FutureBuilder<File>(
         future: (storage ?? CoverStorage()).resolve(value),
         builder: (context, snapshot) => snapshot.hasData
             ? Image.file(snapshot.data!,
+                width: width,
+                height: height,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => placeholder)
+            : placeholder,
+      );
+    } else {
+      image = FutureBuilder<Uint8List>(
+        future: (storage ?? CoverStorage()).readBytes(value),
+        builder: (context, snapshot) => snapshot.hasData
+            ? Image.memory(snapshot.data!,
                 width: width,
                 height: height,
                 fit: BoxFit.cover,

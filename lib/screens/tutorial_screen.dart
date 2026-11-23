@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../data/library_repository.dart';
 import '../models/owner_name.dart';
+import '../services/browser_files.dart';
 import '../services/tutorial_preferences.dart';
 import 'library_backup_screen.dart';
 
@@ -106,6 +108,20 @@ class LoanHelpScreen extends StatelessWidget {
                       builder: (_) => const LibraryBackupScreen()),
                 ),
               ),
+              if (kIsWeb) ...[
+                const SizedBox(height: 16),
+                FutureBuilder<bool>(
+                  future: offlineResourcesReady(),
+                  builder: (context, snapshot) {
+                    final status = switch (snapshot.data) {
+                      true => 'Zasoby do pracy offline są gotowe.',
+                      false => 'Tryb offline nie jest gotowy.',
+                      null => 'Sprawdzanie zasobów do pracy offline…',
+                    };
+                    return Semantics(liveRegion: true, child: Text(status));
+                  },
+                ),
+              ],
               const SizedBox(height: 24),
               Semantics(
                 header: true,
