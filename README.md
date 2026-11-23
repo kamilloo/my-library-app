@@ -10,6 +10,13 @@ Moja Biblioteka w przeglądarce jest przeznaczona dla Safari na iPhonie.
 Na Androidzie zalecamy aplikację natywną.
 [Budowanie, publikacja HTTPS i weryfikacja zadania 33](docs/task33_iphone_safari.md).
 
+## Dobrowolne wsparcie
+
+W aplikacji otwórz **Pomoc → O aplikacji**. W Safari na iPhonie przycisk wsparcia
+prowadzi do BuyCoffee.to. W Androidzie ekran zawiera informacje o aplikacji.
+Wszystkie funkcje pozostają bezpłatne.
+[Wsparcie, prywatność i warunki publikacji](docs/voluntary_support.md).
+
 ## Main screens and offline search
 
 **Moje książki**, **Historia** and **Pożyczone** each have a search bar and

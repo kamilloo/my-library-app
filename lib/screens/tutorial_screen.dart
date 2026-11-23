@@ -6,6 +6,7 @@ import '../models/owner_name.dart';
 import '../services/browser_files.dart';
 import '../services/tutorial_preferences.dart';
 import 'library_backup_screen.dart';
+import 'support_screen.dart';
 
 class TutorialHelpButton extends StatelessWidget {
   const TutorialHelpButton({super.key});
@@ -106,6 +107,15 @@ class LoanHelpScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const LibraryBackupScreen()),
+                ),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.info_outline),
+                label: const Text('O aplikacji'),
+                onPressed: () => Navigator.push<void>(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SupportScreen()),
                 ),
               ),
               if (kIsWeb) ...[
