@@ -1,0 +1,15 @@
+{
+  "id": "./",
+  "name": "Moja Biblioteka",
+  "short_name": "Moja Biblioteka",
+  "lang": "pl",
+  "start_url": "./?app=1",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#f5f9ff",
+  "background_color": "#f5f9ff",
+  "icons": [
+    {"src": "icons/logo-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icons/logo-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

@@ -7,10 +7,12 @@ const androidInfo = document.querySelector('#android-info');
 const platform = document.querySelector('#platform-message');
 const agent = navigator.userAgent;
 const isAndroid = /Android/i.test(agent);
-const isIphoneSafari = /iPhone/i.test(agent) && /Version\/[\d.]+.*Safari\//i.test(agent)
+const isIphoneSafari = /iPhone/i.test(agent) && (navigator.standalone === true || /Version\/[\d.]+.*Safari\//i.test(agent))
   && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(agent);
 
-if (new URLSearchParams(location.search).get('app') === '1') {
+const openApp = new URLSearchParams(location.search).get('app') === '1'
+  || (isIphoneSafari && new URL(document.baseURI).pathname === '/app/');
+if (openApp) {
   entry.hidden = true;
   startup.hidden = false;
   const bootstrap = document.createElement('script');
