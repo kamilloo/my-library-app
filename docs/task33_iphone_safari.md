@@ -22,9 +22,17 @@ Opublikuj zawartość `build/web` pod stałym adresem HTTPS. Przy publikacji pod
 
 Przed budową wpisz oficjalny adres Google Play w `web/play-config.json`, gdy zostanie zweryfikowany. Przeglądarka akceptuje stronę szczegółów pakietu `com.kamilloo.mylibrary` w domenie Google Play.
 
+Przed publiczną publikacją sprawdź [profil i warunki publikacji wsparcia](voluntary_support.md).
+Na stronie wejściowej sprawdź stopkę, a w aplikacji ekran **Pomoc → O aplikacji**.
+Po przygotowaniu trybu offline zweryfikuj ekran bez połączenia. Po ponownym
+połączeniu potwierdź, że dopiero dotknięcie przycisku otwiera adres BuyCoffee.to
+w osobnej karcie i pozostawia bibliotekę w bieżącej karcie.
+
 ## Przechowywanie i prywatność
 
 Safari otwiera tę samą bibliotekę Flutter i używa tego samego schematu oraz zapytań SQLite co Android. SQLite skompilowany do WebAssembly zapisuje bazę w IndexedDB, co pozwala zachować transakcje, migracje i format kopii. Bezpośrednie użycie IndexedDB wymagałoby osobnej implementacji zapytań, transakcji, migracji i eksportu SQLite. Wybrany wariant zwiększa rozmiar zasobów potrzebnych przy pierwszym uruchomieniu i korzysta z eksperymentalnego backendu webowego. Zdjęcia wybrane lub zrobione w Safari są konwertowane lokalnie do JPEG i zapisywane w bazie przeglądarki. Kopia zawiera standardowy plik SQLite i osobne JPEG, tak jak na Androidzie. Import sprawdza spis plików, sumy kontrolne, schemat i integralność przed ekranem potwierdzenia. Zastąpienie rekordów i zdjęć w Safari odbywa się w jednej transakcji. Wersja przeglądarkowa przyjmuje pliki .mlbak do 64 MiB i ogranicza sumę rozpakowanych danych do 64 MiB ze względu na pamięć urządzenia.
+
+Dobrowolne wsparcie nie zapisuje danych o wpłatach. Płatność odbywa się na stronie BuyCoffee.to otwieranej bez danych biblioteki i bez nagłówka odsyłającego.
 
 Dane są przypisane do adresu witryny i profilu Safari. Wyczyszczenie danych witryny lub usunięcie ich przez system może skasować bibliotekę. Eksportuj kopie regularnie i zachowuj je w aplikacji Pliki. Pliki `.mlbak` są niezaszyfrowane. Skaner i wybrane zdjęcia są przetwarzane na urządzeniu. Wyszukiwanie metadanych w Open Library i okładki z adresów URL wymagają połączenia. Skanowanie ISBN zwraca kod do formularza także bez połączenia.
 

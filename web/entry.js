@@ -68,6 +68,18 @@ if (new URLSearchParams(location.search).get('app') === '1') {
       document.querySelector('#play-status').textContent = '';
     })
     .catch(() => {});
+
+  fetch('assets/assets/support.json')
+    .then(response => response.ok ? response.json() : null)
+    .then(config => {
+      const value = config?.url;
+      if (typeof value !== 'string' ||
+          !/^https:\/\/buycoffee\.to\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) ||
+          new URL(value).href !== value) return;
+      document.querySelector('#support-link').href = value;
+      document.querySelector('#support').hidden = false;
+    })
+    .catch(() => {});
 }
 
 async function prepareOffline() {

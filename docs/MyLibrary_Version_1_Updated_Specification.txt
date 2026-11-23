@@ -1,6 +1,16 @@
 MOJA BIBLIOTEKA / MY LIBRARY
 CANONICAL ANDROID V1 SPECIFICATION
 
+TASK 34: VOLUNTARY SUPPORT
+
+All features, library capacity, backups and restores are free. Contributions
+grant no rewards, account status or feature access. The app has no advertising,
+subscriptions, payment handling or contribution tracking. Help > O aplikacji
+provides support information. The Safari web application and its entry page
+offer an optional external action. Android shows information only pending
+documented payment policy clearance and project-owner approval.
+See docs/voluntary_support.md for release gates and privacy.
+
 1. OWNERSHIP, BASELINE AND STATUS LANGUAGE
 
 This is the current Android V1 product scope and implementation specification.

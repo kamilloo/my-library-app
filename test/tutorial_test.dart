@@ -68,7 +68,7 @@ Future<void> lastPage(WidgetTester tester) async {
 
 void main() {
   testWidgets(
-      'completion opens real library and Help preserves books and search',
+      'completion opens real library and About preserves books and search',
       (tester) async {
     final preferences = MemoryPreferences();
     final repository = ExistingLibrary();
@@ -89,6 +89,11 @@ void main() {
     expect(find.byType(BookCard), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Anna');
     await tester.tap(find.text('Pomoc'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('O aplikacji'));
+    await tester.pumpAndSettle();
+    expect(find.text('Wesprzyj rozwój Mojej Biblioteki'), findsOneWidget);
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();

@@ -36,6 +36,16 @@ verification and actual release readiness. A successful debug build is not a
 production artifact. Do not distribute a release candidate until its certificate,
 signed APK/AAB, installed upgrade path and device QA have been verified.
 
+## Voluntary support release check
+
+- Check **Pomoc → O aplikacji** in the Android candidate. The screen contains
+  information and has no external payment action or redirect.
+- Keep Android payment navigation disabled pending a documented applicable
+  Google Play policy basis and project-owner approval. BuyCoffee.to's published
+  fee prevents assuming that 100% reaches the creator.
+- See [voluntary support release gates](voluntary_support.md) for the separate
+  web publication and provider verification steps.
+
 ## Identity, versions and toolchain
 
 | Setting | Current value |

@@ -35,7 +35,8 @@ async function list(directory, prefix = '') {
 
 const files = (await list(output)).sort();
 for (const required of ['index.html', 'main.dart.js', 'flutter_bootstrap.js',
-    'sqlite3.wasm', 'sqflite_sw.js', 'canvaskit/canvaskit.wasm', scannerName]) {
+    'sqlite3.wasm', 'sqflite_sw.js', 'canvaskit/canvaskit.wasm',
+    'assets/assets/support.json', scannerName]) {
   if (!files.includes(required)) throw new Error(`Missing web resource: ${required}`);
 }
 const workerTemplate = await readFile(join('web', workerName), 'utf8');

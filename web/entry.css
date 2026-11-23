@@ -6,5 +6,8 @@ h1 { font-family: Georgia, serif; font-size: clamp(2rem, 8vw, 3rem); margin: 0 0
 #actions { display: grid; gap: .75rem; margin-top: 1.5rem; }
 #actions > * { box-sizing: border-box; display: block; min-height: 3rem; border: 1px solid #20548b; border-radius: 1rem; padding: .8rem 1rem; background: transparent; color: #12375d; font: inherit; text-align: center; text-decoration: none; cursor: pointer; }
 #actions .primary { background: #a34200; border-color: #a34200; color: white; }
+#support { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #c2d7ed; line-height: 1.5; }
+#support h2 { font-size: 1.125rem; }
+#support-link { display: inline-flex; align-items: center; min-height: 3rem; color: #12375d; font-weight: 600; }
 #startup { padding: 1rem; }
 #offline-status { position: fixed; z-index: 10000; bottom: 0; left: 0; right: 0; margin: 0; padding: .6rem 1rem; color: #12375d; background: #d8e9ff; text-align: center; pointer-events: none; }
