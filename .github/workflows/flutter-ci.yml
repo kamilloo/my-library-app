@@ -64,7 +64,7 @@ jobs:
         run: |
           flutter pub get
           dart run sqflite_common_ffi_web:setup
-          flutter build web --no-web-resources-cdn
+          flutter build web --release --no-web-resources-cdn --base-href /app/
           node tool/prepare_web.mjs
       - name: Upload static HTTPS hosting artifact
         uses: actions/upload-artifact@v7

@@ -14,9 +14,11 @@ Zadanie `web-build` w Flutter CI tworzy artefakt `my-library-iphone-web`. Lokaln
 ```sh
 flutter pub get
 dart run sqflite_common_ffi_web:setup
-flutter build web --no-web-resources-cdn
+flutter build web --release --no-web-resources-cdn --base-href /app/
 node tool/prepare_web.mjs
 ```
+
+Artefakt CI jest budowany dla `/app/`. Na iPhonie Safari ten adres uruchamia bibliotekę bez dodatkowego wyboru platformy. Do testów na komputerze użyj `/app/?app=1`. Ikony manifestu pochodzą z `assets/icon/my_library_icon_1024.png`.
 
 Opublikuj zawartość `build/web` pod stałym adresem HTTPS. Przy publikacji pod ścieżką, np. `/biblioteka/`, dodaj `--base-href /biblioteka/` do polecenia Flutter. Serwer powinien zwracać JavaScript jako `text/javascript` i pliki WASM jako `application/wasm`. Udostępniaj pliki z jednej wersji jako całość. Ustaw ponowną walidację HTTP dla plików o stałych nazwach, w szczególności dla `offline-worker.js`. Cache service workera przechowuje zestaw plików tej samej wersji i przełącza wersję po zamknięciu klientów korzystających z poprzedniej.
 
