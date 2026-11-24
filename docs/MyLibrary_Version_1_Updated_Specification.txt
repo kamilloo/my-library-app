@@ -3,13 +3,15 @@ CANONICAL ANDROID V1 SPECIFICATION
 
 TASK 34: VOLUNTARY SUPPORT
 
-All features, library capacity, backups and restores are free. Contributions
-grant no rewards, account status or feature access. The app has no advertising,
-subscriptions, payment handling or contribution tracking. Help > O aplikacji
-provides support information. The Safari web application and its entry page
-offer an optional external action. Android shows information only pending
-documented payment policy clearance and project-owner approval.
-See docs/voluntary_support.md for release gates and privacy.
+All library features, capacity, backups and restores are free. The app has no
+advertising or subscriptions. Help > O aplikacji provides support information.
+Safari and its entry page offer optional BuyCoffee contributions without rewards
+or tracking. Android has an independent cosmetic badge, Przyjaciel Biblioteki,
+implemented as the non-consumable one-time Google Play product
+library_supporter_badge. Its localized price and ownership come from Play.
+The badge is excluded from library archives. Billing is available only in
+opt-in Android debug builds; production verification and Play validation are
+pending. See docs/voluntary_support.md and docs/google_play_supporter_badge.md.
 
 1. OWNERSHIP, BASELINE AND STATUS LANGUAGE
 

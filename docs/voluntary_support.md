@@ -2,8 +2,9 @@
 
 Moja Biblioteka pozostaje bezpłatna. Katalogowanie i wypożyczenia, biblioteki
 dowolnej wielkości oraz kopie zapasowe i przywracanie są dostępne bez wpłat.
-Aplikacja nie oferuje abonamentów, reklam, płatnych funkcji, wyróżnień ani nagród.
-Wpłata nie zmienia danych, zachowania aplikacji ani sposobu obsługi użytkownika.
+Aplikacja nie oferuje abonamentów, reklam ani płatnych funkcji biblioteki.
+Wpłata przez BuyCoffee.to nie daje żadnej nagrody. Kosmetyczna odznaka na
+Androidzie ma osobną ścieżkę zakupu w Google Play.
 
 ## Gdzie znajduje się wsparcie
 
@@ -19,13 +20,15 @@ Wpłata nie zmienia danych, zachowania aplikacji ani sposobu obsługi użytkowni
   Przed publikacją należy potwierdzić źródło i hosting oraz ścieżkę Safari do
   aplikacji HTTPS. Zachowaj główne odnośniki Google Play dla Androida i kieruj
   Safari na iPhonie do wersji przeglądarkowej. Komputery pozostają środowiskiem testowym.
-- **Android:** ten sam ekran w **Pomoc → O aplikacji** wyświetla wyłącznie
-  informacje. Implementacja natywna nie udostępnia żadnej akcji płatności.
-  Funkcja nie pojawia się w samouczku ani w operacjach biblioteki.
+- **Android:** **Pomoc → O aplikacji** zawiera integrację Google Play dla
+  jednorazowego zakupu **Przyjaciel Biblioteki**. Wydanie produkcyjne pokazuje
+  informacje, ponieważ zakup jest dostępny tylko po włączeniu w kompilacji
+  debug. Ekran Androida nie otwiera BuyCoffee.to. Konfigurację produktu,
+  testowanie i warunki uruchomienia opisuje [osobna lista kontrolna](google_play_supporter_badge.md).
 
 ## Konfiguracja i prywatność
 
-Platformą wsparcia jest BuyCoffee.to. [Konfiguracja](../assets/support.json)
+Platformą dobrowolnych wpłat dla Safari jest BuyCoffee.to. [Konfiguracja](../assets/support.json)
 zawiera adres [buycoffee.to/moja-biblioteka](https://buycoffee.to/moja-biblioteka).
 Flutter Web i strona wejściowa używają tego samego pliku. Dozwolony jest wyłącznie
 adres HTTPS w domenie buycoffee.to z prostą nazwą profilu, bez parametrów, fragmentu,
@@ -49,10 +52,23 @@ uzależnia wyjątek dla płatności między osobami od przekazania 100% wpłaty 
 oraz braku treści, usług lub nagród cyfrowych w zamian.
 [BuyCoffee.to](https://buycoffee.to/rules/pl/serwis.pdf) podaje 10% prowizji od
 jednorazowych wpłat (7,5% opłaty serwisowej i 2,5% kosztu transakcji). Sama
-rezygnacja z korzyści nie spełnia warunku 100%. Nawigacja do płatności w Androidzie
-pozostaje wyłączona do czasu udokumentowania odpowiedniej podstawy w aktualnej
-polityce i uzyskania zgody właściciela projektu. Publikacja strony i aplikacji
-webowej ma osobne warunki weryfikacji.
+rezygnacja z korzyści nie spełnia warunku 100%. Zewnętrzna ścieżka płatności
+BuyCoffee pozostaje przeznaczona dla Safari i strony wejściowej. Publikacja
+strony i aplikacji webowej ma osobne warunki weryfikacji.
+
+## Odznaka Google Play
+
+Google Play podaje cenę, obsługuje płatność i przechowuje własność zakupu.
+Na tym samym koncie odznakę można odzyskać także po reinstalacji lub zmianie
+urządzenia. Przycisk **Przywróć zakup** ponownie sprawdza konto Play. Odznaka
+nie trafia do kopii biblioteki. Aplikacja nie przesyła zawartości biblioteki,
+nie zapisuje tokenów zakupu na dysku i nie łączy zakupów z wpłatami BuyCoffee.
+
+W kompilacji testowej aplikacja sprawdza własność w kliencie Google Play.
+Jednoznaczna odpowiedź o braku zakupu usuwa odznakę. Błąd połączenia zachowuje
+poprzedni stan w bieżącej sesji. Zwrot lub zmiana konta są widoczne po
+odświeżeniu danych Play. Szczegóły ograniczeń i blokady produkcyjnej opisuje
+[lista kontrolna Google Play](google_play_supporter_badge.md).
 
 ## Testowanie
 
@@ -61,8 +77,8 @@ webu wykonaj [weryfikację Safari i trybu offline](task33_iphone_safari.md).
 Zapisz testową książkę, otwórz ekran informacji i wróć. Sprawdź, czy rekord
 przetrwał przeładowanie także przy braku sieci. Po przywróceniu połączenia
 dotknij przycisku, sprawdź adres nowej karty i wróć do biblioteki. Na Androidzie
-przejdź tą samą ścieżką i potwierdź brak przycisku oraz działanie samouczka,
-kopii zapasowych, skanera i wypożyczeń.
+uruchom też `flutter test test/supporter_billing_test.dart` i sprawdź działanie
+samouczka, kopii zapasowych, skanera i wypożyczeń.
 
 ## Fragment stopki dla oficjalnej strony
 

@@ -12,10 +12,17 @@ Na Androidzie zalecamy aplikację natywną.
 
 ## Dobrowolne wsparcie
 
-W aplikacji otwórz **Pomoc → O aplikacji**. W Safari na iPhonie przycisk wsparcia
-prowadzi do BuyCoffee.to. W Androidzie ekran zawiera informacje o aplikacji.
-Wszystkie funkcje pozostają bezpłatne.
-[Wsparcie, prywatność i warunki publikacji](docs/voluntary_support.md).
+W aplikacji otwórz **Pomoc → O aplikacji**. Safari na iPhonie oferuje dobrowolną
+wpłatę przez BuyCoffee.to bez nagród. Android ma osobną integrację Google Play
+dla jednorazowego zakupu kosmetycznej odznaki **Przyjaciel Biblioteki**.
+Zakup jest obecnie dostępny wyłącznie w jawnie włączonej kompilacji testowej.
+Wszystkie funkcje biblioteki pozostają bezpłatne.
+
+Odznakę przywraca się z tego samego konta Google Play przyciskiem **Przywróć zakup**.
+Kopia biblioteki nie zawiera odznaki. Po zwrocie z odebraniem zakupu odznaka
+znika po udanym odświeżeniu własności w Play. Szczegóły i ograniczenia lokalnej
+weryfikacji opisują [zasady wsparcia](docs/voluntary_support.md) oraz
+[lista konfiguracji i testów w Google Play](docs/google_play_supporter_badge.md).
 
 ## Main screens and offline search
 
