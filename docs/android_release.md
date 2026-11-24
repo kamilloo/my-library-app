@@ -38,13 +38,15 @@ signed APK/AAB, installed upgrade path and device QA have been verified.
 
 ## Voluntary support release check
 
-- Check **Pomoc → O aplikacji** in the Android candidate. The screen contains
-  information and has no external payment action or redirect.
-- Keep Android payment navigation disabled pending a documented applicable
-  Google Play policy basis and project-owner approval. BuyCoffee.to's published
-  fee prevents assuming that 100% reaches the creator.
-- See [voluntary support release gates](voluntary_support.md) for the separate
-  web publication and provider verification steps.
+- Check **Pomoc → O aplikacji** in the Android release candidate. Checkout
+  remains gated while production verification and Play/device validation are
+  pending.
+- In an opted-in Android debug build, test the single non-consumable
+  `library_supporter_badge` with a Play license tester. Verify localized price,
+  payment lifecycle, acknowledgment, restoration and refund with revocation.
+  See [Google Play setup and release gates](google_play_supporter_badge.md).
+- BuyCoffee.to remains available through Safari and the web entry page. See
+  [voluntary support release gates](voluntary_support.md).
 
 ## Identity, versions and toolchain
 

@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'screens/supporter_badge.dart';
 import 'screens/tutorial_screen.dart';
+import 'services/google_play_supporter_store.dart';
+import 'services/supporter_billing.dart';
 import 'screens/owner_name_dialog.dart';
 import 'services/tutorial_preferences.dart';
 
@@ -119,7 +122,20 @@ Future<void> main() async {
       // Cover cleanup is retryable. SQLite is still the source of truth.
     }
   }
-  runApp(const MyLibraryApp());
+  const app = MyLibraryApp();
+  // Client-side Play ownership checks are available only for license testing.
+  const playBillingTest = bool.fromEnvironment('PLAY_SUPPORTER_BILLING_TEST');
+  if (kDebugMode &&
+      playBillingTest &&
+      !kIsWeb &&
+      defaultTargetPlatform == TargetPlatform.android) {
+    runApp(SupporterBillingScope(
+      billing: SupporterBilling(GooglePlaySupporterStore()),
+      child: app,
+    ));
+  } else {
+    runApp(app);
+  }
 }
 
 class MyLibraryApp extends StatelessWidget {

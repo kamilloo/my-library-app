@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/support_browser.dart';
+import 'supporter_badge.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key, this.loadAction = loadSupportAction});
@@ -15,30 +16,45 @@ class _SupportScreenState extends State<SupportScreen> {
   late final _action = widget.loadAction();
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('O aplikacji')),
-        body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Semantics(
-                header: true,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.coffee_outlined, applyTextScaling: true),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Wesprzyj rozwój Mojej Biblioteki',
-                        semanticsLabel: '☕ Wesprzyj rozwój Mojej Biblioteki',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
+  Widget build(BuildContext context) {
+    final billing = SupporterBillingScope.read(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('O aplikacji')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Semantics(
+              header: true,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    billing == null
+                        ? Icons.coffee_outlined
+                        : Icons.workspace_premium_outlined,
+                    applyTextScaling: true,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Wesprzyj rozwój Mojej Biblioteki',
+                      semanticsLabel: billing == null
+                          ? '☕ Wesprzyj rozwój Mojej Biblioteki'
+                          : null,
+                      style: Theme.of(context).textTheme.headlineSmall,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(height: 16),
+            if (billing != null) ...[
+              const Text(
+                  'Moja Biblioteka jest darmową aplikacją do katalogowania książek i zarządzania wypożyczeniami.'),
               const SizedBox(height: 16),
+              SupporterBadge(billing: billing),
+            ] else ...[
               const Text(
                 'Moja Biblioteka jest darmową aplikacją do katalogowania książek i zarządzania wypożyczeniami.\n\n'
                 'Jeśli aplikacja jest dla Ciebie przydatna, możesz dobrowolnie wesprzeć jej dalszy rozwój.\n\n'
@@ -83,7 +99,9 @@ class _SupportScreenState extends State<SupportScreen> {
                 },
               ),
             ],
-          ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 }
