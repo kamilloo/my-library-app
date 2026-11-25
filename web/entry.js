@@ -90,7 +90,7 @@ async function prepareOffline() {
     const timeout = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('offline preparation timeout')), 120000));
     await Promise.race([registerOfflineWorker(), timeout]);
-    offline.textContent = 'Zasoby do pracy offline są gotowe.';
+    offline.textContent = 'Zasoby do pracy offline są gotowe. Wyszukiwanie w Open Library wymaga internetu.';
     setTimeout(() => { offline.hidden = true; }, 6000);
   } catch (_) {
     offline.textContent = 'Tryb offline nie jest gotowy. Otwórz bibliotekę ponownie po połączeniu z internetem.';

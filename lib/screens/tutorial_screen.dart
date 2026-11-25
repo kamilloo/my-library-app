@@ -143,20 +143,6 @@ class LoanHelpScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const SupportScreen()),
                 ),
               ),
-              if (kIsWeb) ...[
-                const SizedBox(height: 16),
-                FutureBuilder<bool>(
-                  future: offlineResourcesReady(),
-                  builder: (context, snapshot) {
-                    final status = switch (snapshot.data) {
-                      true => 'Zasoby do pracy offline są gotowe.',
-                      false => 'Tryb offline nie jest gotowy.',
-                      null => 'Sprawdzanie zasobów do pracy offline…',
-                    };
-                    return Semantics(liveRegion: true, child: Text(status));
-                  },
-                ),
-              ],
               const SizedBox(height: 24),
               Semantics(
                 header: true,
@@ -171,6 +157,26 @@ class LoanHelpScreen extends StatelessWidget {
                 'W „Historii” szukaj według tytułu lub autora, jeśli książka '
                 'wciąż jest w kolekcji. W „Pożyczone” możesz też wpisać '
                 'nazwę właściciela.',
+              ),
+              if (kIsWeb) ...[
+                const SizedBox(height: 16),
+                FutureBuilder<bool>(
+                  future: offlineResourcesReady(),
+                  builder: (context, snapshot) {
+                    final status = switch (snapshot.data) {
+                      true => 'Zasoby do pracy offline są gotowe.',
+                      false => 'Tryb offline nie jest gotowy.',
+                      null => 'Sprawdzanie zasobów do pracy offline…',
+                    };
+                    return Semantics(liveRegion: true, child: Text(status));
+                  },
+                ),
+              ],
+              const SizedBox(height: 12),
+              const Text(
+                'Możesz przeglądać i edytować zapisane książki, zarządzać '
+                'wypożyczeniami oraz skanować kody bez internetu. Pobieranie '
+                'informacji o nowych książkach z Open Library wymaga połączenia.',
               ),
               for (final section in loanHelpSections) ...[
                 const SizedBox(height: 24),

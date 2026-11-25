@@ -149,10 +149,14 @@ an existing user-entered ISBN stays intact. Enter/scan the actual ISBN separatel
 Polish error/retry states cover offline requests, timeouts, HTTP errors, malformed
 responses, and no results. Older responses cannot replace newer query results;
 identical pending query/page requests share a future. Requests are not auto-retried.
-Manual entry, local covers, and offline library access remain available. Existing
-network cover URLs need connectivity to display their images; missing images use
-placeholders. Open Library search does not create accounts, write to remote
-libraries or fetch descriptions.
+Offline, you can browse and edit your local library, add books manually, manage
+loans, view saved cover images, and scan supported ISBN and QR codes. When a
+scan cannot retrieve metadata, choose **Wpisz dane ręcznie** to keep the ISBN.
+Safari returns the scanned ISBN straight to the form. Use **Pobierz dane książki**
+in the add or edit form to retry with the same ISBN. Lookup fills empty fields.
+
+Open Library searches by title, author, or ISBN and downloads of new remote
+covers require internet access. Unavailable remote images use placeholders.
 
 API: [Open Library Search documentation](https://openlibrary.org/dev/docs/api/search).
 

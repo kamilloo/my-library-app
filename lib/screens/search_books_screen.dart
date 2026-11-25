@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../models/open_library_search.dart';
@@ -51,6 +49,7 @@ class _SearchBooksScreenState extends State<SearchBooksScreen> {
       setState(() => error = 'Wpisz tytuł lub autora.');
       return;
     }
+    FocusScope.of(context).unfocus();
     final nextPage = more ? page + 1 : 1;
     if (nextPage > OpenLibraryService.maxSearchPages) return;
     final request = ++revision;
@@ -77,18 +76,9 @@ class _SearchBooksScreenState extends State<SearchBooksScreen> {
         page = nextPage;
         hasMore = response.hasMore && page < OpenLibraryService.maxSearchPages;
       });
-    } on TimeoutException {
+    } catch (exception) {
       if (mounted && request == revision) {
-        setState(() => error = 'Przekroczono czas wyszukiwania.');
-      }
-    } on OpenLibrarySearchException catch (exception) {
-      if (mounted && request == revision) {
-        setState(() => error = exception.message);
-      }
-    } catch (_) {
-      if (mounted && request == revision) {
-        setState(() => error =
-            'Nie udało się wyszukać książek. Sprawdź połączenie z internetem.');
+        setState(() => error = openLibraryErrorMessage(exception));
       }
     } finally {
       if (identical(pending[key], task)) pending.remove(key);
@@ -138,12 +128,18 @@ class _SearchBooksScreenState extends State<SearchBooksScreen> {
                       child: const Text('Spróbuj ponownie')),
                 ],
               ])),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Wpisz dane ręcznie'),
+          ),
           Expanded(
               child: results.isEmpty
                   ? Center(
                       child: Text(searched && !loading && error == null
-                          ? 'Nie znaleziono książek. Spróbuj zmienić tytuł lub autora.'
-                          : 'Wpisz tytuł lub autora i wybierz „Szukaj”.'))
+                          ? openLibraryNoMatchMessage
+                          : searched
+                              ? ''
+                              : 'Wpisz tytuł lub autora i wybierz „Szukaj”.'))
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
                       itemCount: results.length + 1,

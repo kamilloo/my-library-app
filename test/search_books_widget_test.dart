@@ -125,10 +125,7 @@ void main() {
           (_) async => const OpenLibrarySearchPage(results: [], hasMore: false);
       await tester.tap(find.text('Spróbuj ponownie'));
       await tester.pumpAndSettle();
-      expect(
-          find.text(
-              'Nie znaleziono książek. Spróbuj zmienić tytuł lub autora.'),
-          findsOneWidget);
+      expect(find.text(openLibraryNoMatchMessage), findsOneWidget);
     });
   }
 
@@ -166,7 +163,7 @@ void main() {
     await search(tester);
     await tester.pumpAndSettle();
     expect(find.text('Spróbuj ponownie'), findsOneWidget);
-    Navigator.of(tester.element(find.byType(SearchBooksScreen))).pop();
+    await tester.tap(find.text('Wpisz dane ręcznie'));
     await tester.pumpAndSettle();
     final save = find.widgetWithText(FilledButton, 'Zapisz książkę');
     await tester.ensureVisible(save);

@@ -144,7 +144,7 @@ void main() {
     await expectLater(
         offline.searchBooks(author: 'A'),
         throwsA(isA<OpenLibrarySearchException>()
-            .having((e) => e.message, 'message', contains('Brak połączenia'))));
+            .having((e) => e.message, 'message', openLibraryNetworkMessage)));
   });
 
   test('timeout terminates waiting for the search response', () async {

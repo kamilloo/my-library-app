@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_library/data/library_repository.dart';
 import 'package:my_library/main.dart';
+import 'package:my_library/models/open_library_search.dart';
 import 'package:my_library/services/open_library_service.dart';
 import 'package:my_library/screens/book_cover.dart';
 import 'cover_form_test.dart' show Picker, Repository;
+import 'edit_book_screen_test.dart' show EditRepository;
 
 class LookupService extends OpenLibraryService {
   final calls = <String>[];
@@ -34,7 +36,7 @@ void main() {
   }
 
   Future<void> lookup(WidgetTester tester) async {
-    final button = find.text('Pobierz dane z ISBN');
+    final button = find.text('Pobierz dane książki');
     await tester.ensureVisible(button);
     await tester.tap(button);
     await tester.pump();
@@ -81,7 +83,10 @@ void main() {
     await lookup(tester);
     await tester.pumpAndSettle();
     expect(find.textContaining('Nie znaleziono książki'), findsOneWidget);
-    for (final error in [Exception('offline'), TimeoutException('timeout')]) {
+    for (final error in [
+      const OpenLibrarySearchException(openLibraryNetworkMessage),
+      TimeoutException('timeout'),
+    ]) {
       service.response = () async => throw error;
       await tester.tap(find.text('Spróbuj ponownie'));
       await tester.pumpAndSettle();
@@ -183,9 +188,42 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('edit retries using the saved ISBN and preserves existing fields',
+      (tester) async {
+    final service = LookupService()
+      ..response = () async =>
+          throw const OpenLibrarySearchException(openLibraryNetworkMessage);
+    final repository = EditRepository();
+    await tester.pumpWidget(MaterialApp(
+      home: AddBookScreen(
+        repository: repository,
+        book: repository.book,
+        isbnService: service,
+      ),
+    ));
+    await lookup(tester);
+    await tester.pumpAndSettle();
+    expect(find.text(openLibraryNetworkMessage), findsOneWidget);
+    service.response = () async =>
+        const OpenLibraryBook(title: 'Remote title', author: 'Remote author');
+    final retry = find.text('Spróbuj ponownie');
+    await tester.ensureVisible(retry);
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+    expect(service.calls, ['9780525559474', '9780525559474']);
+    final save = find.widgetWithText(FilledButton, 'Zapisz zmiany');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(repository.updates, 1);
+    expect(repository.book.title, 'Original');
+    expect(repository.book.author, 'Author');
+  });
+
   testWidgets('manual save succeeds after offline lookup', (tester) async {
     final service = LookupService()
-      ..response = () async => throw Exception('offline');
+      ..response = () async =>
+          throw const OpenLibrarySearchException(openLibraryNetworkMessage);
     final repository = Repository();
     await open(tester, service, repository: repository);
     final fields = find.byType(TextFormField);
@@ -194,8 +232,7 @@ void main() {
     await tester.enterText(fields.at(2), '080442957X');
     await lookup(tester);
     await tester.pumpAndSettle();
-    expect(
-        find.textContaining('Sprawdź połączenie z internetem'), findsOneWidget);
+    expect(find.text(openLibraryNetworkMessage), findsOneWidget);
     final save = find.widgetWithText(FilledButton, 'Zapisz książkę');
     await tester.ensureVisible(save);
     await tester.tap(save);

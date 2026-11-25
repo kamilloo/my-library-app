@@ -562,6 +562,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
   bool lookingUp = false;
   bool searching = false;
   String? lookupMessage;
+  bool lookupFailed = false;
   late final isbnService = widget.isbnService ?? OpenLibraryService();
   String condition = 'Dobry';
   late String genre = widget.book?.genre ?? defaultGenre;
@@ -618,17 +619,19 @@ class _AddBookScreenState extends State<AddBookScreen> {
       setState(() => lookupMessage = 'Wpisz poprawny ISBN-10 lub ISBN-13.');
       return;
     }
-    final requestedIsbn = isbn.text;
     setState(() {
       lookingUp = true;
       lookupMessage = null;
+      lookupFailed = false;
     });
     try {
       final book = await isbnService.lookupByIsbn(normalized);
-      if (!mounted || saving || isbn.text != requestedIsbn) return;
+      if (!mounted || saving || normalizeIsbn(isbn.text) != normalized) return;
       if (book == null) {
-        setState(() => lookupMessage =
-            'Nie znaleziono książki. Możesz wpisać dane ręcznie lub spróbować ponownie.');
+        setState(() {
+          lookupMessage = openLibraryNoMatchMessage;
+          lookupFailed = true;
+        });
         return;
       }
       // Check current values after the await, including edits made while loading.
@@ -639,15 +642,12 @@ class _AddBookScreenState extends State<AddBookScreen> {
         lookupMessage =
             'Uzupełniono puste pola z Open Library. Wpisane dane zachowano.';
       });
-    } on TimeoutException {
-      if (mounted && isbn.text == requestedIsbn) {
-        setState(() => lookupMessage =
-            'Przekroczono czas wyszukiwania. Spróbuj ponownie.');
-      }
-    } catch (_) {
-      if (mounted && isbn.text == requestedIsbn) {
-        setState(() => lookupMessage =
-            'Nie udało się pobrać danych. Sprawdź połączenie z internetem i spróbuj ponownie.');
+    } catch (exception) {
+      if (mounted && !saving && normalizeIsbn(isbn.text) == normalized) {
+        setState(() {
+          lookupMessage = openLibraryErrorMessage(exception);
+          lookupFailed = true;
+        });
       }
     } finally {
       if (mounted) setState(() => lookingUp = false);
@@ -731,7 +731,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
   Future<void> scanBook() async {
     final scanned = await Navigator.push<ScannedBook>(
       context,
-      MaterialPageRoute(builder: (_) => const ScanBookScreen()),
+      MaterialPageRoute(
+          builder: (_) => ScanBookScreen(isbnService: isbnService)),
     );
     if (scanned == null || !mounted) return;
     final book = scanned.book;
@@ -743,13 +744,16 @@ class _AddBookScreenState extends State<AddBookScreen> {
               'Zeskanowano ISBN. Uzupełnij dane książki lub wyszukaj je online.')));
       return;
     }
-    title.text = book.title;
-    author.text = book.author;
-    coverUrl = book.coverUrl;
-    unawaited(coverPicker.releaseExcept(coverUrl));
-    setState(() {});
+    if (title.text.trim().isEmpty) title.text = book.title;
+    if (author.text.trim().isEmpty) author.text = book.author;
+    setState(() {
+      coverUrl ??= book.coverUrl;
+      lookupMessage = null;
+    });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Dane książki uzupełniono z Open Library.')),
+      const SnackBar(
+          content: Text(
+              'Uzupełniono puste pola z Open Library. Wpisane dane zachowano.')),
     );
   }
 
@@ -841,7 +845,8 @@ class _AddBookScreenState extends State<AddBookScreen> {
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
-              onPressed: saving || selectingCover ? null : scanBook,
+              onPressed:
+                  saving || selectingCover || lookingUp ? null : scanBook,
               icon: const Icon(Icons.qr_code_scanner),
               label: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 16),
@@ -919,25 +924,23 @@ class _AddBookScreenState extends State<AddBookScreen> {
                   onChanged: (_) => setState(() => lookupMessage = null),
                   decoration: const InputDecoration(
                       labelText: 'ISBN lub kod kreskowy (opcjonalnie)')),
-              if (!editing) ...[
-                TextButton.icon(
-                  onPressed:
-                      lookingUp || saving || selectingCover ? null : lookupIsbn,
-                  icon: const Icon(Icons.search),
-                  label: const Text('Pobierz dane z ISBN'),
-                ),
-                if (lookingUp) ...[
-                  const LinearProgressIndicator(),
-                  const Text('Pobieranie danych…'),
-                ],
-                if (lookupMessage != null) ...[
-                  Text(lookupMessage!, semanticsLabel: lookupMessage),
-                  if (!lookingUp)
-                    TextButton(
-                      onPressed: saving || selectingCover ? null : lookupIsbn,
-                      child: const Text('Spróbuj ponownie'),
-                    ),
-                ],
+              TextButton.icon(
+                onPressed:
+                    lookingUp || saving || selectingCover ? null : lookupIsbn,
+                icon: const Icon(Icons.search),
+                label: const Text('Pobierz dane książki'),
+              ),
+              if (lookingUp) ...[
+                const LinearProgressIndicator(),
+                const Text('Pobieranie danych…'),
+              ],
+              if (lookupMessage != null) ...[
+                Text(lookupMessage!, semanticsLabel: lookupMessage),
+                if (lookupFailed)
+                  TextButton(
+                    onPressed: saving || selectingCover ? null : lookupIsbn,
+                    child: const Text('Spróbuj ponownie'),
+                  ),
               ],
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
