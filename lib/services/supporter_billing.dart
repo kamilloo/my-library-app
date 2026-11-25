@@ -5,6 +5,14 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 const supporterProductId = 'library_supporter_badge';
 
+bool isSupporterBillingEnabled({
+  required bool debug,
+  required bool testFlag,
+  required bool web,
+  required TargetPlatform platform,
+}) =>
+    debug && testFlag && !web && platform == TargetPlatform.android;
+
 abstract interface class SupporterStore {
   Stream<List<PurchaseDetails>> get updates;
   Future<bool> isAvailable();
@@ -76,7 +84,8 @@ class SupporterBilling extends ChangeNotifier {
         _ => false,
       };
 
-  bool get canRestore => !_refreshing && _status != SupporterStatus.verifying;
+  bool get canRestore =>
+      !_checkout && !_refreshing && _status != SupporterStatus.verifying;
 
   Future<void> refresh({bool manual = false}) {
     if (_disposed || _refreshing) return Future.value();

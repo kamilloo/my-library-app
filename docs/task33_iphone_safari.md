@@ -25,7 +25,7 @@ Opublikuj zawartość `build/web` pod stałym adresem HTTPS. Przy publikacji pod
 Przed budową wpisz oficjalny adres Google Play w `web/play-config.json`, gdy zostanie zweryfikowany. Przeglądarka akceptuje stronę szczegółów pakietu `com.kamilloo.mylibrary` w domenie Google Play.
 
 Przed publiczną publikacją sprawdź [profil i warunki publikacji wsparcia](voluntary_support.md).
-Na stronie wejściowej sprawdź stopkę, a w aplikacji ekran **Pomoc → O aplikacji**.
+Na stronie wejściowej sprawdź stopkę, a w aplikacji ekran **Pomoc → Wesprzyj Moją Bibliotekę**.
 Po przygotowaniu trybu offline zweryfikuj ekran bez połączenia. Po ponownym
 połączeniu potwierdź, że dopiero dotknięcie przycisku otwiera adres BuyCoffee.to
 w osobnej karcie i pozostawia bibliotekę w bieżącej karcie.

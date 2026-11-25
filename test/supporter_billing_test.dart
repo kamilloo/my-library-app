@@ -116,6 +116,26 @@ void main() {
     await store.events.close();
   });
 
+  test('only native Android debug with the test flag enables billing', () {
+    for (final (debug, flag, web, platform, enabled) in [
+      (true, true, false, TargetPlatform.android, true),
+      (false, true, false, TargetPlatform.android, false),
+      (true, false, false, TargetPlatform.android, false),
+      (true, true, true, TargetPlatform.android, false),
+      (true, true, false, TargetPlatform.iOS, false),
+    ]) {
+      expect(
+        isSupporterBillingEnabled(
+          debug: debug,
+          testFlag: flag,
+          web: web,
+          platform: platform,
+        ),
+        enabled,
+      );
+    }
+  });
+
   test('queries only the configured product and loads the localized price',
       () async {
     expect(billing.status, SupporterStatus.initializing);
@@ -143,6 +163,7 @@ void main() {
     await billing.refresh();
     await Future.wait([billing.buy(), billing.buy(), billing.buy()]);
     expect(store.launches, 1);
+    expect(billing.canRestore, isFalse);
     store.events.add([purchase(PurchaseStatus.canceled, id: '', token: '')]);
     await flushEvents();
     expect(billing.status, SupporterStatus.canceled);
@@ -292,14 +313,13 @@ void main() {
     expect(billing.owned, isTrue);
   });
 
-  testWidgets('Help opens About during a store outage and remains navigable',
+  testWidgets('Help opens support during a store outage and remains navigable',
       (tester) async {
     await mountSupport(tester, const LoanHelpScreen(), available: false);
-    await tester.tap(find.text('O aplikacji'));
+    await tester.tap(find.text(supportScreenTitle));
     await tester.pumpAndSettle();
     expect(find.text('Google Play jest teraz niedostępny.'), findsOneWidget);
-    expect(tester.widget<FilledButton>(buyButton('Kup odznakę')).onPressed,
-        isNull);
+    expect(find.byType(FilledButton), findsNothing);
     expect(find.text('Przyjaciel Biblioteki'), findsNothing);
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -337,6 +357,81 @@ void main() {
     expect(find.text('Zakup został przywrócony.'), findsOneWidget);
     expect(find.text(thanks), findsOneWidget);
     expect(button, findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('narrow Help header follows Play ownership and revocation',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 480));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final navigator = GlobalKey<NavigatorState>();
+    final play = FakePlay();
+    addTearDown(play.events.close);
+    final billing = SupporterBilling(play);
+    await tester.pumpWidget(SupporterBillingScope(
+      billing: billing,
+      child: MaterialApp(
+        navigatorKey: navigator,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: const TextScaler.linear(2),
+          ),
+          child: child!,
+        ),
+        home: const LoanHelpScreen(),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final badge = find.descendant(
+      of: find.byType(AppBar),
+      matching: find.byType(SupporterBadgeImage),
+    );
+    expect(badge, findsNothing);
+    for (final status in [
+      PurchaseStatus.pending,
+      PurchaseStatus.canceled,
+      PurchaseStatus.error,
+    ]) {
+      play.events.add([purchase(status)]);
+      await tester.pumpAndSettle();
+      expect(badge, findsNothing);
+    }
+
+    play.purchases = [purchase(PurchaseStatus.purchased)];
+    play.events.add(play.purchases);
+    await tester.pumpAndSettle();
+    expect(badge, findsOneWidget);
+    expect(tester.getTopRight(badge).dx,
+        lessThan(tester.getTopLeft(find.text('Pomoc')).dx));
+    expect(tester.takeException(), isNull);
+
+    play.ownershipError = true;
+    await billing.refresh();
+    await tester.pumpAndSettle();
+    expect(badge, findsOneWidget);
+
+    play.ownershipError = false;
+    play.purchases = [];
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(badge, findsNothing);
+
+    await tester.tap(find.text(supportScreenTitle));
+    await tester.pumpAndSettle();
+    final restore = find.text('Przywróć zakup');
+    await tester.scrollUntilVisible(restore.hitTestable(), 100);
+    play.purchases = [
+      purchase(PurchaseStatus.restored, needsAcknowledgment: false),
+    ];
+    await tester.tap(restore);
+    await tester.pumpAndSettle();
+    expect(find.text('Zakup został przywrócony.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    navigator.currentState!.pop();
+    await tester.pumpAndSettle();
+    expect(badge, findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

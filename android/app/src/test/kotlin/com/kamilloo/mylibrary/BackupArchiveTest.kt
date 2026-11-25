@@ -36,6 +36,7 @@ class BackupArchiveTest {
     @Test fun portableInventoryAndHashes() {
         val archive = archive()
         ZipFile(archive).use { zip ->
+            assertEquals(setOf(database, cover, manifest), zip.entries().toList().map { it.name }.toSet())
             val metadata = JSONObject(zip.getInputStream(zip.getEntry(manifest)).bufferedReader().readText())
             assertEquals(1, metadata.getInt("formatVersion"))
             assertEquals(8, metadata.getInt("schemaVersion"))
