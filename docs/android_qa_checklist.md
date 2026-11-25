@@ -124,6 +124,7 @@ changes are not an upgrade path; never solve incompatibility by clearing data.
 | M06 | Existing title/author/local cover require confirmation to replace; correction remains editable; save is explicit and creates one record | Pending |
 | M07 | Equivalent/existing ISBN add/edit rejected with Polish feedback; self edit and blank ISBN allowed; no changes to saved loans/history from search | Pending |
 | M08 | Metadata requests contain only intended ISBN/title/author/cover query data, never borrower/history; inspect separately from existing ML Kit SDK diagnostic traffic and document Data safety | Pending |
+| M09 | Task 37: disable Wi-Fi and mobile data, scan a valid ISBN and choose **Wpisz dane ręcznie**. Verify the ISBN, enter a title and author, then save. Scan another book offline, reconnect and use **Pobierz dane książki** without rescanning. Verify editing and saving. | BLOCKED — no Android device connected for camera QA |
 
 ### Loans, dates and history
 

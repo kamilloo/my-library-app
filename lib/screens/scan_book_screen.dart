@@ -15,7 +15,9 @@ class ScannedBook {
 }
 
 class ScanBookScreen extends StatefulWidget {
-  const ScanBookScreen({super.key});
+  const ScanBookScreen({this.isbnService, super.key});
+
+  final OpenLibraryService? isbnService;
 
   @override
   State<ScanBookScreen> createState() => _ScanBookScreenState();
@@ -29,7 +31,7 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
       BarcodeFormat.qrCode,
     ],
   );
-  final service = OpenLibraryService();
+  late final service = widget.isbnService ?? OpenLibraryService();
 
   bool lookingUp = false;
   bool torchEnabled = false;
@@ -44,12 +46,12 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
   }
 
   Future<void> detect(BarcodeCapture capture) async {
-    if (lookingUp || result != null) return;
+    if (!mounted || scannedIsbn != null) return;
     for (final barcode in capture.barcodes) {
       final isbn = normalizeIsbn(barcode.rawValue);
       if (isbn == null) continue;
       if (kIsWeb) {
-        lookingUp = true;
+        scannedIsbn = isbn;
         Navigator.pop(context, ScannedBook(isbn: isbn, book: null));
       } else {
         await lookup(isbn);
@@ -64,25 +66,18 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
       error = null;
       scannedIsbn = isbn;
     });
-    await controller.stop();
     try {
+      await controller.stop();
+      if (!mounted) return;
       final book = await service.lookupByIsbn(isbn);
       if (!mounted) return;
       setState(() {
         result = book;
-        error = book == null
-            ? 'Nie znaleziono książki. Spróbuj ponownie lub wpisz dane ręcznie.'
-            : null;
+        error = book == null ? openLibraryNoMatchMessage : null;
       });
-    } on TimeoutException {
+    } catch (exception) {
       if (mounted) {
-        setState(() => error =
-            'Przekroczono czas wyszukiwania. Sprawdź połączenie i spróbuj ponownie.');
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() =>
-            error = 'Nie udało się pobrać danych książki. Spróbuj ponownie.');
+        setState(() => error = openLibraryErrorMessage(exception));
       }
     } finally {
       if (mounted) setState(() => lookingUp = false);
@@ -141,7 +136,15 @@ class _ScanBookScreenState extends State<ScanBookScreen> {
                   ScannedBook(isbn: scannedIsbn!, book: result!),
                 ),
               ),
-            if (error != null) _ErrorSheet(message: error!, onRetry: retry),
+            if (error != null)
+              _ErrorSheet(
+                message: error!,
+                onRetry: retry,
+                onManualEntry: () => Navigator.pop(
+                  context,
+                  ScannedBook(isbn: scannedIsbn!, book: null),
+                ),
+              ),
           ],
         ),
       );
@@ -250,9 +253,14 @@ class _ResultSheet extends StatelessWidget {
 }
 
 class _ErrorSheet extends StatelessWidget {
-  const _ErrorSheet({required this.message, required this.onRetry});
+  const _ErrorSheet({
+    required this.message,
+    required this.onRetry,
+    required this.onManualEntry,
+  });
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback onManualEntry;
 
   @override
   Widget build(BuildContext context) => Align(
@@ -268,12 +276,18 @@ class _ErrorSheet extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(message, textAlign: TextAlign.center),
+                  if (message != openLibraryNoMatchMessage)
+                    const Text('Możesz dodać książkę ręcznie.'),
                   const SizedBox(height: 14),
                   SizedBox(
                       width: double.infinity,
                       child: FilledButton(
-                          onPressed: onRetry,
-                          child: const Text('Spróbuj ponownie'))),
+                          onPressed: onManualEntry,
+                          child: const Text('Wpisz dane ręcznie'))),
+                  TextButton(
+                    onPressed: onRetry,
+                    child: const Text('Skanuj ponownie'),
+                  ),
                 ],
               ),
             ),

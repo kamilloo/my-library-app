@@ -1,8 +1,22 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
 import '../models/open_library_search.dart';
+
+const openLibraryNetworkMessage =
+    'Wyszukiwanie informacji o książkach wymaga połączenia z internetem.';
+const openLibraryTimeoutMessage =
+    'Przekroczono czas wyszukiwania. Sprawdź połączenie i spróbuj ponownie.';
+const openLibraryNoMatchMessage =
+    'Nie znaleziono książki. Możesz wpisać dane ręcznie.';
+
+String openLibraryErrorMessage(Object error) => switch (error) {
+      TimeoutException() => openLibraryTimeoutMessage,
+      OpenLibrarySearchException(:final message) => message,
+      _ => 'Nie udało się pobrać danych książki. Spróbuj ponownie.',
+    };
 
 class OpenLibraryBook {
   const OpenLibraryBook(
@@ -41,6 +55,51 @@ class OpenLibraryService {
       'limit': '$searchPageSize',
       'page': '$page',
     });
+    final data = await _request(uri);
+    final docs = data['docs'] as List;
+    final results = <OpenLibrarySearchResult>[];
+    for (final doc in docs.take(searchPageSize)) {
+      if (doc is! Map<String, dynamic>) throw _invalidResponse;
+      results.add(OpenLibrarySearchResult.fromJson(doc));
+    }
+    final total = data['numFound'] ?? data['num_found'];
+    return OpenLibrarySearchPage(
+      results: results,
+      hasMore: page < maxSearchPages &&
+          (total is int
+              ? page * searchPageSize < total
+              : docs.length >= searchPageSize),
+    );
+  }
+
+  final http.Client _client;
+
+  Future<OpenLibraryBook?> lookupByIsbn(String isbn) async {
+    final uri = Uri.https('openlibrary.org', '/search.json', {
+      'q': 'isbn:$isbn',
+      'fields': 'title,author_name,cover_i',
+      'limit': '1',
+    });
+    final documents = (await _request(uri))['docs'] as List;
+    if (documents.isEmpty) return null;
+    final book = documents.first;
+    if (book is! Map<String, dynamic> ||
+        book['title'] is! String ||
+        (book['title'] as String).trim().isEmpty) {
+      throw _invalidResponse;
+    }
+    final metadata = OpenLibrarySearchResult.fromJson(book);
+    return OpenLibraryBook(
+      title: metadata.title,
+      author: metadata.author,
+      coverUrl: metadata.coverUrl,
+    );
+  }
+
+  static const _invalidResponse = OpenLibrarySearchException(
+      'Nieprawidłowy format odpowiedzi Open Library.');
+
+  Future<Map<String, dynamic>> _request(Uri uri) async {
     try {
       final response = await _client.get(uri, headers: const {
         'User-Agent': 'MyLibraryApp/0.1',
@@ -52,63 +111,13 @@ class OpenLibraryService {
       }
       final data = jsonDecode(response.body);
       if (data is! Map<String, dynamic> || data['docs'] is! List) {
-        throw const FormatException();
+        throw _invalidResponse;
       }
-      final docs = data['docs'] as List;
-      final results = <OpenLibrarySearchResult>[];
-      for (final doc in docs.take(searchPageSize)) {
-        if (doc is! Map<String, dynamic>) throw const FormatException();
-        results.add(OpenLibrarySearchResult.fromJson(doc));
-      }
-      final total = data['numFound'] ?? data['num_found'];
-      return OpenLibrarySearchPage(
-        results: results,
-        hasMore: page < maxSearchPages &&
-            (total is int
-                ? page * searchPageSize < total
-                : docs.length >= searchPageSize),
-      );
+      return data;
     } on http.ClientException {
-      throw const OpenLibrarySearchException(
-          'Brak połączenia z internetem. Sprawdź połączenie.');
+      throw const OpenLibrarySearchException(openLibraryNetworkMessage);
     } on FormatException {
-      throw const OpenLibrarySearchException(
-          'Nieprawidłowy format odpowiedzi Open Library.');
+      throw _invalidResponse;
     }
-  }
-
-  final http.Client _client;
-
-  Future<OpenLibraryBook?> lookupByIsbn(String isbn) async {
-    final uri = Uri.https('openlibrary.org', '/search.json', {
-      'q': 'isbn:$isbn',
-      'fields': 'title,author_name,cover_i',
-      'limit': '1',
-    });
-    final response = await _client.get(
-      uri,
-      headers: const {
-        'User-Agent': 'MyLibraryApp/0.1',
-        'Accept': 'application/json',
-      },
-    ).timeout(const Duration(seconds: 10));
-    if (response.statusCode != 200) {
-      throw Exception('Open Library returned HTTP ${response.statusCode}');
-    }
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final documents = data['docs'] as List<dynamic>? ?? const [];
-    if (documents.isEmpty) return null;
-    final book = documents.first as Map<String, dynamic>;
-    final authors = (book['author_name'] as List<dynamic>? ?? const [])
-        .whereType<String>()
-        .toList();
-    final coverId = book['cover_i'];
-    return OpenLibraryBook(
-      title: (book['title'] as String?) ?? 'Unknown title',
-      author: authors.isEmpty ? 'Unknown author' : authors.join(', '),
-      coverUrl: coverId == null
-          ? null
-          : 'https://covers.openlibrary.org/b/id/$coverId-M.jpg',
-    );
   }
 }

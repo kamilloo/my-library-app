@@ -36,9 +36,15 @@ Safari otwiera tę samą bibliotekę Flutter i używa tego samego schematu oraz 
 
 Dobrowolne wsparcie nie zapisuje danych o wpłatach. Płatność odbywa się na stronie BuyCoffee.to otwieranej bez danych biblioteki i bez nagłówka odsyłającego.
 
-Dane są przypisane do adresu witryny i profilu Safari. Wyczyszczenie danych witryny lub usunięcie ich przez system może skasować bibliotekę. Eksportuj kopie regularnie i zachowuj je w aplikacji Pliki. Pliki `.mlbak` są niezaszyfrowane. Skaner i wybrane zdjęcia są przetwarzane na urządzeniu. Wyszukiwanie metadanych w Open Library i okładki z adresów URL wymagają połączenia. Skanowanie ISBN zwraca kod do formularza także bez połączenia.
+Dane są przypisane do adresu witryny i profilu Safari. Wyczyszczenie danych witryny lub usunięcie ich przez system może skasować bibliotekę. Eksportuj kopie regularnie i zachowuj je w aplikacji Pliki. Pliki `.mlbak` są niezaszyfrowane. Skaner i wybrane zdjęcia są przetwarzane na urządzeniu.
+
+**Dostępne offline:** lokalna biblioteka, ręczne dodawanie i edycja książek, wypożyczenia, zapisane zdjęcia okładek oraz skanowanie obsługiwanych kodów. Skaner ISBN zwraca kod bezpośrednio do formularza.
+
+**Wymaga internetu:** wyszukiwanie w Open Library według tytułu, autora lub ISBN i pobieranie nowych okładek z adresów URL.
 
 ## Weryfikacja na rzeczywistym iPhonie
+
+**Task 37 — BLOCKED.** Brak dostępu do fizycznego iPhone’a w środowisku weryfikacji.
 
 Zapisz model iPhone’a, wersję iOS, adres HTTPS, wersję kompilacji i wynik każdego kroku.
 
@@ -52,8 +58,8 @@ Zapisz model iPhone’a, wersję iOS, adres HTTPS, wersję kompilacji i wynik ka
 8. Zamknij Safari i uruchom je ponownie.
 9. Ponownie otwórz adres aplikacji offline.
 10. Zrób lub wybierz zdjęcie i zapisz książkę.
-11. Zeskanuj kod QR i obsługiwany kod kreskowy offline.
-12. Zapisz rekordy, zamknij Safari i ponownie otwórz aplikację.
+11. Zeskanuj kod QR i obsługiwany kod kreskowy offline. Sprawdź, czy ISBN pojawia się w formularzu od razu, wpisz tytuł i autora ręcznie i zapisz książkę.
+12. Zamknij Safari i ponownie otwórz aplikację. Przywróć połączenie, edytuj zapisaną książkę i wybierz **Pobierz dane książki** bez ponownego skanowania. Sprawdź, czy tytuł i autor pozostały bez zmian.
 13. Sprawdź zapisane rekordy, historię i lokalne okładki.
 14. Zaimportuj plik `.mlbak` z Androida i sprawdź rekordy oraz zdjęcia.
 15. Wyeksportuj plik `.mlbak` w Safari, zmień testowy rekord i przywróć plik. Zweryfikuj wynik. Sprawdź również import tego pliku na Androidzie.
