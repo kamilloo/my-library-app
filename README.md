@@ -12,10 +12,12 @@ Na Androidzie zalecamy aplikację natywną.
 
 ## Dobrowolne wsparcie
 
-W aplikacji otwórz **Pomoc → O aplikacji**. Safari na iPhonie oferuje dobrowolną
-wpłatę przez BuyCoffee.to bez nagród. Android ma osobną integrację Google Play
+W aplikacji otwórz **Pomoc → Wesprzyj Moją Bibliotekę**. Safari na iPhonie
+oferuje dobrowolną wpłatę przez BuyCoffee.to bez nagród. Android ma osobną integrację Google Play
 dla jednorazowego zakupu kosmetycznej odznaki **Przyjaciel Biblioteki**.
-Zakup jest obecnie dostępny wyłącznie w jawnie włączonej kompilacji testowej.
+Po potwierdzeniu własności odznaka pojawia się po lewej stronie tytułu **Pomoc**.
+Zakup jest dostępny w Androidzie wyłącznie w kompilacji debug z flagą
+`PLAY_SUPPORTER_BILLING_TEST=true`.
 Wszystkie funkcje biblioteki pozostają bezpłatne.
 
 Odznakę przywraca się z tego samego konta Google Play przyciskiem **Przywróć zakup**.

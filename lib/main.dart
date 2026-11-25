@@ -125,10 +125,12 @@ Future<void> main() async {
   const app = MyLibraryApp();
   // Client-side Play ownership checks are available only for license testing.
   const playBillingTest = bool.fromEnvironment('PLAY_SUPPORTER_BILLING_TEST');
-  if (kDebugMode &&
-      playBillingTest &&
-      !kIsWeb &&
-      defaultTargetPlatform == TargetPlatform.android) {
+  if (isSupporterBillingEnabled(
+    debug: kDebugMode,
+    testFlag: playBillingTest,
+    web: kIsWeb,
+    platform: defaultTargetPlatform,
+  )) {
     runApp(SupporterBillingScope(
       billing: SupporterBilling(GooglePlaySupporterStore()),
       child: app,

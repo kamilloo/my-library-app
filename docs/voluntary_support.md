@@ -8,7 +8,7 @@ Androidzie ma osobną ścieżkę zakupu w Google Play.
 
 ## Gdzie znajduje się wsparcie
 
-- **Safari na iPhonie:** w aplikacji otwórz **Pomoc → O aplikacji**. Ekran jest
+- **Safari na iPhonie:** w aplikacji otwórz **Pomoc → Wesprzyj Moją Bibliotekę**. Ekran jest
   dostępny offline po przygotowaniu zasobów aplikacji. Przycisk **☕ Wesprzyj
   projekt** otwiera zewnętrzną kartę po dotknięciu. Witryna płatności wymaga sieci.
 - **Strona wejściowa w tym repozytorium:** sekcja wsparcia jest pod przyciskami
@@ -20,10 +20,11 @@ Androidzie ma osobną ścieżkę zakupu w Google Play.
   Przed publikacją należy potwierdzić źródło i hosting oraz ścieżkę Safari do
   aplikacji HTTPS. Zachowaj główne odnośniki Google Play dla Androida i kieruj
   Safari na iPhonie do wersji przeglądarkowej. Komputery pozostają środowiskiem testowym.
-- **Android:** **Pomoc → O aplikacji** zawiera integrację Google Play dla
-  jednorazowego zakupu **Przyjaciel Biblioteki**. Wydanie produkcyjne pokazuje
-  informacje, ponieważ zakup jest dostępny tylko po włączeniu w kompilacji
-  debug. Ekran Androida nie otwiera BuyCoffee.to. Konfigurację produktu,
+- **Android:** **Pomoc → Wesprzyj Moją Bibliotekę** zawiera integrację Google Play dla
+  jednorazowego zakupu **Przyjaciel Biblioteki**. Ekran pokazuje grafikę
+  dostarczoną przez właściciela aplikacji. Po potwierdzeniu zakupu ta sama
+  odznaka pojawia się po lewej stronie tytułu **Pomoc**. Zakup jest dostępny
+  wyłącznie w kompilacji debug z flagą `PLAY_SUPPORTER_BILLING_TEST=true`. Ekran Androida nie otwiera BuyCoffee.to. Konfigurację produktu,
   testowanie i warunki uruchomienia opisuje [osobna lista kontrolna](google_play_supporter_badge.md).
 
 ## Konfiguracja i prywatność

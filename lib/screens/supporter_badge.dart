@@ -57,6 +57,23 @@ class _BillingProvider extends InheritedWidget {
       billing != oldWidget.billing;
 }
 
+class SupporterBadgeImage extends StatelessWidget {
+  const SupporterBadgeImage({super.key, required this.size});
+
+  static const asset = 'assets/supporter/przyjaciel_biblioteki.png';
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Image.asset(
+        asset,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        semanticLabel: 'Przyjaciel Biblioteki — odznaka wspierającego',
+      );
+}
+
 class SupporterBadge extends StatelessWidget {
   const SupporterBadge({super.key, required this.billing});
 
@@ -72,11 +89,6 @@ class SupporterBadge extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Jeśli chcesz wesprzeć jej dalszy rozwój, możesz kupić symboliczną odznakę Przyjaciel Biblioteki.\n\n'
-                'Zakup jest jednorazowy i nie odblokowuje dodatkowych funkcji.',
-              ),
-              const SizedBox(height: 16),
               if (billing.owned)
                 Semantics(
                   container: true,
@@ -86,10 +98,6 @@ class SupporterBadge extends StatelessWidget {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          Icon(Icons.workspace_premium,
-                              size: 40,
-                              color: theme.colorScheme.onPrimaryContainer),
-                          const SizedBox(height: 8),
                           Text('Przyjaciel Biblioteki',
                               textAlign: TextAlign.center,
                               style: theme.textTheme.titleLarge?.copyWith(
@@ -105,14 +113,12 @@ class SupporterBadge extends StatelessWidget {
                     ),
                   ),
                 )
-              else
-                FilledButton.icon(
+              else if (price != null)
+                FilledButton(
                   style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
                   onPressed:
                       billing.canBuy ? () => unawaited(billing.buy()) : null,
-                  icon: const Icon(Icons.workspace_premium_outlined),
-                  label: Text(
-                      price == null ? 'Kup odznakę' : 'Kup odznakę — $price'),
+                  child: Text('Kup odznakę — $price'),
                 ),
               const SizedBox(height: 8),
               OutlinedButton(

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:my_library/screens/support_screen.dart';
+import 'package:my_library/screens/supporter_badge.dart';
 import 'package:my_library/screens/tutorial_screen.dart';
 import 'package:my_library/services/support_destination.dart';
 
@@ -33,12 +34,12 @@ void main() {
     }
   });
 
-  testWidgets('Help opens About and Back returns to the existing workflows',
+  testWidgets('Help opens support and Back returns to the existing workflows',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoanHelpScreen()));
     expect(find.text('Kopia zapasowa'), findsOneWidget);
     expect(find.text('Samouczek — 7 slajdów'), findsOneWidget);
-    await tester.tap(find.text('O aplikacji'));
+    await tester.tap(find.text(supportScreenTitle));
     await tester.pumpAndSettle();
 
     expect(find.text('Wesprzyj rozwój Mojej Biblioteki'), findsOneWidget);
@@ -51,6 +52,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Dziękuję za każde wsparcie!'), findsOneWidget);
+    expect(find.byType(SupporterBadgeImage), findsNothing);
     if (!kIsWeb) {
       expect(find.byWidgetPredicate((widget) => widget is FilledButton),
           findsNothing);
@@ -58,7 +60,31 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Pomoc'), findsOneWidget);
-  });
+  }, variant: const TargetPlatformVariant({TargetPlatform.iOS}));
+
+  testWidgets('Android without billing shows the artwork and no checkout',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: SupportScreen(
+        loadAction: () async => throw StateError('Android opened BuyCoffee'),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text(supportScreenTitle), findsOneWidget);
+    expect(find.text('Wesprzyj rozwój Mojej Biblioteki'), findsOneWidget);
+    final image = tester.widget<Image>(find.descendant(
+      of: find.byType(SupporterBadgeImage),
+      matching: find.byType(Image),
+    ));
+    expect((image.image as AssetImage).assetName, SupporterBadgeImage.asset);
+    expect(
+        find.textContaining('Zakup odznaki jest niedostępny'), findsOneWidget);
+    expect(find.byType(FilledButton), findsNothing);
+    expect(find.text('Przywróć zakup'), findsNothing);
+  },
+      variant: const TargetPlatformVariant({TargetPlatform.android}),
+      skip: kIsWeb);
 
   for (final scale in [1.0, 2.0]) {
     testWidgets('small screen at text scale $scale works without network',
@@ -90,6 +116,6 @@ void main() {
       expect(opened, [Uri.parse(_destination)]);
       expect(find.byType(TextField), findsNothing);
       expect(tester.takeException(), isNull);
-    });
+    }, variant: const TargetPlatformVariant({TargetPlatform.iOS}));
   }
 }

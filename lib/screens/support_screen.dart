@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/support_browser.dart';
 import 'supporter_badge.dart';
+
+const supportScreenTitle = 'Wesprzyj Moją Bibliotekę';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key, this.loadAction = loadSupportAction});
@@ -18,8 +21,10 @@ class _SupportScreenState extends State<SupportScreen> {
   @override
   Widget build(BuildContext context) {
     final billing = SupporterBillingScope.read(context);
+    final isAndroid = billing != null ||
+        (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
     return Scaffold(
-      appBar: AppBar(title: const Text('O aplikacji')),
+      appBar: AppBar(title: const Text(supportScreenTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
@@ -29,17 +34,14 @@ class _SupportScreenState extends State<SupportScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    billing == null
-                        ? Icons.coffee_outlined
-                        : Icons.workspace_premium_outlined,
-                    applyTextScaling: true,
-                  ),
-                  const SizedBox(width: 8),
+                  if (!isAndroid) ...[
+                    const Icon(Icons.coffee_outlined, applyTextScaling: true),
+                    const SizedBox(width: 8),
+                  ],
                   Expanded(
                     child: Text(
                       'Wesprzyj rozwój Mojej Biblioteki',
-                      semanticsLabel: billing == null
+                      semanticsLabel: !isAndroid
                           ? '☕ Wesprzyj rozwój Mojej Biblioteki'
                           : null,
                       style: Theme.of(context).textTheme.headlineSmall,
@@ -49,11 +51,19 @@ class _SupportScreenState extends State<SupportScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            if (billing != null) ...[
-              const Text(
-                  'Moja Biblioteka jest darmową aplikacją do katalogowania książek i zarządzania wypożyczeniami.'),
+            if (isAndroid) ...[
+              const Center(child: SupporterBadgeImage(size: 144)),
               const SizedBox(height: 16),
-              SupporterBadge(billing: billing),
+              const Text(
+                'Wesprzyj rozwój Mojej Biblioteki, kupując jednorazową odznakę Przyjaciel Biblioteki.\n\n'
+                'Zakup jest dobrowolny. Wszystkie funkcje aplikacji pozostają bezpłatne.',
+              ),
+              const SizedBox(height: 16),
+              if (billing != null)
+                SupporterBadge(billing: billing)
+              else
+                const Text(
+                    'Zakup odznaki jest niedostępny w tej wersji aplikacji.'),
             ] else ...[
               const Text(
                 'Moja Biblioteka jest darmową aplikacją do katalogowania książek i zarządzania wypożyczeniami.\n\n'

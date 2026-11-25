@@ -7,6 +7,7 @@ import '../services/browser_files.dart';
 import '../services/tutorial_preferences.dart';
 import 'library_backup_screen.dart';
 import 'support_screen.dart';
+import 'supporter_badge.dart';
 
 class TutorialHelpButton extends StatelessWidget {
   const TutorialHelpButton({super.key});
@@ -76,12 +77,36 @@ const backupHelp = <({String? heading, String text})>[
   ),
 ];
 
+class _HelpTitle extends StatelessWidget {
+  const _HelpTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    const title = Text('Pomoc');
+    final billing = SupporterBillingScope.read(context);
+    if (billing == null) return title;
+    return ListenableBuilder(
+      listenable: billing,
+      builder: (context, _) => billing.owned
+          ? const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SupporterBadgeImage(size: 36),
+                SizedBox(width: 8),
+                Flexible(child: title),
+              ],
+            )
+          : title,
+    );
+  }
+}
+
 class LoanHelpScreen extends StatelessWidget {
   const LoanHelpScreen({super.key});
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Pomoc')),
+        appBar: AppBar(title: const _HelpTitle()),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(20),
@@ -112,7 +137,7 @@ class LoanHelpScreen extends StatelessWidget {
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 icon: const Icon(Icons.info_outline),
-                label: const Text('O aplikacji'),
+                label: const Text(supportScreenTitle),
                 onPressed: () => Navigator.push<void>(
                   context,
                   MaterialPageRoute(builder: (_) => const SupportScreen()),
