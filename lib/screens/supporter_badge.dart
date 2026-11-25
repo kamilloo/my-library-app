@@ -1,21 +1,44 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../services/supporter_billing.dart';
 
 class SupporterBillingScope extends StatefulWidget {
-  const SupporterBillingScope({
-    super.key,
-    required this.billing,
+  const SupporterBillingScope._({
+    required this.createBilling,
     required this.child,
   });
 
-  final SupporterBilling billing;
+  final SupporterBilling Function() createBilling;
   final Widget child;
 
-  static SupporterBilling? read(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<_BillingProvider>()?.billing;
+  static Widget forApp({
+    required SupporterBilling Function() createBilling,
+    required Widget child,
+    bool debug = kDebugMode,
+    bool testFlag = const bool.fromEnvironment('PLAY_SUPPORTER_BILLING_TEST'),
+    bool web = kIsWeb,
+    TargetPlatform? platform,
+  }) =>
+      isSupporterBillingEnabled(
+        debug: debug,
+        testFlag: testFlag,
+        web: web,
+        platform: platform ?? defaultTargetPlatform,
+      )
+          ? SupporterBillingScope._(createBilling: createBilling, child: child)
+          : child;
+
+  static ({SupporterBilling? billing, ValueChanged<bool> setEnabled})? of(
+    BuildContext context,
+  ) {
+    final provider =
+        context.dependOnInheritedWidgetOfExactType<_BillingProvider>();
+    if (provider == null) return null;
+    return (billing: provider.notifier, setEnabled: provider.setEnabled);
+  }
 
   @override
   State<SupporterBillingScope> createState() => _SupporterBillingScopeState();
@@ -23,38 +46,56 @@ class SupporterBillingScope extends StatefulWidget {
 
 class _SupporterBillingScopeState extends State<SupporterBillingScope>
     with WidgetsBindingObserver {
+  SupporterBilling? _billing;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(widget.billing.refresh());
+  }
+
+  void _setEnabled(bool enabled) {
+    final billing = _billing;
+    if (enabled == (billing != null)) return;
+    if (billing != null && !billing.canStop) return;
+
+    final next = enabled ? widget.createBilling() : null;
+    billing?.dispose();
+    setState(() => _billing = next);
+    if (next != null) unawaited(next.refresh());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(widget.billing.refresh());
+    final billing = _billing;
+    if (state == AppLifecycleState.resumed && billing != null) {
+      unawaited(billing.refresh());
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    widget.billing.dispose();
+    _billing?.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _BillingProvider(billing: widget.billing, child: widget.child);
+  Widget build(BuildContext context) => _BillingProvider(
+        notifier: _billing,
+        setEnabled: _setEnabled,
+        child: widget.child,
+      );
 }
 
-class _BillingProvider extends InheritedWidget {
-  const _BillingProvider({required this.billing, required super.child});
+class _BillingProvider extends InheritedNotifier<SupporterBilling> {
+  const _BillingProvider({
+    required super.notifier,
+    required this.setEnabled,
+    required super.child,
+  });
 
-  final SupporterBilling billing;
-
-  @override
-  bool updateShouldNotify(_BillingProvider oldWidget) =>
-      billing != oldWidget.billing;
+  final ValueChanged<bool> setEnabled;
 }
 
 class SupporterBadgeImage extends StatelessWidget {

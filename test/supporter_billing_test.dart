@@ -86,19 +86,35 @@ Finder buyButton(String label) => find.ancestor(
       matching: find.byWidgetPredicate((widget) => widget is FilledButton),
     );
 
+final testSwitch =
+    find.widgetWithText(SwitchListTile, 'Testowanie zakupów Google Play');
+
+Widget testBillingApp(FakePlay store, Widget home) =>
+    SupporterBillingScope.forApp(
+      createBilling: () => SupporterBilling(store),
+      debug: true,
+      testFlag: true,
+      web: false,
+      platform: TargetPlatform.android,
+      child: MaterialApp(home: home),
+    );
+
+Future<void> toggleTesting(WidgetTester tester) async {
+  await tester.ensureVisible(testSwitch);
+  await tester.tap(testSwitch);
+  await tester.pumpAndSettle();
+}
+
 Future<FakePlay> mountSupport(WidgetTester tester, Widget screen,
-    {bool available = true}) async {
+    {bool available = true, bool enable = true}) async {
   final store = FakePlay()..available = available;
-  final billing = SupporterBilling(store);
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await store.events.close();
   });
-  await tester.pumpWidget(SupporterBillingScope(
-    billing: billing,
-    child: MaterialApp(home: screen),
-  ));
+  await tester.pumpWidget(testBillingApp(store, screen));
   await tester.pumpAndSettle();
+  if (enable) await toggleTesting(tester);
   return store;
 }
 
@@ -134,6 +150,122 @@ void main() {
         enabled,
       );
     }
+  });
+
+  for (final (name, debug, flag, web, platform) in [
+    ('production or profile', false, true, false, TargetPlatform.android),
+    ('Safari', true, true, true, TargetPlatform.iOS),
+    (
+      'Android debug without the flag',
+      true,
+      false,
+      false,
+      TargetPlatform.android
+    ),
+  ]) {
+    testWidgets('billing switch is absent in $name', (tester) async {
+      await tester.pumpWidget(SupporterBillingScope.forApp(
+        createBilling: () => throw StateError('Billing initialized in $name'),
+        debug: debug,
+        testFlag: flag,
+        web: web,
+        platform: platform,
+        child: MaterialApp(home: SupportScreen(loadAction: () async => () {})),
+      ));
+      await tester.pumpAndSettle();
+      expect(find.byType(SwitchListTile), findsNothing);
+      expect(find.text('Tryb deweloperski'), findsNothing);
+      expect(find.text('Przywróć zakup'), findsNothing);
+    });
+  }
+
+  testWidgets('switch starts OFF, initializes Play on demand and stops it',
+      (tester) async {
+    final play =
+        await mountSupport(tester, const SupportScreen(), enable: false);
+    final button = buyButton('Kup odznakę — 2,49 €');
+    expect(tester.widget<SwitchListTile>(testSwitch).value, isFalse);
+    expect(play.events.hasListener, isFalse);
+    expect(play.requestedIds, isEmpty);
+    expect(button, findsNothing);
+
+    await toggleTesting(tester);
+    expect(tester.widget<SwitchListTile>(testSwitch).value, isTrue);
+    expect(play.events.hasListener, isTrue);
+    expect(play.requestedIds, [supporterProductId]);
+    expect(play.launches, 0);
+    expect(play.acknowledgmentAttempts, 0);
+    expect(find.text('Przyjaciel Biblioteki'), findsNothing);
+    final staleBuy = tester.widget<FilledButton>(button).onPressed!;
+
+    await toggleTesting(tester);
+    expect(tester.widget<SwitchListTile>(testSwitch).value, isFalse);
+    expect(play.events.hasListener, isFalse);
+    expect(button, findsNothing);
+    expect(find.text('Przywróć zakup'), findsNothing);
+    staleBuy();
+    play.events.add([purchase(PurchaseStatus.purchased)]);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(play.requestedIds, [supporterProductId]);
+    expect(play.launches, 0);
+    expect(play.acknowledgmentAttempts, 0);
+
+    await toggleTesting(tester);
+    expect(play.events.hasListener, isTrue);
+    expect(play.requestedIds, [supporterProductId, supporterProductId]);
+    expect(button, findsOneWidget);
+  });
+
+  testWidgets(
+      'switch stays locked through checkout, pending and acknowledgment',
+      (tester) async {
+    final play = await mountSupport(tester, const SupportScreen());
+    final disable = tester.widget<SwitchListTile>(testSwitch).onChanged!;
+    final button = buyButton('Kup odznakę — 2,49 €');
+
+    Future<void> expectLocked() async {
+      expect(tester.widget<SwitchListTile>(testSwitch).onChanged, isNull);
+      disable(false);
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(testSwitch).value, isTrue);
+      expect(play.events.hasListener, isTrue);
+      expect(find.text('Przyjaciel Biblioteki'), findsNothing);
+    }
+
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+    expect(play.launches, 1);
+    await expectLocked();
+
+    play.purchases = [purchase(PurchaseStatus.pending)];
+    play.events.add(play.purchases);
+    await tester.pumpAndSettle();
+    await expectLocked();
+
+    play.ownershipError = true;
+    final restore = find.text('Przywróć zakup');
+    await tester.ensureVisible(restore);
+    await tester.tap(restore);
+    await tester.pumpAndSettle();
+    await expectLocked();
+
+    play.ownershipError = false;
+    play.acknowledgmentGate = Completer<void>();
+    play.purchases = [purchase(PurchaseStatus.purchased)];
+    play.events.add(play.purchases);
+    await tester.pumpAndSettle();
+    expect(play.acknowledgmentAttempts, 1);
+    await expectLocked();
+
+    play.acknowledgmentGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Przyjaciel Biblioteki'), findsOneWidget);
+    expect(tester.widget<SwitchListTile>(testSwitch).onChanged, isNotNull);
+    await toggleTesting(tester);
+    expect(play.events.hasListener, isFalse);
   });
 
   test('queries only the configured product and loads the localized price',
@@ -315,9 +447,17 @@ void main() {
 
   testWidgets('Help opens support during a store outage and remains navigable',
       (tester) async {
-    await mountSupport(tester, const LoanHelpScreen(), available: false);
-    await tester.tap(find.text(supportScreenTitle));
+    await mountSupport(tester, const LoanHelpScreen(),
+        available: false, enable: false);
+    final supportButton =
+        find.widgetWithText(OutlinedButton, supportScreenTitle);
+    expect(
+        find.descendant(
+            of: supportButton, matching: find.byIcon(Icons.favorite)),
+        findsOneWidget);
+    await tester.tap(supportButton);
     await tester.pumpAndSettle();
+    await toggleTesting(tester);
     expect(find.text('Google Play jest teraz niedostępny.'), findsOneWidget);
     expect(find.byType(FilledButton), findsNothing);
     expect(find.text('Przyjaciel Biblioteki'), findsNothing);
@@ -352,7 +492,9 @@ void main() {
     expect(find.text(thanks), findsNothing);
 
     play.purchases = [purchase(PurchaseStatus.purchased)];
-    await tester.tap(find.text('Przywróć zakup'));
+    final restore = find.text('Przywróć zakup');
+    await tester.scrollUntilVisible(restore.hitTestable(), 100);
+    await tester.tap(restore);
     await tester.pumpAndSettle();
     expect(find.text('Zakup został przywrócony.'), findsOneWidget);
     expect(find.text(thanks), findsOneWidget);
@@ -367,9 +509,13 @@ void main() {
     final navigator = GlobalKey<NavigatorState>();
     final play = FakePlay();
     addTearDown(play.events.close);
-    final billing = SupporterBilling(play);
-    await tester.pumpWidget(SupporterBillingScope(
-      billing: billing,
+    late SupporterBilling billing;
+    await tester.pumpWidget(SupporterBillingScope.forApp(
+      debug: true,
+      testFlag: true,
+      web: false,
+      platform: TargetPlatform.android,
+      createBilling: () => billing = SupporterBilling(play),
       child: MaterialApp(
         navigatorKey: navigator,
         builder: (context, child) => MediaQuery(
@@ -381,6 +527,13 @@ void main() {
         home: const LoanHelpScreen(),
       ),
     ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(supportScreenTitle));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(testSwitch.hitTestable(), 100);
+    await toggleTesting(tester);
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
     final badge = find.descendant(

@@ -20,8 +20,9 @@ class _SupportScreenState extends State<SupportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final billing = SupporterBillingScope.read(context);
-    final isAndroid = billing != null ||
+    final developerMode = SupporterBillingScope.of(context);
+    final billing = developerMode?.billing;
+    final isAndroid = developerMode != null ||
         (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
     return Scaffold(
       appBar: AppBar(title: const Text(supportScreenTitle)),
@@ -59,9 +60,29 @@ class _SupportScreenState extends State<SupportScreen> {
                 'Zakup jest dobrowolny. Wszystkie funkcje aplikacji pozostają bezpłatne.',
               ),
               const SizedBox(height: 16),
+              if (developerMode != null) ...[
+                Semantics(
+                  header: true,
+                  child: Text(
+                    'Tryb deweloperski',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Testowanie zakupów Google Play'),
+                  subtitle: const Text(
+                    'Włącz testowanie zakupu odznaki Przyjaciel Biblioteki przy użyciu konta testera Google Play.',
+                  ),
+                  value: billing != null,
+                  onChanged: billing == null || billing.canStop
+                      ? developerMode.setEnabled
+                      : null,
+                ),
+              ],
               if (billing != null)
                 SupporterBadge(billing: billing)
-              else
+              else if (developerMode == null)
                 const Text(
                     'Zakup odznaki jest niedostępny w tej wersji aplikacji.'),
             ] else ...[

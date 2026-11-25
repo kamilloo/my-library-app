@@ -16,8 +16,10 @@ W aplikacji otwórz **Pomoc → Wesprzyj Moją Bibliotekę**. Safari na iPhonie
 oferuje dobrowolną wpłatę przez BuyCoffee.to bez nagród. Android ma osobną integrację Google Play
 dla jednorazowego zakupu kosmetycznej odznaki **Przyjaciel Biblioteki**.
 Po potwierdzeniu własności odznaka pojawia się po lewej stronie tytułu **Pomoc**.
-Zakup jest dostępny w Androidzie wyłącznie w kompilacji debug z flagą
-`PLAY_SUPPORTER_BILLING_TEST=true`.
+Zakup testowy jest dostępny w Androidzie w kompilacji debug z flagą
+`PLAY_SUPPORTER_BILLING_TEST=true` po włączeniu przełącznika
+**Testowanie zakupów Google Play**. Przełącznik domyślnie jest wyłączony.
+Test wymaga konta skonfigurowanego osobno jako tester licencji Google Play.
 Wszystkie funkcje biblioteki pozostają bezpłatne.
 
 Odznakę przywraca się z tego samego konta Google Play przyciskiem **Przywróć zakup**.

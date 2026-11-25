@@ -59,6 +59,8 @@ class SupporterBilling extends ChangeNotifier {
   bool _disposed = false;
   bool _checkout = false;
   bool _refreshing = false;
+  bool _pending = false;
+  int _queuedOperations = 0;
   bool _ownershipKnown = false;
   String? _acknowledgedToken;
 
@@ -69,7 +71,12 @@ class SupporterBilling extends ChangeNotifier {
   SupporterStatus _status = SupporterStatus.initializing;
   SupporterStatus get status => _status;
 
+  bool get canStop =>
+      !_checkout && !_pending && !_refreshing && _queuedOperations == 0;
+
   bool get canBuy =>
+      !_disposed &&
+      !_pending &&
       _product != null &&
       _ownershipKnown &&
       !_owned &&
@@ -85,7 +92,10 @@ class SupporterBilling extends ChangeNotifier {
       };
 
   bool get canRestore =>
-      !_checkout && !_refreshing && _status != SupporterStatus.verifying;
+      !_disposed &&
+      !_checkout &&
+      !_refreshing &&
+      _status != SupporterStatus.verifying;
 
   Future<void> refresh({bool manual = false}) {
     if (_disposed || _refreshing) return Future.value();
@@ -179,12 +189,17 @@ class SupporterBilling extends ChangeNotifier {
       _checkout = false;
       switch (status) {
         case PurchaseStatus.pending:
+          _pending = true;
           if (!_owned) _setStatus(SupporterStatus.pending);
         case PurchaseStatus.canceled:
-          if (!_owned) _setStatus(SupporterStatus.canceled);
+          if (_pending) {
+            await _reconcile(emptyStatus: SupporterStatus.canceled);
+          } else if (!_owned) {
+            _setStatus(SupporterStatus.canceled);
+          }
         case PurchaseStatus.error:
           if (_owned) continue;
-          if (wasCheckingOut) {
+          if (wasCheckingOut || _pending) {
             await _reconcile(emptyStatus: SupporterStatus.purchaseFailed);
             if (_owned) _setStatus(SupporterStatus.alreadyOwned);
           } else {
@@ -220,11 +235,15 @@ class SupporterBilling extends ChangeNotifier {
               purchase.status == PurchaseStatus.restored) &&
           purchase.error == null &&
           _token(purchase).isNotEmpty);
+      final hasPending = purchases
+          .any((purchase) => purchase.status == PurchaseStatus.pending);
+      if (hasPending) _pending = true;
       final purchase = confirmed
           .where((purchase) =>
               expectedToken == null || _token(purchase) == expectedToken)
           .firstOrNull;
       if (purchase == null) {
+        if (expectedToken == null && purchases.isEmpty) _pending = false;
         _ownershipKnown = purchases.isEmpty;
         final completeSnapshot = purchases.every((purchase) =>
             purchase.status == PurchaseStatus.pending ||
@@ -235,8 +254,7 @@ class SupporterBilling extends ChangeNotifier {
           _owned = false;
           _acknowledgedToken = null;
         }
-        if (purchases
-            .any((purchase) => purchase.status == PurchaseStatus.pending)) {
+        if (hasPending) {
           _checkout = false;
           _setStatus(SupporterStatus.pending);
         } else if (expectedToken != null || purchases.isNotEmpty) {
@@ -258,6 +276,7 @@ class SupporterBilling extends ChangeNotifier {
         await _store.acknowledge(purchase);
       }
       if (_disposed) return;
+      _pending = hasPending;
       _acknowledgedToken = token;
       _owned = true;
       _ownershipKnown = true;
@@ -280,8 +299,14 @@ class SupporterBilling extends ChangeNotifier {
   }
 
   Future<void> _enqueue(Future<void> Function() action) {
+    _queuedOperations++;
     _operations = _operations.then((_) async {
-      if (!_disposed) await action();
+      try {
+        if (!_disposed) await action();
+      } finally {
+        _queuedOperations--;
+        if (!_disposed && _queuedOperations == 0) notifyListeners();
+      }
     });
     return _operations;
   }

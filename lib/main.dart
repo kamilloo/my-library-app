@@ -122,22 +122,10 @@ Future<void> main() async {
       // Cover cleanup is retryable. SQLite is still the source of truth.
     }
   }
-  const app = MyLibraryApp();
-  // Client-side Play ownership checks are available only for license testing.
-  const playBillingTest = bool.fromEnvironment('PLAY_SUPPORTER_BILLING_TEST');
-  if (isSupporterBillingEnabled(
-    debug: kDebugMode,
-    testFlag: playBillingTest,
-    web: kIsWeb,
-    platform: defaultTargetPlatform,
-  )) {
-    runApp(SupporterBillingScope(
-      billing: SupporterBilling(GooglePlaySupporterStore()),
-      child: app,
-    ));
-  } else {
-    runApp(app);
-  }
+  runApp(SupporterBillingScope.forApp(
+    createBilling: () => SupporterBilling(GooglePlaySupporterStore()),
+    child: const MyLibraryApp(),
+  ));
 }
 
 class MyLibraryApp extends StatelessWidget {
