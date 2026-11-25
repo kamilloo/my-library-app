@@ -39,7 +39,13 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: LoanHelpScreen()));
     expect(find.text('Kopia zapasowa'), findsOneWidget);
     expect(find.text('Samouczek — 7 slajdów'), findsOneWidget);
-    await tester.tap(find.text(supportScreenTitle));
+    final supportButton =
+        find.widgetWithText(OutlinedButton, supportScreenTitle);
+    expect(
+        find.descendant(
+            of: supportButton, matching: find.byIcon(Icons.favorite)),
+        findsOneWidget);
+    await tester.tap(supportButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Wesprzyj rozwój Mojej Biblioteki'), findsOneWidget);

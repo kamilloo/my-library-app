@@ -19,8 +19,10 @@ tytułu **Pomoc**. Jej zakup nie zmienia funkcji aplikacji ani danych biblioteki
 2. W aplikacji `com.kamilloo.mylibrary` właściciel wskazał istniejący produkt
    jednorazowy `library_supporter_badge`. Klient wysyła ten identyfikator do Play.
    W szczegółach produktu porównaj pole identyfikatora produktu z polem
-   identyfikatora opcji zakupu. `badge_one_time` to zgłoszony identyfikator
-   wymagający potwierdzenia w sekcji opcji zakupu w Play Console.
+   identyfikatora opcji zakupu. Zgłoszone `badge_one_time` zawiera podkreślenia,
+   a identyfikatory opcji zakupu dopuszczają małe litery, cyfry i łączniki.
+   Dokładna nazwa opcji wymaga potwierdzenia w Play Console.
+   [Pola produktu i opcji zakupu](https://developers.google.com/android-publisher/api-ref/rest/v3/monetization.onetimeproducts).
 3. Sprawdź nazwę **Przyjaciel Biblioteki** i opis podany przez właściciela.
    > Pamiątkowa odznaka wspierającego rozwój aplikacji Moja Biblioteka. Zakup jednorazowy, bez dodatkowych funkcji.
 4. Dodaj jedną standardową opcję zakupu typu **Buy** z bezterminową własnością,
@@ -66,17 +68,29 @@ z kontem testera licencji. Testy z atrapą sklepu nie wykonują płatności.
 
 Zbuduj i zainstaluj debug APK o zgodnym identyfikatorze pakietu. Konto testera
 licencji może testować podpis debug bez przesyłania tej kompilacji do sklepu.
-Zweryfikuj konto użyte w oknie zakupu i widoczny komunikat o zakupie testowym.
+Właściciel musi osobno dodać konto w Play Console jako testera licencji.
+Przełącznik w aplikacji nie konfiguruje konta. Zweryfikuj konto w oknie zakupu
+i widoczny komunikat o zakupie testowym.
 
 ```sh
 flutter build apk --debug --dart-define=PLAY_SUPPORTER_BILLING_TEST=true
 ```
 
-- W **Pomoc → Wesprzyj Moją Bibliotekę** sprawdź dostępność produktu
-  `library_supporter_badge`, cenę lokalną z Play i otwarcie okna zakupu.
-  Zakończ zakup testowy. Sprawdź podziękowanie na ekranie wsparcia, odznakę
-  po lewej stronie tytułu **Pomoc** i brak możliwości ponownego zakupu.
-  Uruchom aplikację ponownie i sprawdź, czy Play przywraca odznakę.
+1. Otwórz **Pomoc**.
+2. Wybierz **Wesprzyj Moją Bibliotekę**.
+3. W sekcji **Tryb deweloperski** włącz **Testowanie zakupów Google Play**.
+   Po ponownym uruchomieniu aplikacji przełącznik jest domyślnie wyłączony.
+4. Sprawdź, czy wczytały się produkt `library_supporter_badge` oraz lokalna
+   cena zwrócona przez Google Play.
+5. Kup odznakę za pomocą skonfigurowanego konta testera licencji Google Play.
+6. Sprawdź, czy odznaka pojawiła się po lewej stronie tytułu **Pomoc**.
+7. Wybierz **Przywróć zakup** i sprawdź potwierdzenie przywrócenia. Po restarcie
+   włącz testowanie ponownie, aby aplikacja odczytała własność z Google Play.
+8. Wyłącz testowanie i sprawdź, czy nie można rozpocząć kolejnego zakupu.
+   W trakcie zakupu, oczekiwania na płatność i potwierdzania transakcji
+   przełącznik jest zablokowany.
+
+Dodatkowe scenariusze:
 - Sprawdź odrzucenie płatności, zamknięcie okna zakupu oraz opóźnioną płatność
   zatwierdzoną i odrzuconą. Odznaka powinna pojawić się po potwierdzeniu.
   Sprawdź wznowienie aplikacji i powrót po chwilowej utracie sieci.
@@ -94,8 +108,9 @@ flutter build apk --debug --dart-define=PLAY_SUPPORTER_BILLING_TEST=true
 
 ## Weryfikacja i warunki produkcji
 
-Klient testowy używa zapytania o aktualne zakupy Play przy starcie, wznowieniu,
-ręcznym przywróceniu i przed zakupem. Komunikat o zakupie wyzwala ponowne
+Klient testowy sprawdza aktualne zakupy Play po włączeniu testowania,
+po wznowieniu aplikacji z włączonym testowaniem, przy ręcznym przywróceniu
+i przed zakupem. Komunikat o zakupie wyzwala ponowne
 zapytanie, które sprawdza produkt, stan i zgodność tokenu. Odznaka jest
 przyznawana po potwierdzeniu przez Play i udanym zakończeniu transakcji, jeśli
 wymaga ona potwierdzenia. Tokeny i stan wyświetlania żyją w pamięci procesu.

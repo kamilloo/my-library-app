@@ -83,20 +83,15 @@ class _HelpTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const title = Text('Pomoc');
-    final billing = SupporterBillingScope.read(context);
-    if (billing == null) return title;
-    return ListenableBuilder(
-      listenable: billing,
-      builder: (context, _) => billing.owned
-          ? const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SupporterBadgeImage(size: 36),
-                SizedBox(width: 8),
-                Flexible(child: title),
-              ],
-            )
-          : title,
+    final billing = SupporterBillingScope.of(context)?.billing;
+    if (billing?.owned != true) return title;
+    return const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SupporterBadgeImage(size: 36),
+        SizedBox(width: 8),
+        Flexible(child: title),
+      ],
     );
   }
 }
@@ -136,7 +131,7 @@ class LoanHelpScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
-                icon: const Icon(Icons.info_outline),
+                icon: const Icon(Icons.favorite),
                 label: const Text(supportScreenTitle),
                 onPressed: () => Navigator.push<void>(
                   context,
