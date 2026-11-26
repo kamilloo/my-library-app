@@ -2,6 +2,14 @@
 
 Production runs at https://mojabiblioteka.app/app/. Follow the laptop and VPS steps in order, using Bash. Keep the laptop shell open so the release variables remain available. Coordinate one release operator at a time and complete device QA on an existing approved HTTPS staging origin before production activation.
 
+## Quick release checklist
+
+- [ ] [Build and prepare fresh web output](#2-build-and-prepare-on-the-laptop), then [package the full site](#3-package-on-the-laptop).
+- [ ] Complete [device QA on HTTPS staging](#7-device-qa) and [upload and verify the production candidate](#4-upload-a-candidate-from-the-laptop).
+- [ ] [Activate on the VPS](#5-inspect-and-activate-on-the-vps) and record the backup path.
+- [ ] [Verify public routes, metadata and assets](#6-verify-public-http-from-the-laptop).
+- [ ] If verification fails and recovery requires it, [restore the previous release](#9-roll-back-on-the-vps).
+
 ## Architecture
 
 | Repository | Release responsibility |
@@ -24,32 +32,49 @@ The worker serves local app assets within `/app/`. SQLite runs in WASM with a br
 ## 2. Build and prepare on the laptop
 
 ```bash
-cd ~/projects/my-library-app
-git status --short
-git switch main
-git pull --ff-only origin main
-test -z "$(git status --porcelain)"
-FLUTTER_COMMIT="$(git rev-parse HEAD)"
-printf 'Flutter commit: %s\n' "$FLUTTER_COMMIT"
-flutter --version
-node --version
+(
+  set -euo pipefail
+  cd ~/projects/my-library-app
+  rm -f build/web-release-source
+  git status --short
+  git switch main
+  git pull --ff-only origin main
+  CHECKOUT_STATUS="$(git status --porcelain)"
+  test -z "$CHECKOUT_STATUS"
+  FLUTTER_COMMIT="$(git rev-parse HEAD)"
+  printf 'Flutter commit: %s\n' "$FLUTTER_COMMIT"
+  flutter --version
+  node --version
 
-flutter pub get
-flutter analyze
-flutter test
-dart run sqflite_common_ffi_web:setup
-flutter build web --release \
-  --no-web-resources-cdn \
-  --base-href /app/
-node tool/prepare_web.mjs
+  flutter pub get
+  flutter analyze
+  flutter test
+  dart run sqflite_common_ffi_web:setup
 
-git status --short
-test -z "$(git status --porcelain)"
-test "$(git rev-parse HEAD)" = "$FLUTTER_COMMIT"
-git diff --check
+  if [[ -e build/web || -L build/web ]]; then
+    PREVIOUS_WEB_DIR="$(mktemp -d build/web-previous.XXXXXX)"
+    mv build/web "$PREVIOUS_WEB_DIR/"
+    printf 'Previous web output kept in %s/web\n' "$PREVIOUS_WEB_DIR"
+  fi
+  flutter build web --release \
+    --no-web-resources-cdn \
+    --base-href /app/
+  node tool/prepare_web.mjs
+
+  test -d build/web
+  for path in index.html flutter_bootstrap.js main.dart.js offline-worker.js sqlite3.wasm sqflite_sw.js; do
+    test -s "build/web/$path"
+  done
+  CHECKOUT_STATUS="$(git status --porcelain)"
+  test -z "$CHECKOUT_STATUS"
+  test "$(git rev-parse HEAD)" = "$FLUTTER_COMMIT"
+  git diff --check
+  WORKER_HASH="$(git hash-object build/web/offline-worker.js)"
+  printf '%s %s\n' "$FLUTTER_COMMIT" "$WORKER_HASH" > build/web-release-source
+)
 ```
 
-Stop on a failed command or a dirty checkout. Resolve tracked changes before building or packaging, and keep the full SHA recorded with the release. The build tree and generated SQLite runtime in `web/` are ignored by Git.
+Continue only if the block succeeds. It invalidates the previous build record, moves aside any existing web output before compiling, and records the source SHA and prepared worker hash after the checks pass. Resolve any checkout changes and rerun the block if it fails. Git ignores the build tree, build record and generated SQLite runtime in `web/`.
 
 The trailing slash in `/app/` makes relative Flutter assets and the service worker resolve inside the application directory. The CDN flag keeps Flutter's renderer resources local for offline startup. [The preparation script](../tool/prepare_web.mjs) downloads pinned ZXing JavaScript, checks its SHA-256, saves the license, and writes a sorted inventory into the worker template. The revision hashes the template plus each inventoried path and its bytes. Dot-prefixed filenames, source maps and the two top-level service worker scripts are excluded from the inventory.
 
@@ -58,25 +83,40 @@ Expect `index.html`, `entry.css`, `entry.js`, `flutter_bootstrap.js`, `main.dart
 ## 3. Package on the laptop
 
 ```bash
-cd ~/projects/kamilpietka.github.io
-git status --short
-git switch main
-git pull --ff-only origin main
-test -z "$(git status --porcelain)"
-test "$(git -C ../my-library-app rev-parse HEAD)" = "$FLUTTER_COMMIT"
-test -z "$(git -C ../my-library-app status --porcelain)"
+RELEASE_TAG="web-$(date -u +%Y%m%d-%H%M%S)" &&
+RELEASE_DIR="/tmp/mojabiblioteka-${RELEASE_TAG}" &&
+(
+  set -euo pipefail
+  cd ~/projects/kamilpietka.github.io
+  git status --short
+  git switch main
+  git pull --ff-only origin main
+  CHECKOUT_STATUS="$(git status --porcelain)"
+  test -z "$CHECKOUT_STATUS"
 
-RELEASE_TAG="web-$(date -u +%Y%m%d-%H%M%S)"
-RELEASE_DIR="/tmp/mojabiblioteka-${RELEASE_TAG}"
-python3 scripts/package_mojabiblioteka.py \
-  --web-build ../my-library-app/build/web \
-  --flutter-commit "${FLUTTER_COMMIT:?Run the build section first}" \
-  --output "$RELEASE_DIR"
-cat "$RELEASE_DIR/release.json"
-git rev-parse HEAD
+  FLUTTER_REPO=../my-library-app
+  WEB_BUILD="$FLUTTER_REPO/build/web"
+  CHECKOUT_STATUS="$(git -C "$FLUTTER_REPO" status --porcelain)"
+  test -z "$CHECKOUT_STATUS"
+  test -d "$WEB_BUILD"
+  for path in index.html flutter_bootstrap.js main.dart.js offline-worker.js sqlite3.wasm sqflite_sw.js; do
+    test -s "$WEB_BUILD/$path"
+  done
+  read -r FLUTTER_COMMIT WORKER_HASH < "$FLUTTER_REPO/build/web-release-source"
+  test "$(git -C "$FLUTTER_REPO" rev-parse HEAD)" = "$FLUTTER_COMMIT"
+  test "$(git hash-object "$WEB_BUILD/offline-worker.js")" = "$WORKER_HASH"
+
+  python3 scripts/package_mojabiblioteka.py \
+    --web-build "$WEB_BUILD" \
+    --flutter-commit "$FLUTTER_COMMIT" \
+    --output "$RELEASE_DIR"
+  cat "$RELEASE_DIR/release.json"
+  printf 'Release tag: %s\n' "$RELEASE_TAG"
+  git rev-parse HEAD
+)
 ```
 
-Stop if any check fails. Record the website checkout SHA alongside the release tag. The [packager](https://github.com/kamilloo/kamilpietka.github.io/blob/main/scripts/package_mojabiblioteka.py) requires a new output directory so a release cannot overwrite an earlier package or inherit stale files. It copies the marketing site and legal pages, places the complete prepared build under `app/`, then writes root-level `release.json`. The metadata records the full 40-character `flutter_source_commit` supplied by the operator and the computed `offline_revision`. The script checks that the worker inventory matches the eligible files, verifies required paths, recomputes the hash from the template and build bytes, and checks the base href, manifest scope, support URL and legal entry points.
+Continue only after this block succeeds. If the prepared output or build record is missing or mismatched, rerun the build section before packaging. Record the website checkout SHA alongside the release tag. The [packager](https://github.com/kamilloo/kamilpietka.github.io/blob/main/scripts/package_mojabiblioteka.py) requires a new output directory so a release cannot overwrite an earlier package or inherit stale files. It copies the marketing site and legal pages, places the complete prepared build under `app/`, then writes root-level `release.json`. The metadata records the full 40-character `flutter_source_commit` supplied by the operator and the computed `offline_revision`. The script checks that the worker inventory matches the eligible files, verifies required paths, recomputes the hash from the template and build bytes, and checks the base href, manifest scope, support URL and legal entry points.
 
 Deploy the complete package so the marketing and legal pages and every resource the worker expects are released together. A lone `main.dart.js` upload leaves other assets and the worker out of sync.
 
@@ -172,12 +212,13 @@ Run the following in the same VPS shell. The preflight checks the rendered Compo
 
 Recreating only Caddy may briefly interrupt shared HTTPS, including the portfolio and Vouchers routes. Compose currently defines no Caddy healthcheck. Confirm that the container is running, the mount is correct and the HTTP checks pass. If activation fails after renaming, keep both trees and use the rollback procedure. If the session disconnects mid-swap, inspect which directory names exist before retrying. If the live path is missing, restore it from the printed rollback path before recreating Caddy.
 
-Optionally verify the origin from the VPS when Caddy is up. This bypasses Cloudflare while keeping the correct host and TLS SNI. If the origin uses a private certificate authority, use the operator-provided CA with `--cacert`.
+Optionally verify the origin from the VPS when Caddy is up. This assumes the existing Docker port mapping makes Caddy reachable at `127.0.0.1:443` on the VPS and that it presents a certificate for `mojabiblioteka.app` trusted by the VPS. The probe connects directly over IPv4 loopback, bypassing Cloudflare while sending the production hostname for TLS SNI and HTTP routing. If the origin certificate uses a private CA, use the operator-provided CA with `--cacert`. If the listener assumption does not hold, use the public checks in section 6.
 
 ```bash
 (
   set -euo pipefail
-  curl -fsS --retry 3 --resolve mojabiblioteka.app:443:127.0.0.1 \
+  curl -fsS --retry 3 --noproxy mojabiblioteka.app \
+    --resolve mojabiblioteka.app:443:127.0.0.1 \
     https://mojabiblioteka.app/release.json | cmp "$LIVE/release.json" -
 )
 ```
