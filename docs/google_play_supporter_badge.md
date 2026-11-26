@@ -61,7 +61,27 @@ z atrapy Play, która symuluje potwierdzenie zakupu.
 | Wesprzyj Moją Bibliotekę | [Podgląd i zakup](screenshots/task36/support-before-purchase.png) | [Odznaka i podziękowanie](screenshots/task36/support-after-purchase.png) |
 | Pomoc | [Tytuł](screenshots/task36/help-before-purchase.png) | [Tytuł z odznaką](screenshots/task36/help-after-purchase.png) |
 
-## Testy na fizycznym urządzeniu
+## Symulacja udanego zakupu
+
+Uruchom aplikację na Androidzie:
+
+```sh
+flutter run --debug --dart-define=PLAY_SUPPORTER_BILLING_TEST=true
+```
+
+1. Otwórz **Pomoc → Wesprzyj Moją Bibliotekę**.
+2. W sekcji **Tryb deweloperski** włącz **Symuluj zakup odznaki**.
+3. Sprawdź oficjalną grafikę, podziękowanie i tekst **Symulacja zakupu — tylko do testów**.
+4. Wróć do **Pomoc** i sprawdź odznakę po lewej stronie tytułu.
+5. Wyłącz symulację na ekranie wsparcia i sprawdź, czy odznaka zniknęła.
+6. Włącz symulację, zamknij proces aplikacji i uruchom ją ponownie. Przełącznik będzie wyłączony.
+
+Symulacja działa w pamięci procesu. Dane biblioteki i archiwa `.mlbak` są od niej
+niezależne. Do tego scenariusza wystarczy urządzenie lub emulator z Androidem.
+Konto testera i połączenie z Google Play są zbędne. Przełącznik jest dostępny
+wyłącznie w natywnej kompilacji Android debug z powyższą flagą.
+
+## Testy licencyjne na fizycznym urządzeniu
 
 **BLOCKED** — wszystkie kroki poniżej wymagają fizycznego urządzenia
 z kontem testera licencji. Testy z atrapą sklepu nie wykonują płatności.
@@ -73,7 +93,7 @@ Przełącznik w aplikacji nie konfiguruje konta. Zweryfikuj konto w oknie zakupu
 i widoczny komunikat o zakupie testowym.
 
 ```sh
-flutter build apk --debug --dart-define=PLAY_SUPPORTER_BILLING_TEST=true
+flutter build apk --debug --dart-define=PLAY_SUPPORTER_LICENSE_TEST=true
 ```
 
 1. Otwórz **Pomoc**.

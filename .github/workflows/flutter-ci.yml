@@ -107,6 +107,7 @@ jobs:
         run: git diff --exit-code -- pubspec.lock
       - name: Build debug APK
         run: flutter build apk --debug
+
       - name: Test Android backup archives
         working-directory: android
         run: ./gradlew :app:testDebugUnitTest --console=plain
@@ -136,3 +137,5 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 7
+      - name: Build debug APK with supporter simulation enabled
+        run: flutter build apk --debug --dart-define=PLAY_SUPPORTER_BILLING_TEST=true

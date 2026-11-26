@@ -24,8 +24,9 @@ Androidzie ma osobną ścieżkę zakupu w Google Play.
   jednorazowego zakupu **Przyjaciel Biblioteki**. Ekran pokazuje grafikę
   dostarczoną przez właściciela aplikacji. Po potwierdzeniu zakupu ta sama
   odznaka pojawia się po lewej stronie tytułu **Pomoc**. Zakup jest dostępny
-  wyłącznie w kompilacji debug z flagą `PLAY_SUPPORTER_BILLING_TEST=true`
+  wyłącznie w kompilacji debug z flagą `PLAY_SUPPORTER_LICENSE_TEST=true`
   po włączeniu przełącznika **Testowanie zakupów Google Play**.
+  Flaga `PLAY_SUPPORTER_BILLING_TEST=true` udostępnia **Symuluj zakup odznaki**.
   Ekran Androida nie otwiera BuyCoffee.to. Konfigurację produktu,
   testowanie i warunki uruchomienia opisuje [osobna lista kontrolna](google_play_supporter_badge.md).
 

@@ -22,6 +22,7 @@ class _SupportScreenState extends State<SupportScreen> {
   Widget build(BuildContext context) {
     final developerMode = SupporterBillingScope.of(context);
     final billing = developerMode?.billing;
+    final simulated = developerMode?.simulatedSupporterOwned ?? false;
     final isAndroid = developerMode != null ||
         (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
     return Scaffold(
@@ -55,10 +56,14 @@ class _SupportScreenState extends State<SupportScreen> {
             if (isAndroid) ...[
               const Center(child: SupporterBadgeImage(size: 144)),
               const SizedBox(height: 16),
-              const Text(
-                'Wesprzyj rozwój Mojej Biblioteki, kupując jednorazową odznakę Przyjaciel Biblioteki.\n\n'
-                'Zakup jest dobrowolny. Wszystkie funkcje aplikacji pozostają bezpłatne.',
-              ),
+              if (simulated) ...[
+                const SupporterThankYou(),
+                const Text('Symulacja zakupu — tylko do testów'),
+              ] else
+                const Text(
+                  'Wesprzyj rozwój Mojej Biblioteki, kupując jednorazową odznakę Przyjaciel Biblioteki.\n\n'
+                  'Zakup jest dobrowolny. Wszystkie funkcje aplikacji pozostają bezpłatne.',
+                ),
               const SizedBox(height: 16),
               if (developerMode != null) ...[
                 Semantics(
@@ -68,21 +73,32 @@ class _SupportScreenState extends State<SupportScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Testowanie zakupów Google Play'),
-                  subtitle: const Text(
-                    'Włącz testowanie zakupu odznaki Przyjaciel Biblioteki przy użyciu konta testera Google Play.',
+                if (developerMode.setSimulatedSupporterOwned != null)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Symuluj zakup odznaki'),
+                    subtitle: const Text(
+                      'Włącz, aby zobaczyć odznakę Przyjaciel Biblioteki tak, jak po udanym zakupie. Nie jest wykonywana żadna płatność.',
+                    ),
+                    value: simulated,
+                    onChanged: developerMode.setSimulatedSupporterOwned,
                   ),
-                  value: billing != null,
-                  onChanged: billing == null || billing.canStop
-                      ? developerMode.setEnabled
-                      : null,
-                ),
+                if (developerMode.setEnabled != null && !simulated)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Testowanie zakupów Google Play'),
+                    subtitle: const Text(
+                      'Włącz testowanie zakupu odznaki Przyjaciel Biblioteki przy użyciu konta testera Google Play.',
+                    ),
+                    value: billing != null,
+                    onChanged: billing == null || billing.canStop
+                        ? developerMode.setEnabled
+                        : null,
+                  ),
               ],
-              if (billing != null)
+              if (!simulated && billing != null)
                 SupporterBadge(billing: billing)
-              else if (developerMode == null)
+              else if (!simulated)
                 const Text(
                     'Zakup odznaki jest niedostępny w tej wersji aplikacji.'),
             ] else ...[
