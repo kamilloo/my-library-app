@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'supporter_badge.dart';
 import 'tutorial_screen.dart';
 
 const mainScreenPadding = EdgeInsets.fromLTRB(20, 12, 20, 110);
@@ -30,6 +31,7 @@ class _MainScreenHeaderState extends State<MainScreenHeader>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final supporterOwned = SupporterBillingScope.of(context)?.owned == true;
     return Column(
       children: [
         Row(children: [
@@ -43,6 +45,11 @@ class _MainScreenHeaderState extends State<MainScreenHeader>
                       ?.copyWith(fontWeight: FontWeight.w600)),
             ),
           ),
+          if (supporterOwned)
+            const Padding(
+              padding: EdgeInsets.only(left: 8, right: 4),
+              child: SupporterBadgeImage(size: 36),
+            ),
           const TutorialHelpButton(),
         ]),
         const SizedBox(height: 8),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:my_library/data/library_repository.dart';
 import 'package:my_library/main.dart';
 import 'package:my_library/models/book.dart';
@@ -9,6 +10,11 @@ import 'package:my_library/models/loan_transfer.dart';
 import 'package:my_library/screens/genres.dart';
 import 'package:my_library/screens/main_screen_header.dart';
 import 'package:my_library/screens/offline_loans.dart';
+import 'package:my_library/screens/supporter_badge.dart';
+import 'package:my_library/screens/tutorial_screen.dart';
+import 'package:my_library/services/supporter_billing.dart';
+
+import 'supporter_billing_test.dart' show FakePlay, purchase;
 
 class ScreenRepository extends LibraryRepository {
   final date = DateTime(2025, 2, 10);
@@ -111,6 +117,127 @@ void main() {
     'Historia': (repo) => HistoryScreen(repository: repo),
     'Pożyczone': (repo) => BorrowedLoansScreen(repository: repo),
   };
+
+  for (final confirmedPurchase in [false, true]) {
+    testWidgets(
+        'all main tabs update the badge with ${confirmedPurchase ? 'confirmed Play ownership' : 'simulation only'}',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 640));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final play = FakePlay();
+      addTearDown(play.events.close);
+      var billingCreations = 0;
+      final repo = ScreenRepository();
+      final tabs = [for (final screen in screens.values) screen(repo)];
+      var selected = 0;
+      await tester.pumpWidget(SupporterBillingScope.forApp(
+        debug: true,
+        testFlag: true,
+        licenseTestFlag: true,
+        web: false,
+        platform: TargetPlatform.android,
+        createBilling: () {
+          billingCreations++;
+          return SupporterBilling(play);
+        },
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: StatefulBuilder(
+            builder: (context, setState) => Scaffold(
+              body: IndexedStack(index: selected, children: tabs),
+              bottomNavigationBar: NavigationBar(
+                selectedIndex: selected,
+                onDestinationSelected: (index) =>
+                    setState(() => selected = index),
+                destinations: [
+                  for (final title in screens.keys)
+                    NavigationDestination(
+                      icon: const Icon(Icons.book_outlined),
+                      label: title,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+
+      final header = find.byType(MainScreenHeader);
+      final badge = find.descendant(
+        of: header,
+        matching: find.byType(SupporterBadgeImage),
+      );
+      final help = find.byType(TutorialHelpButton);
+      SupporterBillingProvider scope() =>
+          SupporterBillingScope.of(tester.element(header))!;
+
+      Future<void> checkTabs(bool showBadge) async {
+        for (final title in screens.keys) {
+          await tester.tap(find.widgetWithText(NavigationDestination, title));
+          await tester.pumpAndSettle();
+          expect(find.descendant(of: header, matching: find.text(title)),
+              findsOneWidget);
+          expect(badge, showBadge ? findsOneWidget : findsNothing);
+          expect(help.hitTestable(), findsOneWidget);
+          if (showBadge) {
+            final image = find.descendant(
+              of: badge,
+              matching: find.byType(Image),
+            );
+            final widget = tester.widget<Image>(image);
+            expect((widget.image as AssetImage).assetName,
+                'assets/supporter/przyjaciel_biblioteki.png');
+            expect(widget.fit, BoxFit.contain);
+            expect(widget.semanticLabel, contains('Przyjaciel Biblioteki'));
+            expect(tester.getRect(badge).right,
+                closeTo(tester.getRect(help).left - 4, 0.01));
+            expect(tester.getCenter(badge).dy, tester.getCenter(help).dy);
+          }
+          expect(tester.takeException(), isNull);
+        }
+      }
+
+      await checkTabs(false);
+      if (confirmedPurchase) {
+        play.purchases = [
+          purchase(PurchaseStatus.purchased, needsAcknowledgment: false),
+        ];
+        scope().setEnabled!(true);
+        await tester.pumpAndSettle();
+        expect(scope().billing?.owned, isTrue);
+        await checkTabs(true);
+      }
+
+      final queries = play.ownershipQueries;
+      scope().setSimulatedSupporterOwned!(true);
+      await tester.pump();
+      expect(badge, findsOneWidget);
+      await checkTabs(true);
+      await tester.tap(find.text('Pomoc'));
+      await tester.pumpAndSettle();
+      expect(find.byType(LoanHelpScreen), findsOneWidget);
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      await tester.pumpAndSettle();
+
+      scope().setSimulatedSupporterOwned!(false);
+      await tester.pump();
+      expect(badge, confirmedPurchase ? findsOneWidget : findsNothing);
+      await checkTabs(confirmedPurchase);
+      expect(billingCreations, confirmedPurchase ? 1 : 0);
+      expect(play.availabilityChecks, confirmedPurchase ? 1 : 0);
+      expect(play.requestedIds, confirmedPurchase ? [supporterProductId] : []);
+      expect(queries, confirmedPurchase ? 1 : 0);
+      expect(play.ownershipQueries, queries);
+      expect(play.launches, 0);
+      expect(play.acknowledgmentAttempts, 0);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 
   for (final entry in screens.entries) {
     testWidgets('${entry.key} has a shared header and Help on a small screen',
