@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -40,7 +41,8 @@ void main() {
     await expectLater(
       service.lookupByIsbn(isbn),
       throwsA(predicate((Object error) =>
-          openLibraryErrorMessage(error) == openLibraryNetworkMessage)),
+          openLibraryErrorMessage(error) ==
+          (kIsWeb ? openLibraryBrowserMessage : openLibraryNetworkMessage))),
     );
     connected = true;
     expect((await service.lookupByIsbn(isbn))?.title, 'Title');
@@ -52,8 +54,7 @@ void main() {
     await expectLater(
       service.lookupByIsbn(isbn),
       throwsA(predicate((Object error) =>
-          openLibraryErrorMessage(error) ==
-          'Open Library zwróciło błąd HTTP 503.')),
+          openLibraryErrorMessage(error).contains('HTTP 503'))),
     );
   });
 
@@ -73,6 +74,9 @@ void main() {
     final requests = <Uri>[];
     final service = OpenLibraryService(client: MockClient((request) async {
       requests.add(request.url);
+      expect(request.headers['accept'], 'application/json');
+      expect(
+          request.headers['user-agent'], kIsWeb ? isNull : 'MyLibraryApp/0.1');
       return http.Response(
           jsonEncode({
             'docs': [

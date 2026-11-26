@@ -43,6 +43,11 @@ jobs:
         run: flutter analyze
       - name: Run all unit and widget tests
         run: flutter test
+      - name: Run Open Library regression tests in Chrome
+        run: >-
+          flutter test --platform chrome
+          test/open_library_service_test.dart
+          test/open_library_search_service_test.dart
 
   web-build:
     needs: quality-checks
