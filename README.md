@@ -10,6 +10,8 @@ Moja Biblioteka w przeglądarce jest przeznaczona dla Safari na iPhonie.
 Na Androidzie zalecamy aplikację natywną.
 [Budowanie, publikacja HTTPS i weryfikacja zadania 33](docs/task33_iphone_safari.md).
 
+[Flutter web release guide](docs/webapp_release.md) covers build, packaging, VPS activation, validation and rollback.
+
 ## Dobrowolne wsparcie
 
 W aplikacji otwórz **Pomoc → Wesprzyj Moją Bibliotekę**. Safari na iPhonie
