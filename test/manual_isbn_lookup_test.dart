@@ -73,7 +73,8 @@ void main() {
     expect(find.text('Returned author'), findsOneWidget);
   });
 
-  testWidgets('no match, offline and timeout preserve input and allow retry',
+  testWidgets(
+      'no match, network failure and timeout preserve input and allow retry',
       (tester) async {
     final service = LookupService();
     await open(tester, service);
@@ -93,7 +94,7 @@ void main() {
       expect(find.text('Ręczny tytuł'), findsOneWidget);
       expect(find.text('080442957X'), findsOneWidget);
     }
-    expect(find.textContaining('Przekroczono czas'), findsOneWidget);
+    expect(find.text(openLibraryTimeoutMessage), findsOneWidget);
     service.response =
         () async => const OpenLibraryBook(title: 'T', author: 'A');
     await tester.tap(find.text('Spróbuj ponownie'));

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -17,10 +18,14 @@ void main() {
       final requests = <Uri>[];
       final service = OpenLibraryService(client: MockClient((request) async {
         requests.add(request.url);
-        return http.Response('{"docs":[]}', 200);
+        expect(request.headers['accept'], 'application/json');
+        expect(request.headers['user-agent'],
+            kIsWeb ? isNull : 'MyLibraryApp/0.1');
+        return http.Response('{"docs":[{"title":"Book"}]}', 200);
       }));
-      await service.searchBooks(
+      final results = await service.searchBooks(
           title: query['title']!, author: query['author']!);
+      expect(results.results.single.title, 'Book');
       final url = requests.single;
       expect(url.scheme, 'https');
       expect(url.host, 'openlibrary.org');
@@ -132,19 +137,33 @@ void main() {
     });
   }
 
-  test('HTTP and offline errors use Polish messages', () async {
-    final httpService = OpenLibraryService(
-        client: MockClient((_) async => http.Response('', 503)));
+  for (final (status, description) in [
+    (403, 'odmówiło dostępu'),
+    (429, 'zbyt wiele zapytań'),
+    (503, 'chwilowo niedostępne'),
+  ]) {
+    test('HTTP $status reports the server error in Polish', () async {
+      final service = OpenLibraryService(
+          client: MockClient((_) async => http.Response('', status)));
+      await expectLater(
+        service.searchBooks(title: 'T'),
+        throwsA(isA<OpenLibrarySearchException>().having((e) => e.message,
+            'message', allOf(contains(description), contains('HTTP $status')))),
+      );
+    });
+  }
+
+  test('a client failure does not imply the device is offline', () async {
+    final service = OpenLibraryService(
+        client: MockClient(
+            (_) async => throw http.ClientException('Failed to fetch')));
     await expectLater(
-        httpService.searchBooks(title: 'T'),
-        throwsA(isA<OpenLibrarySearchException>()
-            .having((e) => e.message, 'message', contains('HTTP 503'))));
-    final offline = OpenLibraryService(
-        client: MockClient((_) async => throw http.ClientException('offline')));
-    await expectLater(
-        offline.searchBooks(author: 'A'),
-        throwsA(isA<OpenLibrarySearchException>()
-            .having((e) => e.message, 'message', openLibraryNetworkMessage)));
+      service.searchBooks(author: 'A'),
+      throwsA(isA<OpenLibrarySearchException>().having(
+          (e) => e.message,
+          'message',
+          kIsWeb ? openLibraryBrowserMessage : openLibraryNetworkMessage)),
+    );
   });
 
   test('timeout terminates waiting for the search response', () async {

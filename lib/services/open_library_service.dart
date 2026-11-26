@@ -1,14 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/open_library_search.dart';
+import 'open_library_connectivity.dart'
+    if (dart.library.js_interop) 'open_library_connectivity_web.dart';
 
 const openLibraryNetworkMessage =
-    'Wyszukiwanie informacji o książkach wymaga połączenia z internetem.';
+    'Nie udało się połączyć z Open Library. Sprawdź połączenie i spróbuj ponownie.';
+const openLibraryOfflineMessage =
+    'Przeglądarka jest w trybie offline. Połącz się z internetem lub wpisz dane ręcznie.';
+const openLibraryBrowserMessage =
+    'Nie udało się pobrać danych z Open Library w przeglądarce. Spróbuj ponownie lub wpisz dane ręcznie.';
 const openLibraryTimeoutMessage =
-    'Przekroczono czas wyszukiwania. Sprawdź połączenie i spróbuj ponownie.';
+    'Open Library nie odpowiedziało w wyznaczonym czasie. Spróbuj ponownie.';
 const openLibraryNoMatchMessage =
     'Nie znaleziono książki. Możesz wpisać dane ręcznie.';
 
@@ -102,12 +109,20 @@ class OpenLibraryService {
   Future<Map<String, dynamic>> _request(Uri uri) async {
     try {
       final response = await _client.get(uri, headers: const {
-        'User-Agent': 'MyLibraryApp/0.1',
+        if (!kIsWeb) 'User-Agent': 'MyLibraryApp/0.1',
         'Accept': 'application/json',
       }).timeout(searchTimeout);
       if (response.statusCode != 200) {
         throw OpenLibrarySearchException(
-            'Open Library zwróciło błąd HTTP ${response.statusCode}.');
+          switch (response.statusCode) {
+            403 => 'Open Library odmówiło dostępu (HTTP 403).',
+            429 =>
+              'Open Library otrzymało zbyt wiele zapytań (HTTP 429). Spróbuj za chwilę.',
+            >= 500 =>
+              'Open Library jest chwilowo niedostępne (HTTP ${response.statusCode}). Spróbuj później.',
+            _ => 'Open Library zwróciło błąd HTTP ${response.statusCode}.',
+          },
+        );
       }
       final data = jsonDecode(response.body);
       if (data is! Map<String, dynamic> || data['docs'] is! List) {
@@ -115,7 +130,13 @@ class OpenLibraryService {
       }
       return data;
     } on http.ClientException {
-      throw const OpenLibrarySearchException(openLibraryNetworkMessage);
+      throw OpenLibrarySearchException(
+        !kIsWeb
+            ? openLibraryNetworkMessage
+            : browserReportsOffline
+                ? openLibraryOfflineMessage
+                : openLibraryBrowserMessage,
+      );
     } on FormatException {
       throw _invalidResponse;
     }
