@@ -93,7 +93,7 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   }
 
   @override
-  Widget build(BuildContext context) => SupporterBillingProvider(
+  Widget build(BuildContext context) => SupporterBillingProvider._(
         notifier: _billing,
         setEnabled: widget.createBilling == null ? null : _setEnabled,
         simulatedSupporterOwned: _simulatedSupporterOwned,
@@ -104,7 +104,7 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
 }
 
 class SupporterBillingProvider extends InheritedNotifier<SupporterBilling> {
-  const SupporterBillingProvider({
+  const SupporterBillingProvider._({
     required super.notifier,
     required this.setEnabled,
     required this.simulatedSupporterOwned,
