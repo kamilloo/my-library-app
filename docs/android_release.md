@@ -39,9 +39,9 @@ signed APK/AAB, installed upgrade path and device QA have been verified.
 ## Voluntary support release check
 
 - Check **Pomoc → Wesprzyj Moją Bibliotekę** in the release candidate for the
-  badge preview and the unavailable message. Release and profile builds have
-  no checkout even with `PLAY_SUPPORTER_BILLING_TEST=true`.
-- In an opted-in Android debug build, test the single non-consumable
+  badge preview and the unavailable message. Checkout and simulation are
+  disabled in release and profile builds even when their flags are set.
+- In an Android debug build with `PLAY_SUPPORTER_LICENSE_TEST=true`, test the single non-consumable
   `library_supporter_badge` with a Play license tester. Verify localized price,
   payment lifecycle, acknowledgment, restoration and refund with revocation.
   The badge appears to the left of **Pomoc** after confirmed ownership and

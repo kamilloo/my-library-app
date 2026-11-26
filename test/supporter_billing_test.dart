@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:my_library/screens/support_screen.dart';
@@ -34,6 +35,8 @@ class FakePlay implements SupporterStore {
   bool ownershipError = false;
   bool acknowledgmentError = false;
   bool launchSucceeds = true;
+  int availabilityChecks = 0;
+  int ownershipQueries = 0;
   int launches = 0;
   int acknowledgmentAttempts = 0;
   List<PurchaseDetails> purchases = [];
@@ -43,7 +46,10 @@ class FakePlay implements SupporterStore {
   Stream<List<PurchaseDetails>> get updates => events.stream;
 
   @override
-  Future<bool> isAvailable() async => available;
+  Future<bool> isAvailable() async {
+    availabilityChecks++;
+    return available;
+  }
 
   @override
   Future<ProductDetails?> product(String id) async {
@@ -61,6 +67,7 @@ class FakePlay implements SupporterStore {
 
   @override
   Future<List<PurchaseDetails>> ownedPurchases() async {
+    ownershipQueries++;
     if (ownershipError) throw StateError('store connection lost');
     return purchases;
   }
@@ -93,7 +100,8 @@ Widget testBillingApp(FakePlay store, Widget home) =>
     SupporterBillingScope.forApp(
       createBilling: () => SupporterBilling(store),
       debug: true,
-      testFlag: true,
+      testFlag: false,
+      licenseTestFlag: true,
       web: false,
       platform: TargetPlatform.android,
       child: MaterialApp(home: home),
@@ -155,6 +163,8 @@ void main() {
   for (final (name, debug, flag, web, platform) in [
     ('production or profile', false, true, false, TargetPlatform.android),
     ('Safari', true, true, true, TargetPlatform.iOS),
+    ('native iOS', true, true, false, TargetPlatform.iOS),
+    ('Android web', true, true, true, TargetPlatform.android),
     (
       'Android debug without the flag',
       true,
@@ -163,7 +173,7 @@ void main() {
       TargetPlatform.android
     ),
   ]) {
-    testWidgets('billing switch is absent in $name', (tester) async {
+    testWidgets('simulation switch is absent in $name', (tester) async {
       await tester.pumpWidget(SupporterBillingScope.forApp(
         createBilling: () => throw StateError('Billing initialized in $name'),
         debug: debug,
@@ -178,6 +188,167 @@ void main() {
       expect(find.text('Przywróć zakup'), findsNothing);
     });
   }
+
+  testWidgets(
+      'simulation updates both screens, stays local and resets on restart',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final play = FakePlay();
+    addTearDown(play.events.close);
+    var billingCreations = 0;
+    final dataCalls = <MethodCall>[];
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    for (final name in [
+      'my_library/backup',
+      'com.tekartik.sqflite',
+      'plugins.flutter.io/shared_preferences',
+    ]) {
+      final channel = MethodChannel(name);
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        dataCalls.add(call);
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    }
+    final revision = LibraryBackup.revision.value;
+    Widget app() => SupporterBillingScope.forApp(
+          debug: true,
+          testFlag: true,
+          licenseTestFlag: false,
+          web: false,
+          platform: TargetPlatform.android,
+          createBilling: () {
+            billingCreations++;
+            return SupporterBilling(play);
+          },
+          child: const MaterialApp(
+            home: Row(
+              children: [
+                Expanded(child: LoanHelpScreen()),
+                Expanded(child: SupportScreen()),
+              ],
+            ),
+          ),
+        );
+
+    final simulation =
+        find.widgetWithText(SwitchListTile, 'Symuluj zakup odznaki');
+    final badge = find.descendant(
+      of: find.widgetWithText(AppBar, 'Pomoc'),
+      matching: find.byType(SupporterBadgeImage),
+    );
+    final supportImage = find.descendant(
+      of: find.byType(SupportScreen),
+      matching: find.byType(Image),
+    );
+    final thanks =
+        find.text('Dziękuję za wsparcie rozwoju Mojej Biblioteki! ❤️');
+    final status = find.text('Symulacja zakupu — tylko do testów');
+    final unavailable =
+        find.text('Zakup odznaki jest niedostępny w tej wersji aplikacji.');
+
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(simulation).value, isFalse);
+    expect(testSwitch, findsNothing);
+    expect(badge, findsNothing);
+    expect(unavailable, findsOneWidget);
+
+    await tester.tap(simulation);
+    await tester.pump();
+    expect(badge, findsOneWidget);
+    expect(tester.getTopRight(badge).dx,
+        lessThan(tester.getTopLeft(find.text('Pomoc')).dx));
+    for (final finder in [
+      find.descendant(of: badge, matching: find.byType(Image)),
+      supportImage,
+    ]) {
+      expect((tester.widget<Image>(finder).image as AssetImage).assetName,
+          'assets/supporter/przyjaciel_biblioteki.png');
+    }
+    expect(thanks, findsOneWidget);
+    expect(status, findsOneWidget);
+    expect(unavailable, findsNothing);
+    expect(find.textContaining('Kup odznakę'), findsNothing);
+    expect(find.text('Przywróć zakup'), findsNothing);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    await tester.tap(simulation);
+    await tester.pump();
+    expect(badge, findsNothing);
+    expect(thanks, findsNothing);
+    expect(status, findsNothing);
+    expect(unavailable, findsOneWidget);
+
+    await tester.tap(simulation);
+    await tester.pump();
+    expect(badge, findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(app());
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(simulation).value, isFalse);
+    expect(badge, findsNothing);
+    expect(billingCreations, 0);
+    expect(play.events.hasListener, isFalse);
+    expect(play.availabilityChecks, 0);
+    expect(play.requestedIds, isEmpty);
+    expect(play.ownershipQueries, 0);
+    expect(play.launches, 0);
+    expect(play.acknowledgmentAttempts, 0);
+    expect(LibraryBackup.revision.value, revision);
+    expect(dataCalls, isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('simulation preserves both confirmed and unowned Play state',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 850));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final play = FakePlay();
+    addTearDown(play.events.close);
+    late SupporterBilling realBilling;
+    await tester.pumpWidget(SupporterBillingScope.forApp(
+      debug: true,
+      testFlag: true,
+      licenseTestFlag: true,
+      web: false,
+      platform: TargetPlatform.android,
+      createBilling: () => realBilling = SupporterBilling(play),
+      child: const MaterialApp(home: SupportScreen()),
+    ));
+    await tester.pumpAndSettle();
+    await toggleTesting(tester);
+    final simulation =
+        find.widgetWithText(SwitchListTile, 'Symuluj zakup odznaki');
+    final button = buyButton('Kup odznakę — 2,49 €');
+    for (final owned in [false, true]) {
+      if (owned) {
+        play.purchases = [
+          purchase(PurchaseStatus.purchased, needsAcknowledgment: false),
+        ];
+        await realBilling.refresh();
+        await tester.pumpAndSettle();
+      }
+      final queries = play.ownershipQueries;
+      expect(realBilling.owned, owned);
+      await tester.tap(simulation);
+      await tester.pumpAndSettle();
+      expect(button, findsNothing);
+      expect(realBilling.owned, owned);
+      await tester.tap(simulation);
+      await tester.pumpAndSettle();
+      expect(realBilling.owned, owned);
+      expect(button, owned ? findsNothing : findsOneWidget);
+      expect(play.ownershipQueries, queries);
+      expect(play.launches, 0);
+      expect(play.acknowledgmentAttempts, 0);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('switch starts OFF, initializes Play on demand and stops it',
       (tester) async {
@@ -512,7 +683,8 @@ void main() {
     late SupporterBilling billing;
     await tester.pumpWidget(SupporterBillingScope.forApp(
       debug: true,
-      testFlag: true,
+      testFlag: false,
+      licenseTestFlag: true,
       web: false,
       platform: TargetPlatform.android,
       createBilling: () => billing = SupporterBilling(play),

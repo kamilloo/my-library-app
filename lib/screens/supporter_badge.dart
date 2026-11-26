@@ -8,10 +8,12 @@ import '../services/supporter_billing.dart';
 class SupporterBillingScope extends StatefulWidget {
   const SupporterBillingScope._({
     required this.createBilling,
+    required this.canSimulate,
     required this.child,
   });
 
-  final SupporterBilling Function() createBilling;
+  final SupporterBilling Function()? createBilling;
+  final bool canSimulate;
   final Widget child;
 
   static Widget forApp({
@@ -19,26 +21,26 @@ class SupporterBillingScope extends StatefulWidget {
     required Widget child,
     bool debug = kDebugMode,
     bool testFlag = const bool.fromEnvironment('PLAY_SUPPORTER_BILLING_TEST'),
+    bool licenseTestFlag =
+        const bool.fromEnvironment('PLAY_SUPPORTER_LICENSE_TEST'),
     bool web = kIsWeb,
     TargetPlatform? platform,
-  }) =>
-      isSupporterBillingEnabled(
-        debug: debug,
-        testFlag: testFlag,
-        web: web,
-        platform: platform ?? defaultTargetPlatform,
-      )
-          ? SupporterBillingScope._(createBilling: createBilling, child: child)
-          : child;
-
-  static ({SupporterBilling? billing, ValueChanged<bool> setEnabled})? of(
-    BuildContext context,
-  ) {
-    final provider =
-        context.dependOnInheritedWidgetOfExactType<_BillingProvider>();
-    if (provider == null) return null;
-    return (billing: provider.notifier, setEnabled: provider.setEnabled);
+  }) {
+    final target = platform ?? defaultTargetPlatform;
+    final canSimulate = isSupporterBillingEnabled(
+        debug: debug, testFlag: testFlag, web: web, platform: target);
+    final canTestBilling = isSupporterBillingEnabled(
+        debug: debug, testFlag: licenseTestFlag, web: web, platform: target);
+    if (!canSimulate && !canTestBilling) return child;
+    return SupporterBillingScope._(
+      createBilling: canTestBilling ? createBilling : null,
+      canSimulate: canSimulate,
+      child: child,
+    );
   }
+
+  static SupporterBillingProvider? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<SupporterBillingProvider>();
 
   @override
   State<SupporterBillingScope> createState() => _SupporterBillingScopeState();
@@ -47,6 +49,12 @@ class SupporterBillingScope extends StatefulWidget {
 class _SupporterBillingScopeState extends State<SupporterBillingScope>
     with WidgetsBindingObserver {
   SupporterBilling? _billing;
+  bool _simulatedSupporterOwned = false;
+
+  void _setSimulatedSupporterOwned(bool enabled) {
+    if (!widget.canSimulate || enabled == _simulatedSupporterOwned) return;
+    setState(() => _simulatedSupporterOwned = enabled);
+  }
 
   @override
   void initState() {
@@ -55,11 +63,13 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   }
 
   void _setEnabled(bool enabled) {
+    final createBilling = widget.createBilling;
+    if (createBilling == null || _simulatedSupporterOwned) return;
     final billing = _billing;
     if (enabled == (billing != null)) return;
     if (billing != null && !billing.canStop) return;
 
-    final next = enabled ? widget.createBilling() : null;
+    final next = enabled ? createBilling() : null;
     billing?.dispose();
     setState(() => _billing = next);
     if (next != null) unawaited(next.refresh());
@@ -68,7 +78,9 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final billing = _billing;
-    if (state == AppLifecycleState.resumed && billing != null) {
+    if (state == AppLifecycleState.resumed &&
+        billing != null &&
+        !_simulatedSupporterOwned) {
       unawaited(billing.refresh());
     }
   }
@@ -81,21 +93,38 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   }
 
   @override
-  Widget build(BuildContext context) => _BillingProvider(
+  Widget build(BuildContext context) => SupporterBillingProvider._(
         notifier: _billing,
-        setEnabled: _setEnabled,
+        setEnabled: widget.createBilling == null ? null : _setEnabled,
+        simulatedSupporterOwned: _simulatedSupporterOwned,
+        setSimulatedSupporterOwned:
+            widget.canSimulate ? _setSimulatedSupporterOwned : null,
         child: widget.child,
       );
 }
 
-class _BillingProvider extends InheritedNotifier<SupporterBilling> {
-  const _BillingProvider({
+class SupporterBillingProvider extends InheritedNotifier<SupporterBilling> {
+  const SupporterBillingProvider._({
     required super.notifier,
     required this.setEnabled,
+    required this.simulatedSupporterOwned,
+    required this.setSimulatedSupporterOwned,
     required super.child,
   });
 
-  final ValueChanged<bool> setEnabled;
+  final ValueChanged<bool>? setEnabled;
+  final bool simulatedSupporterOwned;
+  final ValueChanged<bool>? setSimulatedSupporterOwned;
+
+  SupporterBilling? get billing => notifier;
+  bool get owned => simulatedSupporterOwned || billing?.owned == true;
+
+  @override
+  bool updateShouldNotify(SupporterBillingProvider oldWidget) =>
+      super.updateShouldNotify(oldWidget) ||
+      simulatedSupporterOwned != oldWidget.simulatedSupporterOwned ||
+      setEnabled != oldWidget.setEnabled ||
+      setSimulatedSupporterOwned != oldWidget.setSimulatedSupporterOwned;
 }
 
 class SupporterBadgeImage extends StatelessWidget {
@@ -115,6 +144,37 @@ class SupporterBadgeImage extends StatelessWidget {
       );
 }
 
+class SupporterThankYou extends StatelessWidget {
+  const SupporterThankYou({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      child: Card(
+        color: theme.colorScheme.primaryContainer,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Text('Przyjaciel Biblioteki',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge
+                      ?.copyWith(color: theme.colorScheme.onPrimaryContainer)),
+              const SizedBox(height: 8),
+              Text('Dziękuję za wsparcie rozwoju Mojej Biblioteki! ❤️',
+                  textAlign: TextAlign.center,
+                  style:
+                      TextStyle(color: theme.colorScheme.onPrimaryContainer)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SupporterBadge extends StatelessWidget {
   const SupporterBadge({super.key, required this.billing});
 
@@ -124,36 +184,13 @@ class SupporterBadge extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
         listenable: billing,
         builder: (context, _) {
-          final theme = Theme.of(context);
           final message = _message(billing.status);
           final price = billing.product?.price;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (billing.owned)
-                Semantics(
-                  container: true,
-                  child: Card(
-                    color: theme.colorScheme.primaryContainer,
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          Text('Przyjaciel Biblioteki',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                  color: theme.colorScheme.onPrimaryContainer)),
-                          const SizedBox(height: 8),
-                          Text(
-                              'Dziękuję za wsparcie rozwoju Mojej Biblioteki! ❤️',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                  color: theme.colorScheme.onPrimaryContainer)),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
+                const SupporterThankYou()
               else if (price != null)
                 FilledButton(
                   style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),

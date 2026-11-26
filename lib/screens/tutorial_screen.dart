@@ -83,8 +83,7 @@ class _HelpTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const title = Text('Pomoc');
-    final billing = SupporterBillingScope.of(context)?.billing;
-    if (billing?.owned != true) return title;
+    if (SupporterBillingScope.of(context)?.owned != true) return title;
     return const Row(
       mainAxisSize: MainAxisSize.min,
       children: [
