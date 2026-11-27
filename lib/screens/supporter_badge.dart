@@ -9,17 +9,20 @@ class SupporterBillingScope extends StatefulWidget {
   const SupporterBillingScope._({
     required this.createBilling,
     required this.canSimulate,
+    required this.production,
     required this.child,
   });
 
   final SupporterBilling Function()? createBilling;
   final bool canSimulate;
+  final bool production;
   final Widget child;
 
   static Widget forApp({
     required SupporterBilling Function() createBilling,
     required Widget child,
     bool debug = kDebugMode,
+    bool release = kReleaseMode,
     bool testFlag = const bool.fromEnvironment('PLAY_SUPPORTER_BILLING_TEST'),
     bool licenseTestFlag =
         const bool.fromEnvironment('PLAY_SUPPORTER_LICENSE_TEST'),
@@ -31,10 +34,12 @@ class SupporterBillingScope extends StatefulWidget {
         debug: debug, testFlag: testFlag, web: web, platform: target);
     final canTestBilling = isSupporterBillingEnabled(
         debug: debug, testFlag: licenseTestFlag, web: web, platform: target);
-    if (!canSimulate && !canTestBilling) return child;
+    final production = release && !web && target == TargetPlatform.android;
+    if (!production && !canSimulate && !canTestBilling) return child;
     return SupporterBillingScope._(
-      createBilling: canTestBilling ? createBilling : null,
-      canSimulate: canSimulate,
+      createBilling: production || canTestBilling ? createBilling : null,
+      canSimulate: !production && canSimulate,
+      production: production,
       child: child,
     );
   }
@@ -60,6 +65,10 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.production) {
+      final billing = _billing = widget.createBilling!();
+      unawaited(billing.refresh());
+    }
   }
 
   void _setEnabled(bool enabled) {
@@ -81,7 +90,7 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
     if (state == AppLifecycleState.resumed &&
         billing != null &&
         !_simulatedSupporterOwned) {
-      unawaited(billing.refresh());
+      unawaited(billing.refresh(afterResume: true));
     }
   }
 
@@ -95,7 +104,9 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   @override
   Widget build(BuildContext context) => SupporterBillingProvider._(
         notifier: _billing,
-        setEnabled: widget.createBilling == null ? null : _setEnabled,
+        setEnabled: widget.production || widget.createBilling == null
+            ? null
+            : _setEnabled,
         simulatedSupporterOwned: _simulatedSupporterOwned,
         setSimulatedSupporterOwned:
             widget.canSimulate ? _setSimulatedSupporterOwned : null,

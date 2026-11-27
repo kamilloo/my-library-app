@@ -97,13 +97,16 @@ class SupporterBilling extends ChangeNotifier {
       !_refreshing &&
       _status != SupporterStatus.verifying;
 
-  Future<void> refresh({bool manual = false}) {
+  Future<void> refresh({bool manual = false, bool afterResume = false}) {
     if (_disposed || _refreshing) return Future.value();
     _refreshing = true;
     if (manual) _status = SupporterStatus.restoring;
     notifyListeners();
     return _enqueue(() async {
       try {
+        // Play may return to the app without delivering a checkout callback.
+        // Re-query ownership and pending purchases before allowing another buy.
+        if (afterResume) _checkout = false;
         await _refresh(manual: manual);
       } finally {
         _refreshing = false;
@@ -181,8 +184,10 @@ class SupporterBilling extends ChangeNotifier {
   Future<void> _onUpdates(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
       final status = purchase.status;
+      // Play can omit the product on checkout errors. The badge is the only
+      // Play product, and its callback may arrive after resume reconciliation.
       final checkoutError = purchase.productID.isEmpty &&
-          _checkout &&
+          !_owned &&
           (status == PurchaseStatus.canceled || status == PurchaseStatus.error);
       if (purchase.productID != supporterProductId && !checkoutError) continue;
       final wasCheckingOut = _checkout;

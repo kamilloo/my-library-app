@@ -38,9 +38,15 @@ signed APK/AAB, installed upgrade path and device QA have been verified.
 
 ## Voluntary support release check
 
-- Check **Pomoc → Wesprzyj Moją Bibliotekę** in the release candidate for the
-  badge preview and the unavailable message. Checkout and simulation are
-  disabled in release and profile builds even when their flags are set.
+- Task 43 prepares **Pomoc → Wesprzyj Moją Bibliotekę** for real Play Billing
+  in signed Android release builds. The localized product and ownership load
+  automatically; no developer switch is displayed. The published version 17
+  remains billing-disabled until replaced by a separately approved release.
+  Flutter Web, iOS and profile builds do not enable Play checkout.
+- Before releasing real-money checkout, complete the internal-track device QA,
+  client-only verification risk acceptance or secure server verification, and
+  refund/restoration testing documented in
+  [Google Play setup and release gates](google_play_supporter_badge.md).
 - In an Android debug build with `PLAY_SUPPORTER_LICENSE_TEST=true`, test the single non-consumable
   `library_supporter_badge` with a Play license tester. Verify localized price,
   payment lifecycle, acknowledgment, restoration and refund with revocation.
