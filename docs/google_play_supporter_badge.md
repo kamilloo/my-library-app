@@ -158,9 +158,9 @@ ostrzeżenie R8/DEX oraz wykonaj test urządzenia fizycznego.
 
 ## Weryfikacja i warunki produkcji
 
-Klient testowy sprawdza aktualne zakupy Play po włączeniu testowania,
-po wznowieniu aplikacji z włączonym testowaniem, przy ręcznym przywróceniu
-i przed zakupem. Komunikat o zakupie wyzwala ponowne
+W Android release klient sprawdza aktualne zakupy Play przy uruchomieniu,
+po wznowieniu aplikacji, przy ręcznym przywróceniu i przed zakupem.
+W debug odczyt uruchamia się dopiero po włączeniu przełącznika testowego. Komunikat o zakupie wyzwala ponowne
 zapytanie, które sprawdza produkt, stan i zgodność tokenu. Odznaka jest
 przyznawana po potwierdzeniu przez Play i udanym zakończeniu transakcji, jeśli
 wymaga ona potwierdzenia. Tokeny i stan wyświetlania żyją w pamięci procesu.
