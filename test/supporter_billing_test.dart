@@ -189,6 +189,80 @@ void main() {
     });
   }
 
+  testWidgets('production Android starts billing without developer controls',
+      (tester) async {
+    final play = FakePlay();
+    addTearDown(play.events.close);
+    var created = 0;
+    await tester.pumpWidget(SupporterBillingScope.forApp(
+      createBilling: () {
+        created++;
+        return SupporterBilling(play);
+      },
+      debug: false,
+      release: true,
+      testFlag: true,
+      licenseTestFlag: true,
+      web: false,
+      platform: TargetPlatform.android,
+      child: const MaterialApp(home: SupportScreen()),
+    ));
+    await tester.pumpAndSettle();
+    expect(created, 1);
+    expect(find.text('Tryb deweloperski'), findsNothing);
+    expect(find.byType(SwitchListTile), findsNothing);
+    expect(play.requestedIds, [supporterProductId]);
+    expect(buyButton('Kup odznakę — 2,49 €'), findsOneWidget);
+    final provider = SupporterBillingScope.of(
+        tester.element(find.byType(SupportScreen)))!;
+    expect(provider.setEnabled, isNull);
+    expect(provider.setSimulatedSupporterOwned, isNull);
+    expect(provider.owned, isFalse);
+
+    play.purchases = [
+      purchase(PurchaseStatus.purchased, needsAcknowledgment: false)
+    ];
+    await provider.billing!.refresh();
+    await tester.pumpAndSettle();
+    expect(provider.owned, isTrue);
+    expect(find.text('Dziękuję za wsparcie rozwoju Mojej Biblioteki! ❤️'),
+        findsOneWidget);
+    expect(buyButton('Kup odznakę — 2,49 €'), findsNothing);
+
+    play.purchases = [];
+    await provider.billing!.refresh();
+    await tester.pumpAndSettle();
+    expect(provider.owned, isFalse);
+    expect(buyButton('Kup odznakę — 2,49 €'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('web and iOS release never initialize Play billing',
+      (tester) async {
+    for (final (web, platform) in [
+      (true, TargetPlatform.android),
+      (false, TargetPlatform.iOS),
+    ]) {
+      var created = 0;
+      await tester.pumpWidget(SupporterBillingScope.forApp(
+        createBilling: () {
+          created++;
+          throw StateError('Unexpected Play billing initialization');
+        },
+        debug: false,
+        release: true,
+        web: web,
+        platform: platform,
+        child: const MaterialApp(home: SupportScreen()),
+      ));
+      await tester.pumpAndSettle();
+      expect(created, 0);
+      expect(find.text('Tryb deweloperski'), findsNothing);
+      expect(find.byType(SwitchListTile), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
+  });
+
   testWidgets(
       'simulation updates both screens, stays local and resets on restart',
       (tester) async {
