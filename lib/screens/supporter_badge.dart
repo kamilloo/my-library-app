@@ -9,17 +9,20 @@ class SupporterBillingScope extends StatefulWidget {
   const SupporterBillingScope._({
     required this.createBilling,
     required this.canSimulate,
+    required this.productionBilling,
     required this.child,
   });
 
   final SupporterBilling Function()? createBilling;
   final bool canSimulate;
+  final bool productionBilling;
   final Widget child;
 
   static Widget forApp({
     required SupporterBilling Function() createBilling,
     required Widget child,
     bool debug = kDebugMode,
+    bool release = kReleaseMode,
     bool testFlag = const bool.fromEnvironment('PLAY_SUPPORTER_BILLING_TEST'),
     bool licenseTestFlag =
         const bool.fromEnvironment('PLAY_SUPPORTER_LICENSE_TEST'),
@@ -27,14 +30,19 @@ class SupporterBillingScope extends StatefulWidget {
     TargetPlatform? platform,
   }) {
     final target = platform ?? defaultTargetPlatform;
-    final canSimulate = isSupporterBillingEnabled(
+    // Only native Android release builds initialize the real store automatically.
+    // Developer simulation and license testing remain debug-only and opt-in.
+    final productionBilling =
+        release && !web && target == TargetPlatform.android;
+    final canSimulate = !productionBilling && isSupporterBillingEnabled(
         debug: debug, testFlag: testFlag, web: web, platform: target);
-    final canTestBilling = isSupporterBillingEnabled(
+    final canTestBilling = !productionBilling && isSupporterBillingEnabled(
         debug: debug, testFlag: licenseTestFlag, web: web, platform: target);
-    if (!canSimulate && !canTestBilling) return child;
+    if (!productionBilling && !canSimulate && !canTestBilling) return child;
     return SupporterBillingScope._(
-      createBilling: canTestBilling ? createBilling : null,
+      createBilling: productionBilling || canTestBilling ? createBilling : null,
       canSimulate: canSimulate,
+      productionBilling: productionBilling,
       child: child,
     );
   }
@@ -60,11 +68,17 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (widget.productionBilling) {
+      final billing = widget.createBilling!();
+      _billing = billing;
+      unawaited(billing.refresh());
+    }
   }
 
   void _setEnabled(bool enabled) {
     final createBilling = widget.createBilling;
-    if (createBilling == null || _simulatedSupporterOwned) return;
+    if (widget.productionBilling || createBilling == null ||
+        _simulatedSupporterOwned) return;
     final billing = _billing;
     if (enabled == (billing != null)) return;
     if (billing != null && !billing.canStop) return;
@@ -95,7 +109,9 @@ class _SupporterBillingScopeState extends State<SupporterBillingScope>
   @override
   Widget build(BuildContext context) => SupporterBillingProvider._(
         notifier: _billing,
-        setEnabled: widget.createBilling == null ? null : _setEnabled,
+        setEnabled: widget.productionBilling || widget.createBilling == null
+            ? null
+            : _setEnabled,
         simulatedSupporterOwned: _simulatedSupporterOwned,
         setSimulatedSupporterOwned:
             widget.canSimulate ? _setSimulatedSupporterOwned : null,
