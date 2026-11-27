@@ -1,10 +1,11 @@
 # Przyjaciel Biblioteki w Google Play
 
-**Stan wydania:** integracja klienta jest dostępna w Androidzie do testów
-licencyjnych. Kompilacje release i profile nie uruchamiają płatności, także przy
-podaniu flagi testowej. Właściciel projektu wykonuje wszystkie operacje w Play
-Console. Wydania bez aktywnej integracji pokazują podgląd odznaki bez przycisków
-zakupu i przywracania.
+**Stan wydania:** Task 43 przygotowuje rzeczywisty checkout Google Play w
+natywnej kompilacji Android **release**. Jest uruchamiany automatycznie, bez
+przełącznika deweloperskiego. Kompilacje profile pozostają bez płatności;
+symulacja i testy licencyjne są dostępne wyłącznie w debug po podaniu odpowiedniej
+flagi. Zmiana nie jest wdrożona do opublikowanej wersji 17; przed nowym
+wydaniem wymagane są przegląd bezpieczeństwa i testy fizyczne.
 
 Oficjalna grafika pochodzi z pliku właściciela `Przyjaciel Biblioteki Badge.png`.
 W aplikacji używamy [wersji 576 × 576](../assets/supporter/przyjaciel_biblioteki.png)
@@ -43,9 +44,9 @@ tytułu **Pomoc**. Jej zakup nie zmienia funkcji aplikacji ani danych biblioteki
    [Wersje wtyczki](https://pub.dev/packages/in_app_purchase_android/changelog),
    [terminy Play Billing](https://developer.android.com/google/play/billing/deprecation-faq).
 8. Użyj wewnętrznej ścieżki testów, aby sprawdzić podpis, instalację z Play i
-   dostępność dystrybucji. Bieżący AAB release nie zawiera aktywnego checkoutu.
-   Test ścieżki zakupowej w AAB wymaga docelowej weryfikacji i kontrolowanego
-   włączenia w wydaniu wewnętrznym.
+   dostępność dystrybucji. Po zbudowaniu kodu Task 43 nowy AAB release zawiera
+   checkout — **nie kieruj takiego AAB do produkcji** przed ukończeniem listy
+   testów i oceną ryzyka integracji wyłącznie klienckiej.
 9. Dodaj konta do testowania licencji i listy dostępu do ścieżki wewnętrznej,
    jeśli z niej korzystasz. Na fizycznym urządzeniu zaloguj właściwe konto w
    Google Play. Nie używaj zwykłych metod płatności w testach.
@@ -126,6 +127,35 @@ Dodatkowe scenariusze:
   fizycznym iPhonie potwierdź dotychczasowe otwarcie BuyCoffee w Safari.
   Kupienie odznaki i dobrowolna wpłata przez BuyCoffee są niezależne.
 
+
+## Task 43: ryzyko weryfikacji wyłącznie w aplikacji
+
+**Uwaga przed publikacją płatności za prawdziwe pieniądze:** aktualna
+integracja nie wywołuje Google Play Developer API przez zaufany serwer.
+Sprawdza zakup odczytany przez Play Billing na urządzeniu, identyfikator
+produktu, stan PURCHASED/RESTORED, niepusty token i zgodność tokenu z
+powiadomieniem. To **nie jest kryptograficzna ani serwerowa weryfikacja tokenu**.
+Na zmodyfikowanym urządzeniu odpowiedzi klienta mogą zostać sfałszowane.
+Nie należy opisywać tego jako w pełni bezpiecznego rozwiązania antyfraudowego.
+
+Przed wejściem na produkcję właściciel powinien świadomie zaakceptować to
+ograniczenie lub wdrożyć weryfikację serwerową, idempotencję tokenów i
+obsługę zwrotów przez Google Play Developer API i RTDN. Klucz usługi Google
+nigdy nie może znaleźć się w aplikacji. Błąd komunikacji nie dowodzi zwrotu,
+a brak potwierdzenia transakcji może zakończyć się automatycznym zwrotem.
+
+**Weryfikacja wydania wewnętrznego:** sprawdź nowy AAB instalowany z Play
+(numer wersji wyższy niż 17), pobraną cenę w PLN, pierwszą płatność testową,
+stan pending, anulowanie, błąd, odzyskanie zakupu po restarcie i instalacji
+na innym urządzeniu, blokadę ponownego zakupu, acknowledge, zwrot i
+revocation oraz brak kontrolek deweloperskich. Sprawdź równolegle skanowanie,
+Open Library, okładki, bazę SQLite, przypomnienia, wypożyczenia i .mlbak.
+Wydanie podpisz kluczem upload i zweryfikuj podpis. Odrębnie rozwiąż
+ostrzeżenie R8/DEX oraz wykonaj test urządzenia fizycznego.
+
+[Rekomendacje bezpieczeństwa Google](https://developer.android.com/google/play/billing/security) ·
+[Cykl życia zakupów](https://developer.android.com/google/play/billing/lifecycle/one-time)
+
 ## Weryfikacja i warunki produkcji
 
 Klient testowy sprawdza aktualne zakupy Play po włączeniu testowania,
@@ -162,7 +192,8 @@ wymaga osobnego zatwierdzenia.
 
 Przed włączeniem checkoutu w wydaniu produkcyjnym:
 
-- [ ] Zatwierdź, zaimplementuj i przetestuj weryfikację serwerową.
+- [ ] Zatwierdź i przetestuj weryfikację serwerową lub jawnie zaakceptuj
+      ograniczenia modelu wyłącznie klienckiego przed dopuszczeniem realnych płatności.
 - [ ] Skonfiguruj profil płatności, produkt, opcję zakupu, ceny i regiony.
 - [ ] Potwierdź wersję Billing Library, podpis, scalony manifest i dystrybucję
       w ścieżce wewnętrznej.
