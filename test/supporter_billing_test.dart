@@ -114,15 +114,26 @@ Future<void> toggleTesting(WidgetTester tester) async {
 }
 
 Future<FakePlay> mountSupport(WidgetTester tester, Widget screen,
-    {bool available = true, bool enable = true}) async {
+    {bool available = true, bool enable = true, bool release = false}) async {
   final store = FakePlay()..available = available;
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     await store.events.close();
   });
-  await tester.pumpWidget(testBillingApp(store, screen));
+  await tester.pumpWidget(release
+      ? SupporterBillingScope.forApp(
+          createBilling: () => SupporterBilling(store),
+          release: true,
+          debug: false,
+          testFlag: true,
+          licenseTestFlag: true,
+          web: false,
+          platform: TargetPlatform.android,
+          child: MaterialApp(home: screen),
+        )
+      : testBillingApp(store, screen));
   await tester.pumpAndSettle();
-  if (enable) await toggleTesting(tester);
+  if (!release && enable) await toggleTesting(tester);
   return store;
 }
 
@@ -161,7 +172,7 @@ void main() {
   });
 
   for (final (name, debug, flag, web, platform) in [
-    ('production or profile', false, true, false, TargetPlatform.android),
+    ('profile', false, true, false, TargetPlatform.android),
     ('Safari', true, true, true, TargetPlatform.iOS),
     ('native iOS', true, true, false, TargetPlatform.iOS),
     ('Android web', true, true, true, TargetPlatform.android),
@@ -177,7 +188,9 @@ void main() {
       await tester.pumpWidget(SupporterBillingScope.forApp(
         createBilling: () => throw StateError('Billing initialized in $name'),
         debug: debug,
+        release: web || platform == TargetPlatform.iOS,
         testFlag: flag,
+        licenseTestFlag: flag,
         web: web,
         platform: platform,
         child: MaterialApp(home: SupportScreen(loadAction: () async => () {})),
@@ -188,80 +201,6 @@ void main() {
       expect(find.text('Przywróć zakup'), findsNothing);
     });
   }
-
-  testWidgets('production Android starts billing without developer controls',
-      (tester) async {
-    final play = FakePlay();
-    addTearDown(play.events.close);
-    var created = 0;
-    await tester.pumpWidget(SupporterBillingScope.forApp(
-      createBilling: () {
-        created++;
-        return SupporterBilling(play);
-      },
-      debug: false,
-      release: true,
-      testFlag: true,
-      licenseTestFlag: true,
-      web: false,
-      platform: TargetPlatform.android,
-      child: const MaterialApp(home: SupportScreen()),
-    ));
-    await tester.pumpAndSettle();
-    expect(created, 1);
-    expect(find.text('Tryb deweloperski'), findsNothing);
-    expect(find.byType(SwitchListTile), findsNothing);
-    expect(play.requestedIds, [supporterProductId]);
-    expect(buyButton('Kup odznakę — 2,49 €'), findsOneWidget);
-    final provider = SupporterBillingScope.of(
-        tester.element(find.byType(SupportScreen)))!;
-    expect(provider.setEnabled, isNull);
-    expect(provider.setSimulatedSupporterOwned, isNull);
-    expect(provider.owned, isFalse);
-
-    play.purchases = [
-      purchase(PurchaseStatus.purchased, needsAcknowledgment: false)
-    ];
-    await provider.billing!.refresh();
-    await tester.pumpAndSettle();
-    expect(provider.owned, isTrue);
-    expect(find.text('Dziękuję za wsparcie rozwoju Mojej Biblioteki! ❤️'),
-        findsOneWidget);
-    expect(buyButton('Kup odznakę — 2,49 €'), findsNothing);
-
-    play.purchases = [];
-    await provider.billing!.refresh();
-    await tester.pumpAndSettle();
-    expect(provider.owned, isFalse);
-    expect(buyButton('Kup odznakę — 2,49 €'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
-
-  testWidgets('web and iOS release never initialize Play billing',
-      (tester) async {
-    for (final (web, platform) in [
-      (true, TargetPlatform.android),
-      (false, TargetPlatform.iOS),
-    ]) {
-      var created = 0;
-      await tester.pumpWidget(SupporterBillingScope.forApp(
-        createBilling: () {
-          created++;
-          throw StateError('Unexpected Play billing initialization');
-        },
-        debug: false,
-        release: true,
-        web: web,
-        platform: platform,
-        child: const MaterialApp(home: SupportScreen()),
-      ));
-      await tester.pumpAndSettle();
-      expect(created, 0);
-      expect(find.text('Tryb deweloperski'), findsNothing);
-      expect(find.byType(SwitchListTile), findsNothing);
-      await tester.pumpWidget(const SizedBox.shrink());
-    }
-  });
 
   testWidgets(
       'simulation updates both screens, stays local and resets on restart',
@@ -690,10 +629,12 @@ void main() {
     expect(billing.owned, isTrue);
   });
 
-  testWidgets('Help opens support during a store outage and remains navigable',
+  testWidgets('production Help remains navigable during a Play outage',
       (tester) async {
-    await mountSupport(tester, const LoanHelpScreen(),
-        available: false, enable: false);
+    final play = await mountSupport(tester, const LoanHelpScreen(),
+        available: false, release: true);
+    expect(play.availabilityChecks, 1);
+    expect(play.requestedIds, isEmpty);
     final supportButton =
         find.widgetWithText(OutlinedButton, supportScreenTitle);
     expect(
@@ -702,7 +643,7 @@ void main() {
         findsOneWidget);
     await tester.tap(supportButton);
     await tester.pumpAndSettle();
-    await toggleTesting(tester);
+    expect(find.byType(SwitchListTile), findsNothing);
     expect(find.text('Google Play jest teraz niedostępny.'), findsOneWidget);
     expect(find.byType(FilledButton), findsNothing);
     expect(find.text('Przyjaciel Biblioteki'), findsNothing);
@@ -715,7 +656,12 @@ void main() {
   testWidgets(
       'Polish checkout, pending and restore UI uses Play price and confirms ownership',
       (tester) async {
-    final play = await mountSupport(tester, const SupportScreen());
+    final play =
+        await mountSupport(tester, const SupportScreen(), release: true);
+    expect(play.availabilityChecks, 1);
+    expect(play.requestedIds, [supporterProductId]);
+    expect(find.byType(SwitchListTile), findsNothing);
+    expect(find.text('Tryb deweloperski'), findsNothing);
     final button = buyButton('Kup odznakę — 2,49 €');
     const thanks = 'Dziękuję za wsparcie rozwoju Mojej Biblioteki! ❤️';
     expect(find.text(thanks), findsNothing);
@@ -744,6 +690,14 @@ void main() {
     expect(find.text('Zakup został przywrócony.'), findsOneWidget);
     expect(find.text(thanks), findsOneWidget);
     expect(button, findsNothing);
+
+    // A refunded and revoked order stops appearing in the Play snapshot.
+    play.purchases = [];
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.text(thanks), findsNothing);
+    expect(button, findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -832,6 +786,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(badge, findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  test('interrupted checkout can retry after resume confirms no purchase',
+      () async {
+    await billing.refresh();
+    await billing.buy();
+    expect(billing.status, SupporterStatus.checkout);
+    await billing.refresh(afterResume: true);
+    expect(billing.owned, isFalse);
+    expect(billing.canBuy, isTrue);
+    store.events.add([purchase(PurchaseStatus.canceled, id: '', token: '')]);
+    await flushEvents();
+    expect(billing.status, SupporterStatus.canceled);
+    await billing.buy();
+    expect(store.launches, 2);
   });
 
   testWidgets('application resume recovers an update the stream missed',

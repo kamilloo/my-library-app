@@ -20,10 +20,10 @@ class _SupportScreenState extends State<SupportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final developerMode = SupporterBillingScope.of(context);
-    final billing = developerMode?.billing;
-    final simulated = developerMode?.simulatedSupporterOwned ?? false;
-    final isAndroid = developerMode != null ||
+    final supporter = SupporterBillingScope.of(context);
+    final billing = supporter?.billing;
+    final simulated = supporter?.simulatedSupporterOwned ?? false;
+    final isAndroid = supporter != null ||
         (!kIsWeb && defaultTargetPlatform == TargetPlatform.android);
     return Scaffold(
       appBar: AppBar(title: const Text(supportScreenTitle)),
@@ -65,8 +65,9 @@ class _SupportScreenState extends State<SupportScreen> {
                   'Zakup jest dobrowolny. Wszystkie funkcje aplikacji pozostają bezpłatne.',
                 ),
               const SizedBox(height: 16),
-              if (developerMode?.setEnabled != null ||
-                  developerMode?.setSimulatedSupporterOwned != null) ...[
+              if (supporter != null &&
+                  (supporter.setEnabled != null ||
+                      supporter.setSimulatedSupporterOwned != null)) ...[
                 Semantics(
                   header: true,
                   child: Text(
@@ -74,7 +75,7 @@ class _SupportScreenState extends State<SupportScreen> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
-                if (developerMode.setSimulatedSupporterOwned != null)
+                if (supporter.setSimulatedSupporterOwned != null)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Symuluj zakup odznaki'),
@@ -82,9 +83,9 @@ class _SupportScreenState extends State<SupportScreen> {
                       'Włącz, aby zobaczyć odznakę Przyjaciel Biblioteki tak, jak po udanym zakupie. Nie jest wykonywana żadna płatność.',
                     ),
                     value: simulated,
-                    onChanged: developerMode.setSimulatedSupporterOwned,
+                    onChanged: supporter.setSimulatedSupporterOwned,
                   ),
-                if (developerMode.setEnabled != null && !simulated)
+                if (supporter.setEnabled != null && !simulated)
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Testowanie zakupów Google Play'),
@@ -93,7 +94,7 @@ class _SupportScreenState extends State<SupportScreen> {
                     ),
                     value: billing != null,
                     onChanged: billing == null || billing.canStop
-                        ? developerMode.setEnabled
+                        ? supporter.setEnabled
                         : null,
                   ),
               ],

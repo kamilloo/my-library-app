@@ -1,11 +1,10 @@
 # Przyjaciel Biblioteki w Google Play
 
-**Stan wydania:** Task 43 przygotowuje rzeczywisty checkout Google Play w
-natywnej kompilacji Android **release**. Jest uruchamiany automatycznie, bez
-przełącznika deweloperskiego. Kompilacje profile pozostają bez płatności;
-symulacja i testy licencyjne są dostępne wyłącznie w debug po podaniu odpowiedniej
-flagi. Zmiana nie jest wdrożona do opublikowanej wersji 17; przed nowym
-wydaniem wymagane są przegląd bezpieczeństwa i testy fizyczne.
+**Kandydat do wydania:** natywna kompilacja Android release inicjuje Google Play
+Billing automatycznie, bez flag i przełączników. Obie flagi testowe działają
+wyłącznie w natywnym Android debug. Android profile pokazuje podgląd odznaki.
+Flutter Web i natywny iOS nie inicjują Google Play Billing. Właściciel projektu
+wykonuje operacje w Play Console.
 
 Oficjalna grafika pochodzi z pliku właściciela `Przyjaciel Biblioteki Badge.png`.
 W aplikacji używamy [wersji 576 × 576](../assets/supporter/przyjaciel_biblioteki.png)
@@ -44,9 +43,7 @@ tytułu **Pomoc**. Jej zakup nie zmienia funkcji aplikacji ani danych biblioteki
    [Wersje wtyczki](https://pub.dev/packages/in_app_purchase_android/changelog),
    [terminy Play Billing](https://developer.android.com/google/play/billing/deprecation-faq).
 8. Użyj wewnętrznej ścieżki testów, aby sprawdzić podpis, instalację z Play i
-   dostępność dystrybucji. Po zbudowaniu kodu Task 43 nowy AAB release zawiera
-   checkout — **nie kieruj takiego AAB do produkcji** przed ukończeniem listy
-   testów i oceną ryzyka integracji wyłącznie klienckiej.
+   dostępność produktu w podpisanym wydaniu release bez flag testowych.
 9. Dodaj konta do testowania licencji i listy dostępu do ścieżki wewnętrznej,
    jeśli z niej korzystasz. Na fizycznym urządzeniu zaloguj właściwe konto w
    Google Play. Nie używaj zwykłych metod płatności w testach.
@@ -84,8 +81,8 @@ wyłącznie w natywnej kompilacji Android debug z powyższą flagą.
 
 ## Testy licencyjne na fizycznym urządzeniu
 
-**BLOCKED** — wszystkie kroki poniżej wymagają fizycznego urządzenia
-z kontem testera licencji. Testy z atrapą sklepu nie wykonują płatności.
+Poniższe kroki dotyczą podpisu debug. Task 43 wymaga dodatkowo osobnego
+sprawdzenia podpisanego AAB z wewnętrznej ścieżki Play.
 
 Zbuduj i zainstaluj debug APK o zgodnym identyfikatorze pakietu. Konto testera
 licencji może testować podpis debug bez przesyłania tej kompilacji do sklepu.
@@ -127,54 +124,36 @@ Dodatkowe scenariusze:
   fizycznym iPhonie potwierdź dotychczasowe otwarcie BuyCoffee w Safari.
   Kupienie odznaki i dobrowolna wpłata przez BuyCoffee są niezależne.
 
-
-## Task 43: ryzyko weryfikacji wyłącznie w aplikacji
-
-**Uwaga przed publikacją płatności za prawdziwe pieniądze:** aktualna
-integracja nie wywołuje Google Play Developer API przez zaufany serwer.
-Sprawdza zakup odczytany przez Play Billing na urządzeniu, identyfikator
-produktu, stan PURCHASED/RESTORED, niepusty token i zgodność tokenu z
-powiadomieniem. To **nie jest kryptograficzna ani serwerowa weryfikacja tokenu**.
-Na zmodyfikowanym urządzeniu odpowiedzi klienta mogą zostać sfałszowane.
-Nie należy opisywać tego jako w pełni bezpiecznego rozwiązania antyfraudowego.
-
-Przed wejściem na produkcję właściciel powinien świadomie zaakceptować to
-ograniczenie lub wdrożyć weryfikację serwerową, idempotencję tokenów i
-obsługę zwrotów przez Google Play Developer API i RTDN. Klucz usługi Google
-nigdy nie może znaleźć się w aplikacji. Błąd komunikacji nie dowodzi zwrotu,
-a brak potwierdzenia transakcji może zakończyć się automatycznym zwrotem.
-
-**Weryfikacja wydania wewnętrznego:** sprawdź nowy AAB instalowany z Play
-(numer wersji wyższy niż 17), pobraną cenę w PLN, pierwszą płatność testową,
-stan pending, anulowanie, błąd, odzyskanie zakupu po restarcie i instalacji
-na innym urządzeniu, blokadę ponownego zakupu, acknowledge, zwrot i
-revocation oraz brak kontrolek deweloperskich. Sprawdź równolegle skanowanie,
-Open Library, okładki, bazę SQLite, przypomnienia, wypożyczenia i .mlbak.
-Wydanie podpisz kluczem upload i zweryfikuj podpis. Odrębnie rozwiąż
-ostrzeżenie R8/DEX oraz wykonaj test urządzenia fizycznego.
-
-[Rekomendacje bezpieczeństwa Google](https://developer.android.com/google/play/billing/security) ·
-[Cykl życia zakupów](https://developer.android.com/google/play/billing/lifecycle/one-time)
-
 ## Weryfikacja i warunki produkcji
 
-W Android release klient sprawdza aktualne zakupy Play przy uruchomieniu,
-po wznowieniu aplikacji, przy ręcznym przywróceniu i przed zakupem.
-W debug odczyt uruchamia się dopiero po włączeniu przełącznika testowego. Komunikat o zakupie wyzwala ponowne
+Klient sprawdza aktualne zakupy Play przy starcie Android release (w debug
+po włączeniu testowania), przy wznowieniu, przy ręcznym przywróceniu i przed
+zakupem. Przy wznowieniu ponownie odpytuje Play również wtedy, gdy okno zakupu
+zamknięto bez dostarczenia zdarzenia. Komunikat o zakupie wyzwala ponowne
 zapytanie, które sprawdza produkt, stan i zgodność tokenu. Odznaka jest
 przyznawana po potwierdzeniu przez Play i udanym zakończeniu transakcji, jeśli
 wymaga ona potwierdzenia. Tokeny i stan wyświetlania żyją w pamięci procesu.
 Po zimnym starcie bez połączenia odznaka pojawi się dopiero po potwierdzeniu
 własności przez Play. Dane biblioteki i archiwum nie uczestniczą w tym procesie.
 
-Odpowiedzi klienta można zmodyfikować na zmodyfikowanym urządzeniu. Sklep może
-zwrócić dane z opóźnieniem. Zmiana konta lub cofnięcie dostępu pojawią się po
-udanej synchronizacji własności przez Play. Integracja klienta nie obejmuje
-powiadomień o cofnięciu dostępu. Błąd zapytania nie jest podstawą do usunięcia
-odznaki. [Cykl życia zakupu](https://developer.android.com/google/play/billing/integrate).
+Kandydat zachowuje weryfikację po stronie klienta dla odznaki bez uprawnień
+do funkcji. Zakup oczekujący, anulowany, błędny lub niepotwierdzony nie przyznaje
+odznaki. Gdy potwierdzenie transakcji się nie powiedzie, klient ponawia próbę
+przy następnym odczycie zakupów, np. po wznowieniu lub przywróceniu. Play
+automatycznie zwraca niepotwierdzone zakupy po trzech dniach od zakończenia
+płatności. [Cykl życia zakupu](https://developer.android.com/google/play/billing/integrate).
 
-Task 36 nie wprowadza backendu. Poniższy projekt integracji serwerowej
-wymaga osobnego zatwierdzenia.
+Weryfikację klienta można obejść przez modyfikację aplikacji lub jej środowiska.
+Brakuje serwerowego rejestru tokenów, ochrony przed ich ponownym użyciem oraz
+RTDN i Voided Purchases API. Odznaka znika po udanym odczycie, w którym Play
+przestanie zwracać zakup po zwrocie z cofnięciem uprawnień. Sam zwrot bez
+cofnięcia uprawnień zależy od tego, czy Play nadal zwraca zakup. Propagacja
+może być opóźniona, a błąd odczytu zachowuje wcześniej potwierdzony stan w tej
+samej sesji. Google zaleca weryfikację i potwierdzanie na zaufanym backendzie
+oraz obsługę unieważnionych zamówień przed publicznym wdrożeniem.
+[Bezpieczeństwo zakupów](https://developer.android.com/google/play/billing/security).
+
+Docelowa integracja serwerowa:
 
 - Własny endpoint HTTPS przyjmuje token i ogranicza nadużycia. Backend używa
   tożsamości serwisowej z minimalnymi uprawnieniami, a pakiet pochodzi z jego
@@ -190,17 +169,37 @@ wymaga osobnego zatwierdzenia.
   [API weryfikacji zakupu](https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.productsv2/getproductpurchasev2),
   [bezpieczeństwo zakupów](https://developer.android.com/google/play/billing/security).
 
-Przed włączeniem checkoutu w wydaniu produkcyjnym:
+## Weryfikacja kandydata przed publikacją
 
-- [ ] Zatwierdź i przetestuj weryfikację serwerową lub jawnie zaakceptuj
-      ograniczenia modelu wyłącznie klienckiego przed dopuszczeniem realnych płatności.
+Zbuduj podpisany AAB: `flutter build appbundle --release --no-pub --build-number=18`.
+Użyj numeru wyższego niż wszystkie użyte w Play Console. Właściciel sam przesyła
+AAB do testów wewnętrznych i udostępnia go wyłącznie testerom licencyjnym.
+Na fizycznym urządzeniu zainstaluj kompilację przez Play. Potwierdź komunikat
+o płatności testowej przed zatwierdzeniem zakupu.
+
+Lokalny kandydat Task 43, `1.0.0+18`, został zbudowany bez flag
+testowych i zweryfikowany przez `jarsigner`. JBR 25 zgłosił certyfikat
+samopodpisany, brak znacznika czasu i różnice w odczycie wpisów przez
+`JarFile` i `JarInputStream`. Porównanie certyfikatu z kluczem upload
+w Play Console i instalacja z wewnętrznej ścieżki pozostają do wykonania.
+Flutter: 457 testów przeszło, analiza bez uwag.
+
+Lista kontrolna Play Console i urządzenia:
+
+- [ ] Przed publicznym wdrożeniem zweryfikuj integrację serwerową lub uzyskaj
+      decyzję właściciela o akceptacji opisanych ograniczeń dla odznaki.
 - [ ] Skonfiguruj profil płatności, produkt, opcję zakupu, ceny i regiony.
 - [ ] Potwierdź wersję Billing Library, podpis, scalony manifest i dystrybucję
       w ścieżce wewnętrznej.
-- [ ] Zapisz wyniki testów fizycznych, w tym przywrócenie, zwrot i zmianę konta.
+- [ ] Sprawdź lokalną cenę, brak trybu deweloperskiego, podziękowanie oraz
+      odznakę przy **Pomoc** na ekranach **Moje książki**, **Historia** i **Pożyczone**.
+- [ ] Sprawdź przerwany checkout, anulowanie, odrzucenie, płatność oczekującą,
+      potwierdzenie transakcji, przywrócenie po reinstalacji i na drugim urządzeniu,
+      zmianę konta oraz zwrot z cofnięciem uprawnień. Zapisz wyniki.
 - [ ] Zaktualizuj politykę prywatności i deklaracje Data safety pod kątem stanu
       zakupu, odbiorców danych, ich przechowywania i retencji. Sprawdź opis
       zakupu i informacje o cenie.
 - [ ] Sprawdź brak BuyCoffee w Androidzie i brak Google Play Billing w Safari.
-- [ ] Uzyskaj osobną zgodę właściciela na zmianę blokady produkcyjnej po
-      spełnieniu warunków i przed udostępnieniem płatności.
+- [ ] Uzyskaj osobną zgodę właściciela na udostępnienie płatności po
+      zakończeniu testów. Jeśli dojdzie optymalizacja R8, powtórz test na
+      podpisanej kompilacji z docelową konfiguracją R8.

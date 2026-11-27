@@ -131,9 +131,10 @@ void main() {
       final tabs = [for (final screen in screens.values) screen(repo)];
       var selected = 0;
       await tester.pumpWidget(SupporterBillingScope.forApp(
-        debug: true,
-        testFlag: true,
-        licenseTestFlag: true,
+        debug: !confirmedPurchase,
+        release: confirmedPurchase,
+        testFlag: !confirmedPurchase,
+        licenseTestFlag: false,
         web: false,
         platform: TargetPlatform.android,
         createBilling: () {
@@ -205,16 +206,18 @@ void main() {
       await checkTabs(false);
       if (confirmedPurchase) {
         play.purchases = [
-          purchase(PurchaseStatus.purchased, needsAcknowledgment: false),
+          purchase(PurchaseStatus.purchased),
         ];
-        scope().setEnabled!(true);
+        expect(scope().setEnabled, isNull);
+        expect(scope().setSimulatedSupporterOwned, isNull);
+        play.events.add(play.purchases);
         await tester.pumpAndSettle();
         expect(scope().billing?.owned, isTrue);
         await checkTabs(true);
       }
 
       final queries = play.ownershipQueries;
-      scope().setSimulatedSupporterOwned!(true);
+      scope().setSimulatedSupporterOwned?.call(true);
       await tester.pump();
       expect(badge, findsOneWidget);
       await checkTabs(true);
@@ -224,17 +227,17 @@ void main() {
       tester.state<NavigatorState>(find.byType(Navigator)).pop();
       await tester.pumpAndSettle();
 
-      scope().setSimulatedSupporterOwned!(false);
+      scope().setSimulatedSupporterOwned?.call(false);
       await tester.pump();
       expect(badge, confirmedPurchase ? findsOneWidget : findsNothing);
       await checkTabs(confirmedPurchase);
       expect(billingCreations, confirmedPurchase ? 1 : 0);
       expect(play.availabilityChecks, confirmedPurchase ? 1 : 0);
       expect(play.requestedIds, confirmedPurchase ? [supporterProductId] : []);
-      expect(queries, confirmedPurchase ? 1 : 0);
+      expect(queries, confirmedPurchase ? 2 : 0);
       expect(play.ownershipQueries, queries);
       expect(play.launches, 0);
-      expect(play.acknowledgmentAttempts, 0);
+      expect(play.acknowledgmentAttempts, confirmedPurchase ? 1 : 0);
       await tester.pumpWidget(const SizedBox.shrink());
     });
   }
