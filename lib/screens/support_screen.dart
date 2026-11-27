@@ -65,7 +65,8 @@ class _SupportScreenState extends State<SupportScreen> {
                   'Zakup jest dobrowolny. Wszystkie funkcje aplikacji pozostają bezpłatne.',
                 ),
               const SizedBox(height: 16),
-              if (developerMode != null) ...[
+              if (developerMode?.setEnabled != null ||
+                  developerMode?.setSimulatedSupporterOwned != null) ...[
                 Semantics(
                   header: true,
                   child: Text(
